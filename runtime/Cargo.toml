@@ -16,6 +16,12 @@ std = [
     'timestamp/std',
     'sudo/std',
     'version/std',
+    'session/std',
+    'staking/std',
+    'democracy/std',
+    'council/std',
+    'treasury/std',
+    'contract/std',
     'serde',
     'safe-mix/std',
     'consensus-aura/std',
@@ -147,4 +153,40 @@ rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sr-version'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.session]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-session'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.staking]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-staking'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.democracy]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-democracy'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.council]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-council'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.treasury]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-treasury'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.contract]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-contract'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
