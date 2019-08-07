@@ -1,0 +1,21 @@
+[lib]
+crate-type = ['cdylib']
+
+[features]
+default = []
+std = ['akropolisos-substrate-node-runtime/std']
+
+[workspace]
+members = []
+[profile.release]
+lto = true
+panic = 'abort'
+
+[package]
+authors = ['Parity Technologies <admin@parity.io>']
+edition = '2018'
+name = 'akropolisos-substrate-node-runtime-wasm'
+version = '1.0.0'
+[dependencies.akropolisos-substrate-node-runtime]
+default-features = false
+path = '..'
