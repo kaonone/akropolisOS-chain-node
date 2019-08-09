@@ -12,9 +12,11 @@ use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
 use primitives::{ed25519, sr25519, OpaqueMetadata};
+use primitives::u32_trait::{_2, _4};
+use council::{motions as council_motions, voting as council_voting};
 use runtime_primitives::{
 	ApplyResult, transaction_validity::TransactionValidity, generic, create_runtime_str,
-	traits::{self, NumberFor, BlakeTwo256, Block as BlockT, StaticLookup, Verify}
+	traits::{self, NumberFor, BlakeTwo256, Block as BlockT, Convert, StaticLookup, Verify}
 };
 use client::{
 	block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
@@ -33,6 +35,7 @@ pub use balances::Call as BalancesCall;
 pub use runtime_primitives::{Permill, Perbill};
 pub use timestamp::BlockPeriod;
 pub use support::{StorageValue, construct_runtime};
+pub use contract::Schedule;
 
 /// The type that is used for identifying authorities.
 pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
@@ -187,6 +190,77 @@ impl sudo::Trait for Runtime {
 	type Proposal = Call;
 }
 
+impl session::Trait for Runtime {
+    type ConvertAccountIdToSessionKey = ();
+    type OnSessionChange = Staking;
+    type Event = Event;
+}
+
+pub struct CurrencyToVoteHandler;
+
+impl CurrencyToVoteHandler {
+    fn factor() -> u128 { (Balances::total_issuance() / u64::max_value() as u128).max(1) }
+}
+
+impl Convert<u128, u64> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u64 { (x / Self::factor()) as u64 }
+}
+
+impl Convert<u128, u128> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u128 { x * Self::factor() }
+}
+
+impl staking::Trait for Runtime {
+    type Currency = balances::Module<Self>;
+    type CurrencyToVote = CurrencyToVoteHandler;
+    type OnRewardMinted = Treasury;
+    type Event = Event;
+    type Slash = ();
+    type Reward = ();
+}
+
+impl democracy::Trait for Runtime {
+    type Currency = balances::Module<Self>;
+    type Proposal = Call;
+    type Event = Event;
+}
+
+impl council::Trait for Runtime {
+    type Event = Event;
+    type BadPresentation = ();
+    type BadReaper = ();
+}
+
+impl council::voting::Trait for Runtime {
+    type Event = Event;
+}
+
+impl council::motions::Trait for Runtime {
+    type Origin = Origin;
+    type Proposal = Call;
+    type Event = Event;
+}
+
+impl treasury::Trait for Runtime {
+    type Currency = balances::Module<Self>;
+    type ApproveOrigin = council_motions::EnsureMembers<_4>;
+    type RejectOrigin = council_motions::EnsureMembers<_2>;
+    type Event = Event;
+    type MintedForSpending = ();
+    type ProposalRejection = ();
+}
+
+impl contract::Trait for Runtime {
+    type Currency = balances::Module<Runtime>;
+    type Call = Call;
+    type Event = Event;
+    type Gas = u64;
+    type DetermineContractAddress = contract::SimpleAddressDeterminator<Runtime>;
+    type ComputeDispatchFee = contract::DefaultDispatchFeeComputor<Runtime>;
+    type TrieIdGenerator = contract::TrieIdFromParentCounter<Runtime>;
+    type GasPayment = ();
+}
+
 /// Used for the module template in `./template.rs`
 impl template::Trait for Runtime {
 	type Event = Event;
@@ -205,6 +279,14 @@ construct_runtime!(
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,
+		Session: session,
+		Staking: staking,
+		Democracy: democracy,
+		Council: council::{Module, Call, Storage, Event<T>},
+		CouncilVoting: council_voting,
+		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
+		Treasury: treasury,
+		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		// Used for the module template in `./template.rs`
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
 	}
