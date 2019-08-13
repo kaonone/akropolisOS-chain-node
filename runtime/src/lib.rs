@@ -138,7 +138,7 @@ impl system::Trait for Runtime {
 }
 
 impl aura::Trait for Runtime {
-	type HandleReport = ();
+	type HandleReport = aura::StakingSlasher<Runtime>;
 }
 
 impl consensus::Trait for Runtime {
@@ -275,7 +275,7 @@ construct_runtime!(
 		System: system::{default, Log(ChangesTrieRoot)},
 		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-		Aura: aura::{Module},
+		Aura: aura::{Module, Inherent(Timestamp)},
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,

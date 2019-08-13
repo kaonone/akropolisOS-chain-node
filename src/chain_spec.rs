@@ -119,12 +119,12 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 		session: Some(SessionConfig {
 			validators: endowed_accounts.clone(),
 			keys: endowed_accounts.iter().cloned().zip(initial_authorities).collect(),
-			session_length: 30
+			session_length: 6
 		}),
 		staking: Some(StakingConfig {
 			validator_count: 5, // The ideal number of staking participants.
 			minimum_validator_count: 1, // Minimum number of staking participants before emergency conditions are imposed
-			sessions_per_era: 12, // The length of a staking era in sessions.
+			sessions_per_era: 5, // The length of a staking era in sessions.
 			session_reward: Perbill::from_millionths(10_000), // Maximum reward, per validator, that is provided per acceptable session.
 			offline_slash: Perbill::from_percent(50_000), // Slash, per validator that is taken for the first time they are found to be offline.
 			offline_slash_grace: 3, // Number of instances of offline reports before slashing begins for validators.

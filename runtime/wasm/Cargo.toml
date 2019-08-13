@@ -12,7 +12,7 @@ lto = true
 panic = 'abort'
 
 [package]
-authors = ['Parity Technologies <admin@parity.io>']
+authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-substrate-node-runtime-wasm'
 version = '1.0.0'
