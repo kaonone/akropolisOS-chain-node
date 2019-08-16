@@ -26,6 +26,11 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-consensus-aura'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 
+[dependencies.grandpa]
+git = "https://github.com/paritytech/substrate.git"
+package = "substrate-finality-grandpa"
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
 [dependencies.ctrlc]
 features = ['termination']
 version = '3.0'

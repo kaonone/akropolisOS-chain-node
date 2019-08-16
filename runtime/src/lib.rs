@@ -1,7 +1,6 @@
 //! The Substrate Node Template runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
@@ -14,9 +13,10 @@ use primitives::bytes;
 use primitives::{ed25519, sr25519, OpaqueMetadata};
 use primitives::u32_trait::{_2, _4};
 use council::{motions as council_motions, voting as council_voting};
+use grandpa::fg_primitives::{self, ScheduledChange};
 use runtime_primitives::{
 	ApplyResult, transaction_validity::TransactionValidity, generic, create_runtime_str,
-	traits::{self, NumberFor, BlakeTwo256, Block as BlockT, Convert, StaticLookup, Verify}
+	traits::{self, NumberFor, BlakeTwo256, Block as BlockT, Convert, DigestFor, StaticLookup, Verify}
 };
 use client::{
 	block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
@@ -138,7 +138,7 @@ impl system::Trait for Runtime {
 }
 
 impl aura::Trait for Runtime {
-	type HandleReport = ();
+	type HandleReport = aura::StakingSlasher<Runtime>;
 }
 
 impl consensus::Trait for Runtime {
@@ -193,6 +193,7 @@ impl sudo::Trait for Runtime {
 impl session::Trait for Runtime {
     type ConvertAccountIdToSessionKey = ();
     type OnSessionChange = Staking;
+    // type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
     type Event = Event;
 }
 
@@ -241,6 +242,16 @@ impl council::motions::Trait for Runtime {
     type Event = Event;
 }
 
+impl grandpa::Trait for Runtime {
+    type SessionKey = AuthorityId;
+    type Log = Log;
+    type Event = Event;
+}
+
+impl finality_tracker::Trait for Runtime {
+    type OnFinalizationStalled = grandpa::SyncedAuthorities<Runtime>;
+}
+
 impl treasury::Trait for Runtime {
     type Currency = balances::Module<Self>;
     type ApproveOrigin = council_motions::EnsureMembers<_4>;
@@ -275,7 +286,7 @@ construct_runtime!(
 		System: system::{default, Log(ChangesTrieRoot)},
 		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-		Aura: aura::{Module},
+		Aura: aura::{Module, Inherent(Timestamp)},
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,
@@ -285,6 +296,8 @@ construct_runtime!(
 		Council: council::{Module, Call, Storage, Event<T>},
 		CouncilVoting: council_voting,
 		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
+		FinalityTracker: finality_tracker::{Module, Call, Inherent},
+		Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
 		Treasury: treasury,
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		// Used for the module template in `./template.rs`
@@ -360,6 +373,40 @@ impl_runtime_apis! {
 	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			Executive::validate_transaction(tx)
+		}
+	}
+
+	impl fg_primitives::GrandpaApi<Block> for Runtime {
+		fn grandpa_pending_change(digest: &DigestFor<Block>)
+			-> Option<ScheduledChange<NumberFor<Block>>>
+		{
+			for log in digest.logs.iter().filter_map(|l| match l {
+				Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
+				_ => None
+			}) {
+				if let Some(change) = Grandpa::scrape_digest_change(log) {
+					return Some(change);
+				}
+			}
+			None
+		}
+
+		fn grandpa_forced_change(digest: &DigestFor<Block>)
+			-> Option<(NumberFor<Block>, ScheduledChange<NumberFor<Block>>)>
+		{
+			for log in digest.logs.iter().filter_map(|l| match l {
+				Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
+				_ => None
+			}) {
+				if let Some(change) = Grandpa::scrape_digest_forced_change(log) {
+					return Some(change);
+				}
+			}
+			None
+		}
+
+		fn grandpa_authorities() -> Vec<(AuthorityId, u64)> {
+			Grandpa::grandpa_authorities()
 		}
 	}
 

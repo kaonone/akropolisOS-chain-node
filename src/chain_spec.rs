@@ -2,7 +2,7 @@ use primitives::{ed25519, sr25519, Pair};
 use akropolisos_substrate_node_runtime::{
 	AccountId, Perbill, Permill, Schedule, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig,
 	SudoConfig, IndicesConfig, SessionConfig, StakingConfig, DemocracyConfig, CouncilVotingConfig,
-	TreasuryConfig, ContractConfig
+	GrandpaConfig, TreasuryConfig, ContractConfig
 };
 use substrate_service;
 
@@ -118,13 +118,13 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 		}),
 		session: Some(SessionConfig {
 			validators: endowed_accounts.clone(),
-			keys: endowed_accounts.iter().cloned().zip(initial_authorities).collect(),
-			session_length: 30
+			keys: endowed_accounts.iter().cloned().zip(initial_authorities.clone()).collect(),
+			session_length: 6
 		}),
 		staking: Some(StakingConfig {
 			validator_count: 5, // The ideal number of staking participants.
 			minimum_validator_count: 1, // Minimum number of staking participants before emergency conditions are imposed
-			sessions_per_era: 12, // The length of a staking era in sessions.
+			sessions_per_era: 5, // The length of a staking era in sessions.
 			session_reward: Perbill::from_millionths(10_000), // Maximum reward, per validator, that is provided per acceptable session.
 			offline_slash: Perbill::from_percent(50_000), // Slash, per validator that is taken for the first time they are found to be offline.
 			offline_slash_grace: 3, // Number of instances of offline reports before slashing begins for validators.
@@ -145,6 +145,9 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 			cooloff_period: 360, // Period (in blocks) that a veto is in effect.
 			voting_period: 60, // Period (in blocks) that a vote is open for.
 			enact_delay_period: 5, // Number of blocks by which to delay enactment of successful.
+		}),
+		grandpa: Some(GrandpaConfig {
+			authorities: initial_authorities.iter().cloned().map(|x| (x, 1)).collect()
 		}),
 		treasury: Some(TreasuryConfig {
 			proposal_bond: Permill::from_millionths(50_000), // Proportion of funds that should be bonded in order to place a proposal.

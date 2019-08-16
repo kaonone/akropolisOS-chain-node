@@ -26,10 +26,12 @@ std = [
     'safe-mix/std',
     'consensus-aura/std',
     'offchain-primitives/std',
+    'grandpa/std',
+    'finality-tracker/std',
 ]
 
 [package]
-authors = ['Parity Technologies <admin@parity.io>']
+authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-substrate-node-runtime'
 version = '1.0.0'
@@ -189,4 +191,16 @@ rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'srml-contract'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.grandpa]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-grandpa'
+rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
+
+[dependencies.finality-tracker]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'srml-finality-tracker'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
