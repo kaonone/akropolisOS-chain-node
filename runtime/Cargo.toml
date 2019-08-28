@@ -11,7 +11,6 @@ std = [
     'executive/std',
     'aura/std',
     'indices/std',
-    'primitives/std',
     'system/std',
     'timestamp/std',
     'sudo/std',
