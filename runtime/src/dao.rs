@@ -278,6 +278,22 @@ decl_module! {
             Ok(())
         }
 
+        pub fn put_money(origin, dao_id: DaoId, value: T::Balance) -> Result {
+            let depositor = ensure_signed(origin)?;
+
+            ensure!(<DaoMembers<T>>::exists((dao_id, depositor.clone())), "You are not a member of this DAO");
+            ensure!(<balances::FreeBalance<T>>::get(depositor.clone()) >= value, "You dont have enough balance to make this deposit");
+            
+            let dao_address = <Address<T>>::get(dao_id);
+            let dao_dalance = <balances::FreeBalance<T>>::get(dao_address.clone());
+
+            <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value)?;
+            
+            Self::deposit_event(RawEvent::Deposit(depositor, dao_address, value));
+
+            Ok(())
+        }
+
         fn on_finalize() {
             let block_number = <system::Module<T>>::block_number();
             Self::open_dao_proposals(block_number)
@@ -301,9 +317,11 @@ decl_module! {
 decl_event!(
     pub enum Event<T>
     where
+        Balance = <T as balances::Trait>::Balance,
         AccountId = <T as system::Trait>::AccountId,
         BlockNumber = <T as system::Trait>::BlockNumber,
     {
+        Deposit(AccountId, AccountId, Balance),
         DaoCreated(AccountId, AccountId, Vec<u8>),
         NewVote(DaoId, ProposalId, AccountId, bool),
         ProposalIsAccepted(DaoId, ProposalId),
