@@ -33,19 +33,20 @@ pub struct Dao<AccountId> {
 
 #[derive(Encode, Decode, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct Proposal<DaoId, AccountId, VotingDeadline, MemberId> {
+pub struct Proposal<DaoId, AccountId, Balance, VotingDeadline, MemberId> {
     dao_id: DaoId,
-    action: Action<AccountId>,
+    action: Action<AccountId, Balance>,
     open: bool,
     voting_deadline: VotingDeadline,
     yes_count: MemberId,
     no_count: MemberId,
 }
 
-impl<D, A, V, M> Default for Proposal<D, A, V, M>
+impl<D, A, B, V, M> Default for Proposal<D, A, B, V, M>
 where
     D: Default,
     A: Default,
+    B: Default,
     V: Default,
     M: Default,
 {
@@ -63,13 +64,14 @@ where
 
 #[derive(Encode, Decode, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub enum Action<AccountId> {
+pub enum Action<AccountId, Balance> {
     EmptyAction,
     AddMember(AccountId),
     RemoveMember(AccountId),
+    Withdraw(AccountId, Balance),
 }
 
-/// This module's storage items.
+// This module's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as DaoStorage {
         Daos get(daos): map(DaoId) => Dao<T::AccountId>;
@@ -84,7 +86,7 @@ decl_storage! {
         DaoMembers get(dao_members): map(DaoId, T::AccountId) => MemberId;
 
         DaoProposalsPeriodLimit get(dao_proposals_period_limit) config(): T::BlockNumber = T::BlockNumber::sa(30);
-        DaoProposals get(dao_proposals): map(DaoId, ProposalId) => Proposal<DaoId, T::AccountId, T::BlockNumber, VotesCount>;
+        DaoProposals get(dao_proposals): map(DaoId, ProposalId) => Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, VotesCount>;
         DaoProposalsCount get(dao_proposals_count): map(DaoId) => ProposalId;
         DaoProposalsIndex get(dao_proposals_index): map(ProposalId) => DaoId;
 
@@ -228,6 +230,53 @@ decl_module! {
             Ok(())
         }
 
+        pub fn propose_to_get_money(origin, dao_id: DaoId, name: Vec<u8>, description: Vec<u8>, value: T::Balance) -> Result {
+            let candidate = ensure_signed(origin)?;
+
+            let proposal_hash = ("propose_to_get_money", &candidate, dao_id, &name)
+                .using_encoded(<T as system::Trait>::Hashing::hash);
+            let voting_deadline = <system::Module<T>>::block_number() + Self::dao_proposals_period_limit();
+            let mut open_proposals = Self::open_dao_proposals(voting_deadline);
+            
+            Self::validate_name(&name)?;
+            Self::validate_description(&description)?;
+            ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
+            ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You are not a member of this DAO");
+            ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
+            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            
+            let dao_address = <Address<T>>::get(dao_id);
+            let dao_balance = <balances::FreeBalance<T>>::get(dao_address);
+            ensure!(dao_balance > value, "DAO balance is not sufficient");
+            
+            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let new_dao_proposals_count = dao_proposals_count
+                .checked_add(1)
+                .ok_or("Overflow adding a new DAO proposal")?;
+
+            let proposal = Proposal {
+                dao_id,
+                action: Action::Withdraw(candidate.clone(), value),
+                open: true,
+                voting_deadline,
+                yes_count: 0,
+                no_count: 0
+            };
+            
+            let proposal_id = dao_proposals_count;
+            open_proposals.push(proposal_id);
+            
+            <DaoProposals<T>>::insert((dao_id, new_dao_proposals_count), proposal);
+            <DaoProposalsCount<T>>::insert(dao_id, dao_proposals_count);
+            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
+            <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
+            <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
+            
+            Self::deposit_event(RawEvent::ProposeToWithdraw(dao_id, candidate, voting_deadline));
+            Ok(())
+        }
+
         pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> Result {
             let voter = ensure_signed(origin)?;
 
@@ -283,12 +332,9 @@ decl_module! {
 
             ensure!(<DaoMembers<T>>::exists((dao_id, depositor.clone())), "You are not a member of this DAO");
             ensure!(<balances::FreeBalance<T>>::get(depositor.clone()) >= value, "You dont have enough balance to make this deposit");
-            
             let dao_address = <Address<T>>::get(dao_id);
-            let dao_dalance = <balances::FreeBalance<T>>::get(dao_address.clone());
-
             <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value)?;
-            
+
             Self::deposit_event(RawEvent::Deposit(depositor, dao_address, value));
 
             Ok(())
@@ -327,6 +373,7 @@ decl_event!(
         ProposalIsAccepted(DaoId, ProposalId),
         ProposalIsExpired(DaoId, ProposalId),
         ProposalIsRejected(DaoId, ProposalId),
+        ProposeToWithdraw(DaoId, AccountId, BlockNumber),
         ProposeToAddMember(DaoId, AccountId, BlockNumber),
         ProposeToRemoveMember(DaoId, AccountId, BlockNumber),
     }
@@ -335,10 +382,10 @@ decl_event!(
 impl<T: Trait> Module<T> {
     fn validate_name(name: &Vec<u8>) -> Result {
         if name.len() < 10 {
-            return Err("the DAO name is very short");
+            return Err("the name is very short");
         }
         if name.len() > 255 {
-            return Err("the DAO name is very long");
+            return Err("the name is very long");
         }
 
         let is_valid_char = |&c| {
@@ -348,7 +395,7 @@ impl<T: Trait> Module<T> {
             c == 45 || c == 95 // '-', '_'
         };
         if !(name.iter().all(is_valid_char)) {
-            return Err("the DAO name has invalid chars");
+            return Err("the name has invalid chars");
         }
 
         Ok(())
@@ -356,10 +403,10 @@ impl<T: Trait> Module<T> {
 
     fn validate_description(description: &Vec<u8>) -> Result {
         if description.len() < 10 {
-            return Err("the DAO description is very short");
+            return Err("the description is very short");
         }
         if description.len() > 4096 {
-            return Err("the DAO description is very long");
+            return Err("the description is very long");
         }
 
         Ok(())
@@ -404,10 +451,17 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    fn withdraw(dao_id: DaoId, taker: T::AccountId, amount: T::Balance) -> Result {
+        let dao_address = <Address<T>>::get(dao_id);
+        <balances::Module<T> as Currency<_>>::transfer(&dao_address, &taker, amount)?;
+
+        Ok(())
+    }
+
     fn close_proposal(
         dao_id: DaoId,
         proposal_id: ProposalId,
-        mut proposal: Proposal<DaoId, T::AccountId, T::BlockNumber, MemberId>,
+        mut proposal: Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, MemberId>,
     ) {
         proposal.open = false;
         let proposal_hash = <OpenDaoProposalsHashesIndex<T>>::get(proposal_id);
@@ -422,11 +476,14 @@ impl<T: Trait> Module<T> {
     }
 
     fn execute_proposal(
-        proposal: &Proposal<DaoId, T::AccountId, T::BlockNumber, MemberId>,
+        proposal: &Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, MemberId>,
     ) -> Result {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_memeber(proposal.dao_id, member.clone()),
+            Action::Withdraw(member, amount) => {
+                Self::withdraw(proposal.dao_id, member.clone(), *amount)
+            },
             Action::EmptyAction => Ok(()),
         }
     }
@@ -1302,6 +1359,25 @@ mod tests {
                 DaoModule::vote(Origin::signed(USER3), DAO_ID, PROPOSAL_ID, YES),
                 "Maximum number of members for this DAO is reached"
             );
+        })
+    }
+
+    #[test]
+    fn put_money_work() {
+        with_externalities(&mut new_test_ext(), || {
+            const DAO_ID: DaoId = 0;
+            const AMOUNT: u128 = 100;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_ok!(DaoModule::put_money(Origin::signed(USER), DAO_ID, AMOUNT));
         })
     }
 }
