@@ -68,7 +68,7 @@ pub enum Action<AccountId, Balance> {
     EmptyAction,
     AddMember(AccountId),
     RemoveMember(AccountId),
-    Withdraw(AccountId, Balance),
+    Withdraw(AccountId, Balance, Vec<u8>, Vec<u8>),
 }
 
 // This module's storage items.
@@ -254,7 +254,7 @@ decl_module! {
 
             let proposal = Proposal {
                 dao_id,
-                action: Action::Withdraw(candidate.clone(), value),
+                action: Action::Withdraw(candidate.clone(), value, name, description),
                 open: true,
                 voting_deadline,
                 yes_count: 0,
@@ -480,7 +480,7 @@ impl<T: Trait> Module<T> {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_memeber(proposal.dao_id, member.clone()),
-            Action::Withdraw(member, amount) => {
+            Action::Withdraw(member, amount,..) => {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
             },
             Action::EmptyAction => Ok(()),
