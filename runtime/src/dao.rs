@@ -330,7 +330,7 @@ decl_module! {
 
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, depositor.clone())), "You are not a member of this DAO");
-            ensure!(<balances::FreeBalance<T>>::get(depositor.clone()) >= value, "You dont have enough balance to make this deposit");
+            ensure!(<balances::FreeBalance<T>>::get(depositor.clone()) >= value, "Not enough balance to make this deposit");
             let dao_address = <Address<T>>::get(dao_id);
             <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value)?;
 
