@@ -157,7 +157,7 @@ decl_module! {
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(!<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You already are a member of this DAO");
             ensure!(!<DaoAddresses<T>>::exists(candidate.clone()), "A DAO can not be a member of other DAO");
-            ensure!(<MembersCount<T>>::get(dao_id) + 1 <= Self::maximum_number_of_members(), "Maximum number of members for this DAO is reached");
+            ensure!(<MembersCount<T>>::get(dao_id) < Self::maximum_number_of_members(), "Maximum number of members for this DAO is reached");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
             // TODO: maybe need to limit new candidates by the minimum total balance?
@@ -379,7 +379,7 @@ decl_event!(
 );
 
 impl<T: Trait> Module<T> {
-    fn validate_name(name: &Vec<u8>) -> Result {
+    fn validate_name(name: &[u8]) -> Result {
         if name.len() < 10 {
             return Err("the name is very short");
         }
@@ -400,7 +400,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn validate_description(description: &Vec<u8>) -> Result {
+    fn validate_description(description: &[u8]) -> Result {
         if description.len() < 10 {
             return Err("the description is very short");
         }
@@ -413,7 +413,7 @@ impl<T: Trait> Module<T> {
 
     fn add_member(dao_id: DaoId, member: T::AccountId) -> Result {
         ensure!(
-            <MembersCount<T>>::get(dao_id) + 1 <= Self::maximum_number_of_members(),
+            <MembersCount<T>>::get(dao_id) < Self::maximum_number_of_members(),
             "Maximum number of members for this DAO is reached"
         );
 
