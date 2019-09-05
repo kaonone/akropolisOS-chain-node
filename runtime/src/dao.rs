@@ -68,7 +68,7 @@ pub enum Action<AccountId, Balance> {
     EmptyAction,
     AddMember(AccountId),
     RemoveMember(AccountId),
-    Withdraw(AccountId, Balance, Vec<u8>, Vec<u8>),
+    Withdraw(AccountId, Balance, Vec<u8>),
 }
 
 // This module's storage items.
@@ -230,23 +230,20 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_withdraw(origin, dao_id: DaoId, name: Vec<u8>, description: Vec<u8>, value: T::Balance) -> Result {
+        pub fn propose_to_withdraw(origin, dao_id: DaoId, description: Vec<u8>, value: T::Balance) -> Result {
             let candidate = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_withdraw", &candidate, dao_id)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
             let voting_deadline = <system::Module<T>>::block_number() + Self::dao_proposals_period_limit();
             let mut open_proposals = Self::open_dao_proposals(voting_deadline);
-            
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
-            
             let dao_address = <Address<T>>::get(dao_id);
             let dao_balance = <balances::FreeBalance<T>>::get(dao_address);
             ensure!(dao_balance - <balances::ExistentialDeposit<T>>::get() > value, "DAO balance is not sufficient");
-            
             let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
@@ -254,23 +251,20 @@ decl_module! {
 
             let proposal = Proposal {
                 dao_id,
-                action: Action::Withdraw(candidate.clone(), value, name, description),
+                action: Action::Withdraw(candidate.clone(), value, description),
                 open: true,
                 voting_deadline,
                 yes_count: 0,
                 no_count: 0
             };
-            
             let proposal_id = dao_proposals_count;
             open_proposals.push(proposal_id);
-            
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
             <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
             <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
-            
             Self::deposit_event(RawEvent::ProposeToWithdraw(dao_id, candidate, voting_deadline, value));
             Ok(())
         }
@@ -480,9 +474,9 @@ impl<T: Trait> Module<T> {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_memeber(proposal.dao_id, member.clone()),
-            Action::Withdraw(member, amount,..) => {
+            Action::Withdraw(member, amount, ..) => {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
-            },
+            }
             Action::EmptyAction => Ok(()),
         }
     }
@@ -540,6 +534,7 @@ mod tests {
     impl Trait for Test {
         type Event = ();
     }
+    type Balances = balances::Module<Test>;
     type DaoModule = Module<Test>;
 
     const DAO_NAME: &[u8; 10] = b"Name-1234_";
@@ -556,11 +551,27 @@ mod tests {
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
     fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        system::GenesisConfig::<Test>::default()
+        let mut r = system::GenesisConfig::<Test>::default()
             .build_storage()
             .unwrap()
-            .0
-            .into()
+            .0;
+
+        r.extend(
+            balances::GenesisConfig::<Test> {
+                balances: vec![(1, 100000), (11, 0), (3, 300000)],
+                vesting: vec![],
+                transaction_base_fee: 0,
+                transaction_byte_fee: 0,
+                existential_deposit: 500,
+                transfer_fee: 0,
+                creation_fee: 0,
+            }
+            .build_storage()
+            .unwrap()
+            .0,
+        );
+
+        r.into()
     }
 
     #[test]
@@ -1364,8 +1375,7 @@ mod tests {
     #[test]
     fn deposit_should_work() {
         with_externalities(&mut new_test_ext(), || {
-            const DAO_ID: DaoId = 0;
-            const AMOUNT: u128 = 100;
+            const AMOUNT: u128 = 5000;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1375,8 +1385,11 @@ mod tests {
                 DAO_DESC.to_vec()
             ));
             assert_eq!(DaoModule::daos_count(), 1);
+            assert_eq!(Balances::free_balance(DAO), 500);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), DAO_ID, AMOUNT));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), DaoModule::dao_addresses(11), AMOUNT));
+
+            assert_eq!(Balances::free_balance(DAO), 5500);
         })
     }
 }
