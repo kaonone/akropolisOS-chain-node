@@ -230,16 +230,14 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_get_money(origin, dao_id: DaoId, name: Vec<u8>, description: Vec<u8>, value: T::Balance) -> Result {
+        pub fn propose_to_withdraw(origin, dao_id: DaoId, name: Vec<u8>, description: Vec<u8>, value: T::Balance) -> Result {
             let candidate = ensure_signed(origin)?;
 
-            let proposal_hash = ("propose_to_get_money", &candidate, dao_id, &name)
+            let proposal_hash = ("propose_to_withdraw", &candidate, dao_id)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
             let voting_deadline = <system::Module<T>>::block_number() + Self::dao_proposals_period_limit();
             let mut open_proposals = Self::open_dao_proposals(voting_deadline);
             
-            Self::validate_name(&name)?;
-            Self::validate_description(&description)?;
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
@@ -247,7 +245,7 @@ decl_module! {
             
             let dao_address = <Address<T>>::get(dao_id);
             let dao_balance = <balances::FreeBalance<T>>::get(dao_address);
-            ensure!(dao_balance > value, "DAO balance is not sufficient");
+            ensure!(dao_balance - <balances::ExistentialDeposit<T>>::get() > value, "DAO balance is not sufficient");
             
             let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
@@ -266,14 +264,14 @@ decl_module! {
             let proposal_id = dao_proposals_count;
             open_proposals.push(proposal_id);
             
-            <DaoProposals<T>>::insert((dao_id, new_dao_proposals_count), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, dao_proposals_count);
+            <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
+            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
             <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
             
-            Self::deposit_event(RawEvent::ProposeToWithdraw(dao_id, candidate, voting_deadline));
+            Self::deposit_event(RawEvent::ProposeToWithdraw(dao_id, candidate, voting_deadline, value));
             Ok(())
         }
 
@@ -327,15 +325,16 @@ decl_module! {
             Ok(())
         }
 
-        pub fn put_money(origin, dao_id: DaoId, value: T::Balance) -> Result {
+        pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> Result {
             let depositor = ensure_signed(origin)?;
 
+            ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, depositor.clone())), "You are not a member of this DAO");
             ensure!(<balances::FreeBalance<T>>::get(depositor.clone()) >= value, "You dont have enough balance to make this deposit");
             let dao_address = <Address<T>>::get(dao_id);
             <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value)?;
 
-            Self::deposit_event(RawEvent::Deposit(depositor, dao_address, value));
+            Self::deposit_event(RawEvent::NewDeposit(depositor, dao_address, value));
 
             Ok(())
         }
@@ -367,13 +366,13 @@ decl_event!(
         AccountId = <T as system::Trait>::AccountId,
         BlockNumber = <T as system::Trait>::BlockNumber,
     {
-        Deposit(AccountId, AccountId, Balance),
+        NewDeposit(AccountId, AccountId, Balance),
         DaoCreated(AccountId, AccountId, Vec<u8>),
         NewVote(DaoId, ProposalId, AccountId, bool),
         ProposalIsAccepted(DaoId, ProposalId),
         ProposalIsExpired(DaoId, ProposalId),
         ProposalIsRejected(DaoId, ProposalId),
-        ProposeToWithdraw(DaoId, AccountId, BlockNumber),
+        ProposeToWithdraw(DaoId, AccountId, BlockNumber, Balance),
         ProposeToAddMember(DaoId, AccountId, BlockNumber),
         ProposeToRemoveMember(DaoId, AccountId, BlockNumber),
     }
@@ -1363,7 +1362,7 @@ mod tests {
     }
 
     #[test]
-    fn put_money_work() {
+    fn deposit_should_work() {
         with_externalities(&mut new_test_ext(), || {
             const DAO_ID: DaoId = 0;
             const AMOUNT: u128 = 100;
@@ -1377,7 +1376,7 @@ mod tests {
             ));
             assert_eq!(DaoModule::daos_count(), 1);
 
-            assert_ok!(DaoModule::put_money(Origin::signed(USER), DAO_ID, AMOUNT));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), DAO_ID, AMOUNT));
         })
     }
 }
