@@ -609,7 +609,7 @@ mod tests {
                     DAO_NAME.to_vec().drain(1..).collect(),
                     DAO_DESC.to_vec()
                 ),
-                "the DAO name is very short"
+                "the name is very short"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -626,7 +626,7 @@ mod tests {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(Origin::signed(USER), DAO, name, DAO_DESC.to_vec()),
-                "the DAO name has invalid chars"
+                "the name has invalid chars"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -645,7 +645,7 @@ mod tests {
                     [ASCII_CODE_OF_A; 256].to_vec(),
                     DAO_DESC.to_vec()
                 ),
-                "the DAO name is very long"
+                "the name is very long"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -708,7 +708,7 @@ mod tests {
                     DAO_NAME.to_vec(),
                     DAO_DESC.to_vec().drain(1..).collect()
                 ),
-                "the DAO description is very short"
+                "the description is very short"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -727,7 +727,7 @@ mod tests {
                     DAO_NAME.to_vec().to_vec(),
                     [ASCII_CODE_OF_A; 4097].to_vec()
                 ),
-                "the DAO description is very long"
+                "the description is very long"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
