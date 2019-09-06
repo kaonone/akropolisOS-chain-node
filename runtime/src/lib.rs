@@ -208,7 +208,7 @@ pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
     fn factor() -> u128 {
-        (Balances::total_issuance() / u64::max_value() as u128).max(1)
+        (Balances::total_issuance() / u128::from(u64::max_value())).max(1)
     }
 }
 
