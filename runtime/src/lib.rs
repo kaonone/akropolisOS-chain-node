@@ -30,6 +30,8 @@ use serde::{Deserialize, Serialize};
 use version::NativeVersion;
 use version::RuntimeVersion;
 
+#[cfg(feature = "std")]
+pub use staking::StakerStatus;
 // A few exports that help ease life for downstream crates.
 pub use balances::Call as BalancesCall;
 pub use consensus::Call as ConsensusCall;
