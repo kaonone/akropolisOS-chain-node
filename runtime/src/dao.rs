@@ -540,11 +540,13 @@ mod tests {
     const DAO_NAME: &[u8; 10] = b"Name-1234_";
     const DAO_NAME2: &[u8; 10] = b"Name-5678_";
     const DAO_DESC: &[u8; 10] = b"Desc-1234_";
+    const PROPOSAL_DESC: &[u8; 10] = b"Desc-5678_";
     const USER: u64 = 1;
     const USER2: u64 = 2;
     const USER3: u64 = 3;
     const USER4: u64 = 4;
     const USER5: u64 = 5;
+    const USER_EMPTY: u64 = 42;
     const DAO: u64 = 11;
     const DAO2: u64 = 12;
 
@@ -558,7 +560,7 @@ mod tests {
 
         r.extend(
             balances::GenesisConfig::<Test> {
-                balances: vec![(1, 100000), (11, 0), (3, 300000)],
+                balances: vec![(1, 100000), (11, 0), (3, 300000), (42, 0)],
                 vesting: vec![],
                 transaction_base_fee: 0,
                 transaction_byte_fee: 0,
@@ -1384,12 +1386,79 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
+            let DAO_ID = DaoModule::dao_addresses(DAO);
             assert_eq!(DaoModule::daos_count(), 1);
             assert_eq!(Balances::free_balance(DAO), 500);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), DaoModule::dao_addresses(11), AMOUNT));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), DAO_ID, AMOUNT));
 
             assert_eq!(Balances::free_balance(DAO), 5500);
+        })
+    }
+
+    #[test]
+    fn deposit_should_fail_not_enough() {
+        with_externalities(&mut new_test_ext(), || {
+            const AMOUNT: u128 = 5000;
+            const PROPOSAL_ID: ProposalId = 0;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let DAO_ID = DaoModule::dao_addresses(DAO);
+            
+            assert_eq!(DaoModule::daos_count(), 1);
+            
+            assert_ok!(DaoModule::propose_to_add_member(Origin::signed(USER_EMPTY), DAO_ID));
+            assert_ok!(DaoModule::vote(Origin::signed(USER), DAO_ID, PROPOSAL_ID, YES));
+            assert_eq!(DaoModule::members_count(DAO_ID), 2);
+
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_noop!(DaoModule::deposit(Origin::signed(USER_EMPTY), DAO_ID, AMOUNT), "Not enough balance to make this deposit");
+        })
+    }
+
+    #[test]
+    fn withdraw_should_work() {
+        with_externalities(&mut new_test_ext(), || {
+            const AMOUNT: u128 = 5000;
+            const AMOUNT2: u128 = 3000;
+            const ADD_MEMBER1: ProposalId = 0;
+            const WITHDRAW: ProposalId = 1;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let DAO_ID = DaoModule::dao_addresses(DAO);
+            
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+            
+            assert_ok!(DaoModule::propose_to_add_member(Origin::signed(USER2), DAO_ID));
+            assert_ok!(DaoModule::vote(Origin::signed(USER), DAO_ID, ADD_MEMBER1, YES));
+            assert_eq!(DaoModule::members_count(DAO_ID), 2);
+
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), DAO_ID, AMOUNT));
+            assert_eq!(Balances::free_balance(DAO), 5500);
+
+            assert_ok!(DaoModule::propose_to_withdraw(Origin::signed(USER2), DAO_ID, PROPOSAL_DESC.to_vec(), AMOUNT2));
+            assert_ok!(DaoModule::vote(Origin::signed(USER), DAO_ID, WITHDRAW, YES));
+            // TODO: possible expolit point. If DAO has only 2 members, 1 vote is not enough to withdraw (> 50%)
+            // and second vote belongs to the user withdrawing.
+            assert_ok!(DaoModule::vote(Origin::signed(USER2), DAO_ID, WITHDRAW, YES));
+            
+            assert_eq!(Balances::free_balance(DAO), 2500);
+            
         })
     }
 }
