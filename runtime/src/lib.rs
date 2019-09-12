@@ -67,6 +67,7 @@ pub type Nonce = u64;
 mod dao;
 mod types;
 mod marketplace;
+mod token;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -297,6 +298,11 @@ impl marketplace::Trait for Runtime {
     type Event = Event;
 }
 
+impl token::Trait for Runtime {
+	type Event = Event;
+	type TokenBalance = u128;
+}
+
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId, AuthoritySignature>) where
 		Block = Block,
@@ -322,6 +328,7 @@ construct_runtime!(
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
+        Token: token::{Module, Call, Storage, Event<T>},
 	}
 );
 
