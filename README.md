@@ -66,3 +66,154 @@ cargo run -- \
 ```
 
 Additional CLI usage options are available and may be shown by running `cargo run -- --help`.
+
+
+# How it works
+
+## Account creation
+
+
+This guide will walk you through how to create account and how to connect to AkropolisOSChain Testnet.
+
+1) Open [Akropolis UI](https://wallet.akropolis.io) (it’s polkadotJS app working with substrate v.1.0). You can also use [Polkadot UI](https://polkadot.js.org/apps/#/explorer).
+
+2) Go to *Settings*, open *Developer* tab. Insert in textbox description of types (copy&paste from here) and Save it.
+
+
+```bash
+
+{
+    "Count": "u64",
+    "DaoId": "u64",
+    "MemberId": "u64",
+    "ProposalId": "u64",
+    "VotesCount": "MemberId",
+
+    "Dao": {
+   	 "address": "AccountId",
+   	 "name": "Text",
+   	 "description": "Bytes",
+   	 "founder": "AccountId"
+    },
+    "Action": {
+   	 "_enum": {
+   		 "EmptyAction": null,
+
+   		 "AddMember": "AccountId",
+   		 "RemoveMember": "AccountId",
+         "Withdraw": "(AccountId , Balance, Vec<u8>)"
+   	 }
+    },
+    "Proposal": {
+   	 "dao_id": "DaoId",
+   	 "action": "Action",
+   	 "open": "bool",
+   	 "voting_deadline": "BlockNumber",
+   	 "yes_count": "MemberId",
+   	 "no_count": "MemberId"
+    }
+}
+
+
+```
+
+
+3) If you use [Akropolis UI](https://wallet.akropolis.io) skip this step, and go to the step 4. If you use [Polkadot UI](https://polkadot.js.org/apps/#/explorer), go to *Settings' General* tab, choose *custom endpoint* (top right corner), and set:
+
+- remote node/endpoint to connect to: wss://node1-chain.akropolis.io or wss://node2-chain.akropolis.io,
+
+- address prefix: Default for the connected node,
+
+- default interface theme: Substrate,
+
+- interface operation mode: Fully featured.
+
+Then push to *Save&Reload* button.
+
+4) Create Account:
+
+- Navigate to the *Accounts* tab and click on the *Add account* button.
+
+- Enter a name for your account and create a secure password. This password will be used to decrypt your account.
+
+- Click *Save* and *Create and backup account*.
+
+- Save your encrypted keystore locally.
+
+- The account now appears in your *Accounts* tab and is backed up to the keystore you just saved.
+
+5) Fill [the form](https://forms.gle/QjcccF6WWxSrbe9Z7) to get test AKRO tokens.
+
+##Staking
+
+This guide will walk you through how to nominate your AKROs to a validator node so that you can take part in the staking system.
+
+We will assume that you will be starting with two fresh accounts. Click [here](https://wiki.polkadot.network/en/latest/polkadot/learn/staking/#accounts) to learn more about what stash and controller accounts mean.
+
+1) The first step is to create two accounts by going to the *Accounts* tab. Make sure to use *stash* and *controller* in the names of your accounts to identify them easily.
+
+2) Once you've created your accounts you will need to acquire some AKROs. Each of your accounts should have at least 150 milliAKROs to cover the existential deposit and transaction fees.
+
+To nominate and validate follow [this instructions](https://wiki.polkadot.network/en/latest/polkadot/node/guides/how-to-nominate/#nominating).
+
+
+
+## Working with DAOs
+
+
+### Creation of DAOs
+
+For creation of DAO you will need account with some AKROs.
+
+1) Go to *Extrinsics* tab, select in *using the selected account* your account address.
+
+2) Select "dao" in *submit the following extrinsic*
+
+3) Insert *name* of new DAO and it's *description* in the HEX format. Use [utility](https://www.rapidtables.com/convert/number/ascii-to-hex.html) to convert ASCII symbols to HEX (please remove space symbols). Dao's name should have only "a" - "z", "A" - "Z", "0" - "9", "_" and "-" symbols. Length of DAO's name is between 10 and 255 symbols, length of description is between 10 and 4096 symbols.
+
+3) Click *Submit* button
+
+After DAO is created you will see DAO page with minimal balance:
+
+
+4) See DAO stats you can in *Chain state* tab. Select *dao* in *selected state query* and select what kind of data you want to get:
+
+- daosCount(): number of DAOs
+
+- daos(DaoId): get information about DAO. DaoId is a number, starts from 0.
+
+- membersCount(): number of members in DAO
+
+- members(DaoId, MemberId): infromation about DAO member, where DaoId and MemberId is a numbers-identifiers.
+
+### Add new members to DAO
+
+Adding new members to DAO works through voting. To start voting you should make a proposal to add candidate. Candidate needs an account with some AKROs. This account should not be a member of this DAO to do a proposal.
+
+1) Go to 'Extrinsics' tab and insert candidate's address to "using the selected account", select "dao" in "submit the following extrinsic" and "proposeToAddMemeber(dao_id)" function. Then insert dao id and click "Submit Transaction".
+
+2) Check the status of proposal you can in *Chain state* tab. Select *dao* in *selected state query*.
+
+- daoProposalsCount(DaoId) will show number of existing proposals
+
+- daoProposals(DaoId, ProposalId) will show status of proposal ProposalId in DAO DaoId: open:true/false, voting_deadline - block number when voting is over, yes_count & no_count - number of DAO members voted yes or no for proposal).
+
+### Remove member from DAO
+
+Excluding DAO member happens through voting. Only existing DAO members can be removed from DAO. If DAO has only one member, this member can't be removed from DAO.
+
+1) Go to 'Extrinsics' tab and insert candidate's address to "using the selected account", select "dao" in "submit the following extrinsic" and "proposeToRemoveMemeber(dao_id)" function. Then insert dao id and click "Submit Transaction".
+
+2) Check the status of proposal you can in *Chain state* tab. Select *dao* in *selected state query*.
+
+- daoProposalsCount(DaoId) will show number of existing proposals
+
+- daoProposals(DaoId, ProposalId) will show status of proposal ProposalId in DAO DaoId: open:true/false, voting_deadline - block number when voting is over, yes_count & no_count - number of DAO members voted yes or no for proposal).
+
+
+
+### Voting
+
+Only DAO member can take participation in voting (one time for proposal).
+
+To take participation in voting go to 'Extrinsics' tab and insert your address to "using the selected account", select "dao" in "submit the following extrinsic" and "vote(dao_id, proposal_id, vote)" function, where vote is boolean (Yes/No).  Then insert dao id and click "Submit Transaction".
