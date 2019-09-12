@@ -300,7 +300,9 @@ impl marketplace::Trait for Runtime {
 
 impl token::Trait for Runtime {
 	type Event = Event;
-	type TokenBalance = u128;
+	type TokenBalance = u64;
+	type TokenId = u32;
+	type Currency = Balances;
 }
 
 construct_runtime!(
