@@ -30,6 +30,20 @@ cargo build
 
 # Run
 
+You can start a full node in AkropolisOS chain with:
+
+```bash
+cargo run -- --name node-name
+```
+
+You can start a validator node in AkropolisOS chain with:
+
+```bash
+cargo run -- --name node-name --validator
+```
+
+# Development
+
 You can start a development chain with:
 
 ```bash
