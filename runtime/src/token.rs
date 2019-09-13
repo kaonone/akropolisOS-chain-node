@@ -1,35 +1,49 @@
 /// runtime module implementing the ERC20 token interface
+use rstd::prelude::*;
+use runtime_primitives::traits::{
+    As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic, 
+};
 #[cfg(feature = "std")]
 use std::borrow::Borrow;
 #[cfg(feature = "std")]
 use std::fmt::Debug;
-use rstd::prelude::*;
-use parity_codec::{Encode, Decode, Codec};
 use support::{
+    decl_event, decl_module, decl_storage,
     dispatch::Result,
-    traits::{Currency, ExistenceRequirement, WithdrawReason},  
-    StorageMap, Parameter, StorageValue, decl_storage, decl_module, decl_event, ensure
+    ensure,
+    traits::{Currency, ExistenceRequirement, WithdrawReason},
+    Parameter, StorageMap, StorageValue,
 };
 use system::{self, ensure_signed};
-use runtime_primitives::traits::{One, StaticLookup, 
-    CheckedSub, CheckedAdd, Member, SimpleArithmetic, As, MaybeSerializeDebug
-};
+use crate::new_traits_and_types::{AccountIdConversion, ModuleId};
+use parity_codec::{Codec, Encode};
+
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+
+const MODULE_ID: ModuleId = ModuleId(*b"coinfund");
+
 // use new_types;
 pub trait Trait: balances::Trait + system::Trait {
     type Currency: Currency<Self::AccountId>;
 
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-    type TokenBalance: Parameter + Member + SimpleArithmetic + Codec + Default + Copy + As<usize> + As<u64>;
+    type TokenBalance: Parameter
+        + Member
+        + SimpleArithmetic
+        + Codec
+        + Default
+        + Copy
+        + As<usize>
+        + As<u64>;
 
-    type TokenId: Parameter + Member + SimpleArithmetic  +  Codec + Default + Copy + Debug + As<u64>;
+    type TokenId: Parameter + Member + SimpleArithmetic + Encode + Codec + Default + Copy + Debug + As<u64>;
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Token {
-        // Init get(is_init): bool;
+    trait Store for Module<T: Trait> as TokenFactory {
         Init get(is_init): map T::TokenId => bool;
-        Count get(count): u64;
+        Count get(count): T::TokenId;
 
         TotalSupply get(total_supply): map T::TokenId => T::TokenBalance;
         Balance get(balance_of): map (T::TokenId, T::AccountId) => T::TokenBalance;
@@ -49,23 +63,35 @@ decl_module! {
             Ok(())
         }
 
-        pub fn create_token(origin, #[compact] total_supply: T::TokenBalance) {
+        pub fn issue(origin, #[compact] total_supply: T::TokenBalance, deposit: BalanceOf<T>) {
             let owner = ensure_signed(origin)?;
 
+            let id = Self::count();
+            let next_id = id.checked_add(&One::one()).ok_or("overflow when adding new token")?;
+            let imbalance = T::Currency::withdraw(&owner, deposit, WithdrawReason::Transfer, ExistenceRequirement::KeepAlive)?;
+
+            <Balance<T>>::insert((id, owner.clone()), total_supply);
+            <TotalSupply<T>>::insert(id, total_supply);
+            <Count<T>>::put(next_id);
+
+            // T::Currency::resolve_creating(&Self::fund_account_id(id), imbalance);
+
+            Self::deposit_event(RawEvent::NewToken(id, owner.clone(), total_supply));
+
+            Self::deposit_event(RawEvent::Deposit(id, owner, deposit));
         }
     }
 }
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
-
 // events
 decl_event!(
-    pub enum Event<T> where 
-    TokenId = <T as Trait>::TokenId, 
-    AccountId = <T as system::Trait>::AccountId, 
-    TokenBalance = <T as Trait>::TokenBalance,
-    Balance = BalanceOf<T>,
-    {    
+    pub enum Event<T>
+    where
+        TokenId = <T as Trait>::TokenId,
+        AccountId = <T as system::Trait>::AccountId,
+        TokenBalance = <T as Trait>::TokenBalance,
+        Balance = BalanceOf<T>,
+    {
         NewToken(TokenId, AccountId, TokenBalance),
         Transfer(TokenId, AccountId, AccountId, TokenBalance),
         Approval(TokenId, AccountId, AccountId, TokenBalance),
@@ -74,12 +100,12 @@ decl_event!(
     }
 );
 
-impl<T: Trait> Module<T> where 
-<T as system::Trait>::AccountId: Borrow<(<T as Trait>::TokenId, 
-    <T as system::Trait>::AccountId)>
+impl<T: Trait> Module<T>
+where
+    <T as system::Trait>::AccountId:
+        Borrow<(<T as Trait>::TokenId, <T as system::Trait>::AccountId)>,
 {
     fn init(owner: T::AccountId, id: T::TokenId) -> Result {
-
         ensure!(Self::is_init(id) == false, "Token already initialized.");
 
         <Balance<T>>::insert(owner, Self::total_supply(id));
@@ -88,14 +114,21 @@ impl<T: Trait> Module<T> where
         Ok(())
     }
 
-    // pub fn fund_account_id(index: T::TokenId) -> T::AccountId {
-    // 	MODULE_ID.into_sub_account(index)
-    // }
+    pub fn fund_account_id(index: T::TokenId) -> T::AccountId {
+        MODULE_ID.into_sub_account(index)
+    }
 
-    pub fn make_transfer(id: T::TokenId, from: T::AccountId, to: T::AccountId, amount: T::TokenBalance) -> Result {
-
+    pub fn make_transfer(
+        id: T::TokenId,
+        from: T::AccountId,
+        to: T::AccountId,
+        amount: T::TokenBalance,
+    ) -> Result {
         let from_balance = Self::balance_of((id, from.clone()));
-        ensure!(from_balance >= amount.clone(), "user does not have enough tokens");
+        ensure!(
+            from_balance >= amount.clone(),
+            "user does not have enough tokens"
+        );
 
         <Balance<T>>::insert((id, from.clone()), from_balance - amount.clone());
         <Balance<T>>::mutate((id, to.clone()), |balance| *balance += amount.clone());
