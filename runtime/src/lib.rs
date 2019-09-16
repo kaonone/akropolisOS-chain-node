@@ -69,7 +69,7 @@ mod new_traits_and_types;
 /// to even the core datastructures.
 pub mod opaque {
     use super::*;
-
+    
     /// Opaque, encoded, unchecked extrinsic.
     pub use runtime_primitives::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -286,7 +286,7 @@ impl token::Trait for Runtime {
 	type Event = Event;
 	type TokenBalance = u64;
 	type TokenId = u32;
-	type Currency = Balances;
+    type Currency = Balances;
 }
 
 construct_runtime!(
