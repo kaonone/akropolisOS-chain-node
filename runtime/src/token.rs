@@ -24,7 +24,7 @@ pub trait Trait: balances::Trait + system::Trait {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as TokenFactory {
+    trait Store for Module<T: Trait> as TokenStorage {
         Count get(count): T::TokenId;
 
         // TokenInfo get(token_info): map(T::TokenId) => Token<T::TokenId>;
@@ -40,7 +40,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event<T>() = default;
 
-        pub fn burn(origin, id: T::TokenId, #[compact] amount: T::Balance) -> Result {
+        fn burn(origin, id: T::TokenId, #[compact] amount: T::Balance) -> Result {
             let sender = ensure_signed(origin)?;
 
             ensure!(Self::total_supply(id) > amount, "Cannot burn more than total supply");
@@ -56,7 +56,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn mint(origin, exchanger: T::AccountId, #[compact] amount: T::Balance, token: Vec<u8>) {
+        fn mint(origin, exchanger: T::AccountId, #[compact] amount: T::Balance, token: Vec<u8>) {
             let owner = ensure_signed(origin)?;
 
             let id = if let Some(_) = <TokenId<T>>::exists(&token).into() {
