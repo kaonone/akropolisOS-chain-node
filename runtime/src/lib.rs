@@ -61,7 +61,6 @@ mod dao;
 mod types;
 mod marketplace;
 mod token;
-mod new_traits_and_types;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -284,9 +283,7 @@ impl marketplace::Trait for Runtime {
 
 impl token::Trait for Runtime {
 	type Event = Event;
-	type TokenBalance = u64;
 	type TokenId = u32;
-    type Currency = Balances;
 }
 
 construct_runtime!(
