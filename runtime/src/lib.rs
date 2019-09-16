@@ -10,22 +10,15 @@ use client::{
 };
 use council::{motions as council_motions, voting as council_voting};
 use grandpa::fg_primitives::{self, ScheduledChange};
-use parity_codec::{Decode, Encode};
-#[cfg(feature = "std")]
-use primitives::bytes;
 use primitives::u32_trait::{_2, _4};
 use primitives::{ed25519, sr25519, OpaqueMetadata};
 use rstd::prelude::*;
-use runtime_primitives::{
+use runtime_primitives::{self,
     create_runtime_str, generic,
-    traits::{
-        self, BlakeTwo256, Block as BlockT, Convert, DigestFor, NumberFor, StaticLookup, Verify,
-    },
+    traits::{BlakeTwo256, Block as BlockT, Convert, DigestFor, NumberFor, StaticLookup, Verify},
     transaction_validity::TransactionValidity,
-    ApplyResult,
+    ApplyResult
 };
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use version::NativeVersion;
 use version::RuntimeVersion;
@@ -39,7 +32,7 @@ pub use contract::Schedule;
 #[cfg(any(feature = "std", test))]
 pub use runtime_primitives::BuildStorage;
 pub use runtime_primitives::{Perbill, Permill};
-pub use support::{construct_runtime, StorageValue};
+pub use support::{construct_runtime, StorageValue, traits::{Currency}};
 pub use timestamp::BlockPeriod;
 pub use timestamp::Call as TimestampCall;
 
@@ -78,20 +71,8 @@ pub mod opaque {
     use super::*;
 
     /// Opaque, encoded, unchecked extrinsic.
-    #[derive(PartialEq, Eq, Clone, Default, Encode, Decode)]
-    #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-    pub struct UncheckedExtrinsic(#[cfg_attr(feature = "std", serde(with = "bytes"))] pub Vec<u8>);
-    #[cfg(feature = "std")]
-    impl std::fmt::Debug for UncheckedExtrinsic {
-        fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(fmt, "{}", primitives::hexdisplay::HexDisplay::from(&self.0))
-        }
-    }
-    impl traits::Extrinsic for UncheckedExtrinsic {
-        fn is_signed(&self) -> Option<bool> {
-            None
-        }
-    }
+    pub use runtime_primitives::OpaqueExtrinsic as UncheckedExtrinsic;
+
     /// Opaque block header type.
     pub type Header = generic::Header<
         BlockNumber,
@@ -181,6 +162,8 @@ impl timestamp::Trait for Runtime {
     type Moment = u64;
     type OnTimestampSet = Aura;
 }
+
+// impl new_traits_and_types::Currency for balances {}
 
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
