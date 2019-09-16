@@ -2,7 +2,7 @@ use runtime_primitives::traits::{
     As, MaybeSerializeDebug,  SimpleArithmetic,
 };
 use support::traits::{Imbalance, ExistenceRequirement, WithdrawReason};
-use parity_codec::{Codec, Decode, Encode};
+use parity_codec::{Codec, Input, Decode, Encode};
 #[cfg(feature = "std")]
 use std::fmt;
 use rstd::result;
@@ -95,41 +95,8 @@ impl From<std::io::Error> for Error {
     }
 }
 
-/// Wrapper that implements Input for any `Read` and `Seek` type.
-#[cfg(feature = "std")]
-pub struct IoReader<R: std::io::Read + std::io::Seek>(pub R);
-
-#[cfg(feature = "std")]
-impl<R: std::io::Read + std::io::Seek> Input for IoReader<R> {
-    fn remaining_len(&mut self) -> Result<Option<usize>, Error> {
-        use std::convert::TryInto;
-        use std::io::SeekFrom;
-
-        let old_pos = self.0.seek(SeekFrom::Current(0))?;
-        let len = self.0.seek(SeekFrom::End(0))?;
-
-        // Avoid seeking a third time when we were already at the end of the
-        // stream. The branch is usually way cheaper than a seek operation.
-        if old_pos != len {
-            self.0.seek(SeekFrom::Start(old_pos))?;
-        }
-
-        len.saturating_sub(old_pos)
-            .try_into()
-            .map_err(|_| "Input cannot fit into usize length".into())
-            .map(Some)
-    }
-
-    fn read(&mut self, into: &mut [u8]) -> Result<(), Error> {
-        self.0.read_exact(into).map_err(Into::into)
-    }
-}
-
 impl<'a> Input for TrailingZeroInput<'a> {
-    fn remaining_len(&mut self) -> Result<Option<usize>, Error> {
-        Ok(None)
-    }
-    fn read(&mut self, into: &mut [u8]) -> Result<(), Error> {
+    fn read(&mut self, into: &mut [u8]) -> usize {
         let len_from_inner = into.len().min(self.0.len());
         into[..len_from_inner].copy_from_slice(&self.0[..len_from_inner]);
         for i in &mut into[len_from_inner..] {
@@ -137,64 +104,8 @@ impl<'a> Input for TrailingZeroInput<'a> {
         }
         self.0 = &self.0[len_from_inner..];
 
-        Ok(())
+        self.0.len()
     }
-}
-
-//TODO: check why this is even needed to compile
-#[cfg(feature = "std")]
-impl<'a> std::io::Read for TrailingZeroInput<'a> {
-    fn read(&mut self, into: &mut [u8]) -> Result<usize, std::io::Error> {
-        let len_from_inner = into.len().min(self.0.len());
-        into[..len_from_inner].copy_from_slice(&self.0[..len_from_inner]);
-        for i in &mut into[len_from_inner..] {
-            *i = 0;
-        }
-        self.0 = &self.0[len_from_inner..];
-
-        //TODO: if this stays, fix this workaround to be Ok(())
-        Ok(0usize)
-    }
-}
-
-/// Trait that allows reading of data into a slice.
-pub trait Input {
-	/// Should return the remaining length of the input data. If no information about the input
-	/// length is available, `None` should be returned.
-	///
-	/// The length is used to constrain the preallocation while decoding. Returning a garbage
-	/// length can open the doors for a denial of service attack to your application.
-	/// Otherwise, returning `None` can decrease the performance of your application.
-	fn remaining_len(&mut self) -> Result<Option<usize>, Error>;
-
-	/// Read the exact number of bytes required to fill the given buffer.
-	///
-	/// Note that this function is similar to `std::io::Read::read_exact` and not
-	/// `std::io::Read::read`.
-	fn read(&mut self, into: &mut [u8]) -> Result<(), Error>;
-
-	/// Read a single byte from the input.
-	fn read_byte(&mut self) -> Result<u8, Error> {
-		let mut buf = [0u8];
-		self.read(&mut buf[..])?;
-		Ok(buf[0])
-	}
-}
-
-impl<'a> Input for &'a [u8] {
-	fn remaining_len(&mut self) -> Result<Option<usize>, Error> {
-		Ok(Some(self.len()))
-	}
-
-	fn read(&mut self, into: &mut [u8]) -> Result<(), Error> {
-		if into.len() > self.len() {
-			return Err("Not enough data to fill buffer".into());
-		}
-		let len = into.len();
-		into.copy_from_slice(&self[..len]);
-		*self = &self[len..];
-		Ok(())
-	}
 }
 
 /// Provide a simple 4 byte identifier for a type.
@@ -265,7 +176,7 @@ impl<T: Encode + Decode + Default, Id: Encode + Decode + TypeId> AccountIdConver
 /// Abstraction over a fungible assets system.
 pub trait Currency<AccountId> {
 	/// The balance of an account.
-	type Balance: SimpleArithmetic + As<usize> + As<u64> + Codec + Copy + MaybeSerializeDebug + Default;
+	type Balance: SimpleArithmetic + Codec + Copy + MaybeSerializeDebug + Default;
 
 	/// The opaque token type for an imbalance. This is returned by unbalanced operations
 	/// and must be dealt with. It may be dropped but cannot be cloned.
@@ -290,6 +201,21 @@ pub trait Currency<AccountId> {
 	/// The minimum balance any single account may have. This is equivalent to the `Balances` module's
 	/// `ExistentialDeposit`.
 	fn minimum_balance() -> Self::Balance;
+
+	/// Reduce the total issuance by `amount` and return the according imbalance. The imbalance will
+	/// typically be used to reduce an account by the same amount with e.g. `settle`.
+	///
+	/// This is infallible, but doesn't guarantee that the entire `amount` is burnt, for example
+	/// in the case of underflow.
+	fn burn(amount: Self::Balance) -> Self::PositiveImbalance;
+
+	/// Increase the total issuance by `amount` and return the according imbalance. The imbalance
+	/// will typically be used to increase an account by the same amount with e.g.
+	/// `resolve_into_existing` or `resolve_creating`.
+	///
+	/// This is infallible, but doesn't guarantee that the entire `amount` is issued, for example
+	/// in the case of overflow.
+	fn issue(amount: Self::Balance) -> Self::NegativeImbalance;
 
 	/// The 'free' balance of a given account.
 	///
@@ -347,17 +273,18 @@ pub trait Currency<AccountId> {
 		value: Self::Balance
 	) -> result::Result<Self::PositiveImbalance, &'static str>;
 
-	/// Removes some free balance from `who` account for `reason` if possible. If `liveness` is `KeepAlive`,
-	/// then no less than `ExistentialDeposit` must be left remaining.
-	///
-	/// This checks any locks, vesting, and liquidity requirements. If the removal is not possible, then it
-	/// returns `Err`.
-	fn withdraw(
+	/// Similar to deposit_creating, only accepts a `NegativeImbalance` and returns nothing on
+	/// success.
+	fn resolve_into_existing(
 		who: &AccountId,
-		value: Self::Balance,
-		reason: WithdrawReason,
-		liveness: ExistenceRequirement,
-	) -> result::Result<Self::NegativeImbalance, &'static str>;
+		value: Self::NegativeImbalance,
+	) -> result::Result<(), Self::NegativeImbalance> {
+		let v = value.peek();
+		match Self::deposit_into_existing(who, v) {
+			Ok(opposite) => Ok(drop(value.offset(opposite))),
+			_ => Err(value),
+		}
+	}
 
 	/// Adds up to `value` to the free balance of `who`. If `who` doesn't exist, it is created.
 	///
@@ -366,6 +293,45 @@ pub trait Currency<AccountId> {
 		who: &AccountId,
 		value: Self::Balance,
 	) -> Self::PositiveImbalance;
+
+	/// Similar to deposit_creating, only accepts a `NegativeImbalance` and returns nothing on
+	/// success.
+	fn resolve_creating(
+		who: &AccountId,
+		value: Self::NegativeImbalance,
+	) {
+		let v = value.peek();
+		drop(value.offset(Self::deposit_creating(who, v)));
+	}
+
+	/// Removes some free balance from `who` account for `reason` if possible. If `liveness` is
+	/// `KeepAlive`, then no less than `ExistentialDeposit` must be left remaining.
+	///
+	/// This checks any locks, vesting, and liquidity requirements. If the removal is not possible,
+	/// then it returns `Err`.
+	///
+	/// If the operation is successful, this will return `Ok` with a `NegativeImbalance` whose value
+	/// is `value`.
+	fn withdraw(
+		who: &AccountId,
+		value: Self::Balance,
+		reason: WithdrawReason,
+		liveness: ExistenceRequirement,
+	) -> result::Result<Self::NegativeImbalance, &'static str>;
+
+	/// Similar to withdraw, only accepts a `PositiveImbalance` and returns nothing on success.
+	fn settle(
+		who: &AccountId,
+		value: Self::PositiveImbalance,
+		reason: WithdrawReason,
+		liveness: ExistenceRequirement,
+	) -> result::Result<(), Self::PositiveImbalance> {
+		let v = value.peek();
+		match Self::withdraw(who, v, reason, liveness) {
+			Ok(opposite) => Ok(drop(value.offset(opposite))),
+			_ => Err(value),
+		}
+	}
 
 	/// Ensure an account's free balance equals some value; this will create the account
 	/// if needed.
@@ -380,6 +346,7 @@ pub trait Currency<AccountId> {
 		UpdateBalanceOutcome,
 	);
 }
+
 /// Outcome of a balance update.
 pub enum UpdateBalanceOutcome {
 	/// Account balance was simply updated.
