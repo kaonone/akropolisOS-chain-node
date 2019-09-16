@@ -1,22 +1,19 @@
 /// runtime module implementing the ERC20 token interface
 use rstd::prelude::*;
+use rstd::borrow::Borrow;
 use runtime_primitives::traits::{
-    As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic, 
+    As, CheckedAdd, CheckedSub, MaybeSerializeDebug, Member, One, SimpleArithmetic, 
 };
-#[cfg(feature = "std")]
-use std::borrow::Borrow;
-#[cfg(feature = "std")]
-use std::fmt::Debug;
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::Result,
     ensure,
-    traits::{Currency, ExistenceRequirement, WithdrawReason},
+    traits::{Currency, Imbalance, ExistenceRequirement, WithdrawReason},
     Parameter, StorageMap, StorageValue,
 };
 use system::{self, ensure_signed};
-use crate::new_traits_and_types::{AccountIdConversion, ModuleId};
 use parity_codec::{Codec, Encode};
+use crate::new_traits_and_types::{self, Currency as CurrencyModified, AccountIdConversion, ModuleId};
 
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 
@@ -24,7 +21,7 @@ const MODULE_ID: ModuleId = ModuleId(*b"coinfund");
 
 // use new_types;
 pub trait Trait: balances::Trait + system::Trait {
-    type Currency: Currency<Self::AccountId>;
+    type Currency: Currency<Self::AccountId> + CurrencyModified<Self::AccountId>;
 
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -37,7 +34,7 @@ pub trait Trait: balances::Trait + system::Trait {
         + As<usize>
         + As<u64>;
 
-    type TokenId: Parameter + Member + SimpleArithmetic + Encode + Codec + Default + Copy + Debug + As<u64>;
+    type TokenId: Parameter + Member + SimpleArithmetic + Encode + Codec + Default + Copy + As<u64>;
 }
 
 decl_storage! {
@@ -68,13 +65,13 @@ decl_module! {
 
             let id = Self::count();
             let next_id = id.checked_add(&One::one()).ok_or("overflow when adding new token")?;
-            let imbalance = T::Currency::withdraw(&owner, deposit, WithdrawReason::Transfer, ExistenceRequirement::KeepAlive)?;
+            let imbalance = new_traits_and_types::Currency::withdraw(&owner, deposit, WithdrawReason::Transfer, ExistenceRequirement::KeepAlive)?;
 
             <Balance<T>>::insert((id, owner.clone()), total_supply);
             <TotalSupply<T>>::insert(id, total_supply);
             <Count<T>>::put(next_id);
 
-            // T::Currency::resolve_creating(&Self::fund_account_id(id), imbalance);
+            T::Currency::resolve_creating(&Self::fund_account_id(id), imbalance);
 
             Self::deposit_event(RawEvent::NewToken(id, owner.clone(), total_supply));
 
@@ -100,15 +97,11 @@ decl_event!(
     }
 );
 
-impl<T: Trait> Module<T>
-where
-    <T as system::Trait>::AccountId:
-        Borrow<(<T as Trait>::TokenId, <T as system::Trait>::AccountId)>,
-{
+impl<T: Trait> Module<T>{
     fn init(owner: T::AccountId, id: T::TokenId) -> Result {
         ensure!(Self::is_init(id) == false, "Token already initialized.");
 
-        <Balance<T>>::insert(owner, Self::total_supply(id));
+        <Balance<T>>::insert((id, owner), Self::total_supply(id));
         <Init<T>>::insert(id, true);
 
         Ok(())
