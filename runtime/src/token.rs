@@ -1,5 +1,7 @@
-/// runtime module implementing the ERC20 token interface
-use parity_codec::{Codec, Decode, Encode};
+/// runtime module implementing the ERC20 token factory API
+/// You can use mint to create tokens backed by locked funds on Ethereum side
+/// and transfer tokens on substrate side freely
+/// use parity_codec::{Codec, Decode, Encode};
 use rstd::prelude::*;
 use runtime_primitives::traits::{
     As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic, StaticLookup, Zero,
