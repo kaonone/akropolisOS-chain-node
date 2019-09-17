@@ -1,41 +1,73 @@
 /// runtime module implementing the ERC20 token factory API
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
-/// 
+///
 use parity_codec::{Codec, Decode, Encode};
 use rstd::prelude::*;
 use runtime_primitives::traits::{
-    As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic, StaticLookup, Zero,
+    As, CheckedAdd, CheckedSub, MaybeSerializeDebug, Member, One, SimpleArithmetic, StaticLookup,
+    Zero,
 };
 use support::{
-    decl_event, decl_module, decl_storage, dispatch::Result, ensure, traits::Currency, Parameter,
-    StorageMap, StorageValue,
+    decl_event, decl_module, decl_storage, dispatch::Result, ensure, Parameter, StorageMap,
+    StorageValue,
 };
 use system::{self, ensure_signed};
 
-// #[derive(Encode, Decode, Default, Clone, PartialEq)]
-// #[cfg_attr(feature = "std", derive(Debug))]
-// pub struct Token<TokenId> {
-//     id: TokenId,
-//     symbol: Vec<u8>,
-// }
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Token<TokenId> {
+    token_id: TokenId,
+    symbol: Vec<u8>,
+}
+
+decl_event!(
+    pub enum Event<T>
+    where
+        AccountId = <T as system::Trait>::AccountId,
+        TokenId = <T as Trait>::TokenId,
+        TokenBalance = <T as Trait>::TokenBalance,
+    {
+        NewToken(TokenId, AccountId),
+        Transfer(TokenId, AccountId, AccountId, TokenBalance),
+        Approval(TokenId, AccountId, AccountId, TokenBalance),
+        Mint(TokenId, AccountId, TokenBalance),
+        Burn(TokenId, AccountId, TokenBalance),
+    }
+);
 
 pub trait Trait: balances::Trait + system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-    type TokenId: Parameter + Member + SimpleArithmetic + Encode + Codec + Default + Copy + As<u64>;
+    /// The units in which we record balances.
+    type TokenBalance: Parameter
+        + Member
+        + SimpleArithmetic
+        + Codec
+        + Default
+        + Copy
+        + MaybeSerializeDebug;
+
+    /// The arithmetic type of asset identifier.
+    type TokenId: Parameter
+        + Member
+        + SimpleArithmetic
+        + Codec
+        + Default
+        + Copy
+        + MaybeSerializeDebug;
 }
 
 decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
         Count get(count): T::TokenId;
 
-        // TokenInfo get(token_info): map(T::TokenId) => Token<T::TokenId>;
+        TokenInfo get(token_info): map(T::TokenId) => Token<T::TokenId>;
         TokenId get(token_id): map Vec<u8> => T::TokenId;
         TokenSymbol get(token_symbol): map T::TokenId => Vec<u8>;
-        TotalSupply get(total_supply): map T::TokenId => T::Balance;
-        Balance get(balance_of): map (T::TokenId, T::AccountId) => T::Balance;
-        Allowance get(allowance_of): map (T::TokenId, T::AccountId, T::AccountId) => T::Balance;
+        TotalSupply get(total_supply): map T::TokenId => T::TokenBalance;
+        Balance get(balance_of): map (T::TokenId, T::AccountId) => T::TokenBalance;
+        Allowance get(allowance_of): map (T::TokenId, T::AccountId, T::AccountId) => T::TokenBalance;
     }
 }
 
@@ -43,47 +75,50 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event<T>() = default;
 
-        fn burn(origin, id: T::TokenId, #[compact] amount: T::Balance) -> Result {
-            let sender = ensure_signed(origin)?;
+        fn burn(origin, id: T::TokenId, sender: T::AccountId, #[compact] amount: T::TokenBalance) -> Result {
+            let _ = ensure_signed(origin)?;
 
             ensure!(Self::total_supply(id) > amount, "Cannot burn more than total supply");
 
             let old_balance = <Balance<T>>::get((id, sender.clone()));
-            let next_balance = old_balance.checked_sub(&amount).ok_or("underflow adding to total supply")?;
-            let next_total = Self::total_supply(id).checked_sub(&amount).ok_or("underflow adding to total supply")?;
+            ensure!(old_balance > T::TokenBalance::zero(), "Cannot burn with zero balance");
+
+            let next_balance = old_balance.checked_sub(&amount).ok_or("underflow subtracting from balance burn")?;
+            let next_total = Self::total_supply(id).checked_sub(&amount).ok_or("underflow subtracting from total supply")?;
             <Balance<T>>::insert((id, sender.clone()), next_balance);
             <TotalSupply<T>>::insert(id, next_total);
 
-            Self::deposit_event(RawEvent::Burn(id, sender,  amount));
+            Self::deposit_event(RawEvent::Burn(id, sender, amount));
 
             Ok(())
         }
 
-        fn mint(origin, exchanger: T::AccountId, #[compact] amount: T::Balance, token: Vec<u8>) {
-            let owner = ensure_signed(origin)?;
+        fn mint(origin, exchanger: T::AccountId, #[compact] amount: T::TokenBalance, token: Vec<u8>) {
+            let bridge_validator = ensure_signed(origin)?;
 
             ensure!(!amount.is_zero(), "amount should be non-zero");
 
-            let id = if let Some(_) = <TokenId<T>>::exists(&token).into() {
+            let id = if <TokenId<T>>::exists(&token) {
                 <TokenId<T>>::get(&token)
                 } else {
-                    let _ = Self::create_token(owner.clone(), &token)?;
+                    let _ = Self::create_token(bridge_validator.clone(), &token)?;
                     Self::count()
-                    };
+                };
 
+            let old_balance = <Balance<T>>::get((id, exchanger.clone()));
+            let next_balance = old_balance.checked_add(&amount).ok_or("overflow adding to balance")?;
             let next_total = Self::total_supply(id).checked_add(&amount).ok_or("overflow adding to total supply")?;
-            <Balance<T>>::insert((id, exchanger.clone()), amount.clone());
+
+            <Balance<T>>::insert((id, exchanger.clone()), next_balance);
             <TotalSupply<T>>::insert(id, next_total);
 
-            <balances::Module<T> as Currency<_>>::deposit_creating(&exchanger, amount);
-
-            Self::deposit_event(RawEvent::Mint(id, owner, amount));
+            Self::deposit_event(RawEvent::Mint(id, bridge_validator, amount));
         }
 
         fn transfer(origin,
             #[compact] id: T::TokenId,
             to: <T::Lookup as StaticLookup>::Source,
-            #[compact] amount: T::Balance
+            #[compact] amount: T::TokenBalance
         ) {
             let sender = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
@@ -93,60 +128,35 @@ decl_module! {
         }
 
         fn approve(origin,
-        	#[compact] id: T::TokenId,
-        	spender: <T::Lookup as StaticLookup>::Source,
-        	#[compact] value: T::Balance
+            #[compact] id: T::TokenId,
+            spender: <T::Lookup as StaticLookup>::Source,
+            #[compact] value: T::TokenBalance
         ) {
-        	let sender = ensure_signed(origin)?;
-        	let spender = T::Lookup::lookup(spender)?;
+            let sender = ensure_signed(origin)?;
+            let spender = T::Lookup::lookup(spender)?;
 
-        	<Allowance<T>>::insert((id, sender.clone(), spender.clone()), value);
+            <Allowance<T>>::insert((id, sender.clone(), spender.clone()), value);
 
-        	Self::deposit_event(RawEvent::Approval(id, sender, spender, value));
+            Self::deposit_event(RawEvent::Approval(id, sender, spender, value));
         }
 
         fn transfer_from(origin,
-        	#[compact] id: T::TokenId,
-        	from: T::AccountId,
-        	to: T::AccountId,
-        	#[compact] value: T::Balance
+            #[compact] id: T::TokenId,
+            from: T::AccountId,
+            to: T::AccountId,
+            #[compact] value: T::TokenBalance
         ) {
-        	let sender = ensure_signed(origin)?;
-        	let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
+            let sender = ensure_signed(origin)?;
+            let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
 
-        	let updated_allowance = allowance.checked_sub(&value).ok_or("underflow in calculating allowance")?;
+            let updated_allowance = allowance.checked_sub(&value).ok_or("underflow in calculating allowance")?;
 
-        	Self::make_transfer(id, from.clone(), to.clone(), value)?;
+            Self::make_transfer(id, from.clone(), to.clone(), value)?;
 
-        	<Allowance<T>>::insert((id, from, sender), updated_allowance);
+            <Allowance<T>>::insert((id, from, sender), updated_allowance);
         }
-
-        // fn deposit(origin, #[compact] token_id: T::TokenId, #[compact] value: T::Balance) {
-        // 	let who = ensure_signed(origin)?;
-        // 	ensure!(Self::count() > token_id, "Non-existent token");
-        //     <balances::Module<T> as Currency<_>>::transfer(&who, token_id, amount)?;
-        // 	T::Currency::transfer(&who, &Self::fund_account_id(token_id), value)?;
-
-        // 	Self::deposit_event(RawEvent::Deposit(token_id, who, value));
-        // }
     }
 }
-
-// events
-decl_event!(
-    pub enum Event<T>
-    where
-        TokenId = <T as Trait>::TokenId,
-        AccountId = <T as system::Trait>::AccountId,
-        Balance = <T as balances::Trait>::Balance,
-    {
-        NewToken(TokenId, AccountId),
-        Transfer(TokenId, AccountId, AccountId, Balance),
-        Approval(TokenId, AccountId, AccountId, Balance),
-        Mint(TokenId, AccountId, Balance),
-        Burn(TokenId, AccountId, Balance),
-    }
-);
 
 impl<T: Trait> Module<T> {
     fn create_token(owner: T::AccountId, token: &Vec<u8>) -> Result {
@@ -156,13 +166,15 @@ impl<T: Trait> Module<T> {
             .ok_or("overflow when adding new token")?;
 
         <Count<T>>::mutate(|n| *n = next_id);
-        <TokenSymbol<T>>::insert(next_id, token.clone());
+        <TokenId<T>>::insert(token.clone(), &next_id);
+        <TokenSymbol<T>>::insert(&next_id, token.clone());
 
-        // let next_token = Token {
-        //     id: next_id,    
-        //     symbol: token.clone()
-        // }
-        // <TokenInfo<T>>::insert(next_id, next_token);
+        let next_token = Token {
+            token_id: next_id,
+            symbol: token.clone(),
+        };
+
+        <TokenInfo<T>>::insert(next_id, next_token);
 
         Self::deposit_event(RawEvent::NewToken(<Count<T>>::get(), owner.clone()));
 
@@ -173,7 +185,7 @@ impl<T: Trait> Module<T> {
         id: T::TokenId,
         from: T::AccountId,
         to: T::AccountId,
-        amount: T::Balance,
+        amount: T::TokenBalance,
     ) -> Result {
         let from_balance = Self::balance_of((id, from.clone()));
         ensure!(
