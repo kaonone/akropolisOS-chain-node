@@ -2,7 +2,7 @@
 use parity_codec::{Codec, Decode, Encode};
 use rstd::prelude::*;
 use runtime_primitives::traits::{
-    As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic,
+    As, CheckedAdd, CheckedSub, Member, One, SimpleArithmetic, StaticLookup, Zero,
 };
 use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, traits::Currency, Parameter,
@@ -32,7 +32,7 @@ decl_storage! {
         TokenSymbol get(token_symbol): map T::TokenId => Vec<u8>;
         TotalSupply get(total_supply): map T::TokenId => T::Balance;
         Balance get(balance_of): map (T::TokenId, T::AccountId) => T::Balance;
-        Allowance get(allowance): map (T::TokenId, T::AccountId, T::AccountId) => T::Balance;
+        Allowance get(allowance_of): map (T::TokenId, T::AccountId, T::AccountId) => T::Balance;
     }
 }
 
@@ -59,6 +59,8 @@ decl_module! {
         fn mint(origin, exchanger: T::AccountId, #[compact] amount: T::Balance, token: Vec<u8>) {
             let owner = ensure_signed(origin)?;
 
+            ensure!(!amount.is_zero(), "amount should be non-zero");
+
             let id = if let Some(_) = <TokenId<T>>::exists(&token).into() {
                 <TokenId<T>>::get(&token)
                 } else {
@@ -70,10 +72,60 @@ decl_module! {
             <Balance<T>>::insert((id, exchanger.clone()), amount.clone());
             <TotalSupply<T>>::insert(id, next_total);
 
-            let _ =  <balances::Module<T> as Currency<_>>::deposit_creating(&exchanger, amount);
+            <balances::Module<T> as Currency<_>>::deposit_creating(&exchanger, amount);
 
             Self::deposit_event(RawEvent::Mint(id, owner, amount));
         }
+
+        fn transfer(origin,
+            #[compact] id: T::TokenId,
+            to: <T::Lookup as StaticLookup>::Source,
+            #[compact] amount: T::Balance
+        ) {
+            let sender = ensure_signed(origin)?;
+            let to = T::Lookup::lookup(to)?;
+            ensure!(!amount.is_zero(), "transfer amount should be non-zero");
+
+            Self::make_transfer(id, sender, to, amount)?;
+        }
+
+        fn approve(origin,
+        	#[compact] id: T::TokenId,
+        	spender: <T::Lookup as StaticLookup>::Source,
+        	#[compact] value: T::Balance
+        ) {
+        	let sender = ensure_signed(origin)?;
+        	let spender = T::Lookup::lookup(spender)?;
+
+        	<Allowance<T>>::insert((id, sender.clone(), spender.clone()), value);
+
+        	Self::deposit_event(RawEvent::Approval(id, sender, spender, value));
+        }
+
+        fn transfer_from(origin,
+        	#[compact] id: T::TokenId,
+        	from: T::AccountId,
+        	to: T::AccountId,
+        	#[compact] value: T::Balance
+        ) {
+        	let sender = ensure_signed(origin)?;
+        	let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
+
+        	let updated_allowance = allowance.checked_sub(&value).ok_or("underflow in calculating allowance")?;
+
+        	Self::make_transfer(id, from.clone(), to.clone(), value)?;
+
+        	<Allowance<T>>::insert((id, from, sender), updated_allowance);
+        }
+
+        // fn deposit(origin, #[compact] token_id: T::TokenId, #[compact] value: T::Balance) {
+        // 	let who = ensure_signed(origin)?;
+        // 	ensure!(Self::count() > token_id, "Non-existent token");
+        //     <balances::Module<T> as Currency<_>>::transfer(&who, token_id, amount)?;
+        // 	T::Currency::transfer(&who, &Self::fund_account_id(token_id), value)?;
+
+        // 	Self::deposit_event(RawEvent::Deposit(token_id, who, value));
+        // }
     }
 }
 
