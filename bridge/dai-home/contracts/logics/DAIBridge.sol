@@ -13,8 +13,10 @@ contract DAIBridge is  BeneficiaryOperations {
             bytes32 messageID;
             address spender;
             string substrateAddress;
+            uint depositAmount;
             uint availableAmount;
-            uint votes;
+            uint howManyVotes;
+            uint confirmations;
         }
 
         event RelayMessage(bytes32 messageID, address indexed sender, string indexed recipient, uint amount);
@@ -36,11 +38,18 @@ contract DAIBridge is  BeneficiaryOperations {
         /**
         * @dev Allows to perform method by existing beneficiary
         */
+
         modifier onlyExistingBeneficiary(address _beneficiary) {
             require(isExistBeneficiary(_beneficiary), "address is not in beneficiary array");
              _;
         }
-    
+
+        modifier messageHasAmount(bytes32 messageID) {
+            require((messages(messageID).availableAmount != messages(messageID).depositAmount), "Amount withdraw");
+            _;
+        }
+
+
         /*
         * Set Transfer to Bridge
         */
@@ -51,7 +60,7 @@ contract DAIBridge is  BeneficiaryOperations {
 
             bytes32 messageID = keccak256(abi.encodePacked(now));
 
-            Message  message = Message(messageID, msg.sender, substrateAddress, amount);
+            Message  message = Message(messageID, msg.sender, substrateAddress, amount, amount, howManyBeneficiariesDecide, 0);
 
             emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
