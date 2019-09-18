@@ -58,9 +58,9 @@ pub type BlockNumber = u64;
 pub type Nonce = u64;
 
 mod dao;
-mod types;
 mod marketplace;
 mod token;
+mod types;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -161,8 +161,6 @@ impl timestamp::Trait for Runtime {
     type Moment = u64;
     type OnTimestampSet = Aura;
 }
-
-// impl new_traits_and_types::Currency for balances {}
 
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
@@ -282,9 +280,9 @@ impl marketplace::Trait for Runtime {
 }
 
 impl token::Trait for Runtime {
-	type Event = Event;	
-    	type TokenBalance = u64;
-	type TokenId = u32;
+    type Event = Event;	
+    type TokenBalance = u64;
+    type TokenId = u32;
 
 }
 
@@ -313,7 +311,7 @@ construct_runtime!(
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        	Token: token::{Module, Call, Storage, Event<T>},
+    Token: token::{Module, Call, Storage, Event<T>},
 	}
 );
 
