@@ -13,13 +13,11 @@ contract DAIBridge is  BeneficiaryOperations {
             bytes32 messageID;
             address spender;
             string substrateAddress;
-            uint depositAmount;
             uint availableAmount;
-            uint howManyVotes;
-            uint confirmations;
         }
 
         event RelayMessage(bytes32 messageID, address indexed sender, string indexed recipient, uint amount);
+        event WithdrawFromBridge(address indexed sender, uint amount);
 
         mapping(bytes32 => Message) messages;
         mapping(address => Message) messagesBySender;
@@ -44,10 +42,25 @@ contract DAIBridge is  BeneficiaryOperations {
              _;
         }
 
+        /*
+            check available amount
+        */
+
         modifier messageHasAmount(bytes32 messageID) {
-            require((messages(messageID).availableAmount != messages(messageID).depositAmount), "Amount withdraw");
+            require((messages[messageID].availableAmount > 0), "Amount withdraw");
             _;
         }
+
+        /*
+            check that message is valid
+        */
+        modifier validMessage(bytes32 messageID, address spender, string memory substrateAddress, uint availableAmount) {
+            require((messages[messageID].spender == spender)
+                && (keccak256(abi.encodePacked(messages[messageID].substrateAddress)) == keccak256(abi.encodePacked(substrateAddress)))
+                && (messages[messageID].availableAmount == availableAmount), "data is not valid");
+            _;
+        }
+
 
 
         /*
@@ -60,11 +73,20 @@ contract DAIBridge is  BeneficiaryOperations {
 
             bytes32 messageID = keccak256(abi.encodePacked(now));
 
-            Message  message = Message(messageID, msg.sender, substrateAddress, amount, amount, howManyBeneficiariesDecide, 0);
+            Message  memory message = Message(messageID, msg.sender, substrateAddress, amount);
 
             emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
 
+        function withdraw() public {
+            Message storage message = messagesBySender[msg.sender];
+
+            token.transfer(msg.sender, message.availableAmount);
+
+            message.availableAmount = 0;
+
+            emit WithdrawFromBridge(msg.sender, message.availableAmount);
+        }
 
 
 
