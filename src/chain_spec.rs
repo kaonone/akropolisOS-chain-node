@@ -8,6 +8,8 @@ use substrate_service;
 
 use ed25519::Public as AuthorityId;
 
+use telemetry::TelemetryEndpoints;
+
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -24,6 +26,7 @@ pub enum Alternative {
     /// Whatever the current runtime is, with simple Alice/Bob auths.
     LocalTestnet,
     Akropolis,
+    AkropolisStaging,
 }
 
 fn authority_key(s: &str) -> AuthorityId {
@@ -64,10 +67,7 @@ impl Alternative {
                 || {
                     testnet_genesis(
                         vec![authority_key("Alice"), authority_key("Bob")],
-                        vec![
-                            account_key("Alice"),
-                            account_key("Bob"),
-                        ],
+                        vec![account_key("Alice"), account_key("Bob")],
                         account_key("Alice"),
                     )
                 },
@@ -77,14 +77,22 @@ impl Alternative {
                 None,
                 None,
             ),
-            Alternative::Akropolis => {
-                let boot_nodes = vec![];
+            Alternative::Akropolis => akropolis_genesis()?,
+            Alternative::AkropolisStaging => {
+                let boot_nodes = vec![
+                    "/ip4/157.230.35.215/tcp/30333/p2p/QmdRjsEvcGGKDTPAcVnCrRnsqqhbURbzetkkUQYwAmnxaS".to_string(),
+                    "/ip4/178.128.225.241/tcp/30333/p2p/QmbriyUytrn9W2AAsnMXN8g4SGQ8cspnmFju4ZJYiYq1Ax".to_string()
+                ];
+                let telemetry = TelemetryEndpoints::new(vec![
+                    ("ws://telemetry.polkadot.io:1024".to_string(), 0),
+                    ("ws://167.99.142.212:1024".to_string(), 0),
+                ]);
                 ChainSpec::from_genesis(
                     "Akropolis",
                     "akropolis",
-                    akropolis_genesis,
+                    akropolis_staging_genesis,
                     boot_nodes,
-                    None,
+                    Some(telemetry),
                     None,
                     None,
                     None,
@@ -96,8 +104,9 @@ impl Alternative {
     pub(crate) fn from(s: &str) -> Option<Self> {
         match s {
             "dev" => Some(Alternative::Development),
-            "" | "local" => Some(Alternative::LocalTestnet),
-            "akropolis" => Some(Alternative::Akropolis),
+            "local" => Some(Alternative::LocalTestnet),
+            "" | "akropolis" => Some(Alternative::Akropolis),
+            "akropolis_staging" => Some(Alternative::AkropolisStaging),
             _ => None,
         }
     }
@@ -187,7 +196,11 @@ fn testnet_genesis(
 	}
 }
 
-fn akropolis_genesis() -> GenesisConfig {
+fn akropolis_genesis() -> Result<ChainSpec, String> {
+    ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
+}
+
+fn akropolis_staging_genesis() -> GenesisConfig {
     let endowed_accounts = vec![
         hex!("ac093ae2c4b5cc62aca5ceca961ed3bd3ad65d0fdcc3cbd206109d5ab970e171").unchecked_into(), // 5FxGqPvuyvKaGvwaHAiTjvVpQMoZcgd1tLbWWWyPH4QNyc6Q
     ];

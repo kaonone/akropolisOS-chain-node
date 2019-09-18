@@ -30,6 +30,20 @@ cargo build
 
 # Run
 
+You can start a full node in AkropolisOS chain with:
+
+```bash
+cargo run -- --name node-name
+```
+
+You can start a validator node in AkropolisOS chain with:
+
+```bash
+cargo run -- --name node-name --validator
+```
+
+# Development
+
 You can start a development chain with:
 
 ```bash
@@ -83,37 +97,37 @@ This guide will walk you through how to create account and how to connect to Akr
 ```bash
 
 {
-    "Count": "u64",
-    "DaoId": "u64",
-    "MemberId": "u64",
-    "ProposalId": "u64",
-    "VotesCount": "MemberId",
-
-    "Dao": {
-   	 "address": "AccountId",
-   	 "name": "Text",
-   	 "description": "Bytes",
-   	 "founder": "AccountId"
-    },
-    "Action": {
-   	 "_enum": {
-   		 "EmptyAction": null,
-
-   		 "AddMember": "AccountId",
-   		 "RemoveMember": "AccountId",
-         "Withdraw": "(AccountId , Balance, Vec<u8>)"
-   	 }
-    },
-    "Proposal": {
-   	 "dao_id": "DaoId",
-   	 "action": "Action",
-   	 "open": "bool",
-   	 "voting_deadline": "BlockNumber",
-   	 "yes_count": "MemberId",
-   	 "no_count": "MemberId"
+  "Count": "u64",
+  "DaoId": "u64",
+  "MemberId": "u64",
+  "ProposalId": "u64",
+  "VotesCount": "MemberId",
+  "Days": "u32",
+  "Rate": "u32",
+  "Dao": {
+    "address": "AccountId",
+    "name": "Text",
+    "description": "Bytes",
+    "founder": "AccountId"
+  },
+  "Action": {
+    "_enum": {
+      "EmptyAction": null,
+      "AddMember": "AccountId",
+      "RemoveMember": "AccountId",
+      "GetLoan": "(Vec<u8>, Days, Rate, Balance)",
+      "Withdraw": "(AccountId, Balance, Vec<u8>)"
     }
+  },
+  "Proposal": {
+    "dao_id": "DaoId",
+    "action": "Action",
+    "open": "bool",
+    "voting_deadline": "BlockNumber",
+    "yes_count": "VotesCount",
+    "no_count": "VotesCount"
+  }
 }
-
 
 ```
 
