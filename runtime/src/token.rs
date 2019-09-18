@@ -5,7 +5,7 @@
 use parity_codec::{Codec, Decode, Encode};
 use rstd::prelude::*;
 use runtime_primitives::traits::{
-    As, CheckedAdd, CheckedSub, MaybeSerializeDebug, Member, One, SimpleArithmetic, StaticLookup,
+    CheckedAdd, CheckedSub, MaybeSerializeDebug, Member, One, SimpleArithmetic, StaticLookup,
     Zero,
 };
 use support::{
@@ -189,12 +189,12 @@ impl<T: Trait> Module<T> {
     ) -> Result {
         let from_balance = Self::balance_of((id, from.clone()));
         ensure!(
-            from_balance >= amount.clone(),
+            from_balance >= amount,
             "user does not have enough tokens"
         );
 
-        <Balance<T>>::insert((id, from.clone()), from_balance - amount.clone());
-        <Balance<T>>::mutate((id, to.clone()), |balance| *balance += amount.clone());
+        <Balance<T>>::insert((id, from.clone()), from_balance - amount);
+        <Balance<T>>::mutate((id, to.clone()), |balance| *balance += amount);
 
         Self::deposit_event(RawEvent::Transfer(id, from, to, amount));
 
