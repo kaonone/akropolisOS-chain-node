@@ -101,7 +101,9 @@ This guide will walk you through how to create account and how to connect to Akr
   "DaoId": "u64",
   "MemberId": "u64",
   "ProposalId": "u64",
+  "TokenBalance": "u64",
   "VotesCount": "MemberId",
+  "TokenId": "u32",
   "Days": "u32",
   "Rate": "u32",
   "Dao": {
@@ -123,11 +125,18 @@ This guide will walk you through how to create account and how to connect to Akr
     "dao_id": "DaoId",
     "action": "Action",
     "open": "bool",
+    "accepted": "bool",
     "voting_deadline": "BlockNumber",
     "yes_count": "VotesCount",
     "no_count": "VotesCount"
+  },
+  "Token": {
+    "token_id": "u32",
+    "symbol": "Vec<u8>"
   }
 }
+
+
 
 ```
 
