@@ -283,7 +283,7 @@ impl marketplace::Trait for Runtime {
 
 impl token::Trait for Runtime {
 	type Event = Event;	
-    type TokenBalance = u64;
+    	type TokenBalance = u64;
 	type TokenId = u32;
 
 }
@@ -313,7 +313,7 @@ construct_runtime!(
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        Token: token::{Module, Call, Storage, Event<T>},
+        	Token: token::{Module, Call, Storage, Event<T>},
 	}
 );
 
