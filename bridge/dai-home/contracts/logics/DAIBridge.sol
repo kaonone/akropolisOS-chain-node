@@ -9,15 +9,24 @@ contract DAIBridge is  BeneficiaryOperations {
 
         IERC20 private token;
 
+        struct Message {
+            bytes32 messageID;
+            address spender;
+            string substrateAddress;
+            uint availableAmount;
+            uint votes;
+        }
 
+        event RelayMessage(bytes32 messageID, address indexed sender, string indexed recipient, uint amount);
 
-        event RelayMessage(bytes32 messageID, address indexed sender, string indexed recipient);
+        mapping(bytes32 => Message) messages;
+        mapping(address => Message) messagesBySender;
 
        /**
        * @notice Constructor.
        * @param _token  Address of DAI token
        */
-    
+
         constructor (IERC20 _token) public
             BeneficiaryOperations() {
             token = _token;
@@ -31,6 +40,10 @@ contract DAIBridge is  BeneficiaryOperations {
             require(isExistBeneficiary(_beneficiary), "address is not in beneficiary array");
              _;
         }
+    
+        /*
+        * Set Transfer to Bridge
+        */
 
         function setTransfer(uint amount, string memory substrateAddress) public {
             require(token.allowance(msg.sender, address(this)) >= amount, "contract is not allowed to this amount");
@@ -38,8 +51,12 @@ contract DAIBridge is  BeneficiaryOperations {
 
             bytes32 messageID = keccak256(abi.encodePacked(now));
 
-            emit RelayMessage(messageID, msg.sender, substrateAddress);
+            Message  message = Message(messageID, msg.sender, substrateAddress, amount);
+
+            emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
+
+
 
 
 
