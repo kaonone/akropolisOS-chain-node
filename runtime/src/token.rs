@@ -1,3 +1,4 @@
+use crate::types::{TokenBalance, TokenId};
 /// runtime module implementing the ERC20 token factory API
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
@@ -9,7 +10,6 @@ use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
 use system::{self, ensure_signed};
-use crate::types::{TokenBalance, TokenId};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -74,7 +74,7 @@ decl_module! {
             let bridge_validator = ensure_signed(origin)?;
 
             ensure!(!amount.is_zero(), "amount should be non-zero");
-            ensure!(Self::validate_name(&token).is_ok(), "the token symbol is too long");
+            Self::validate_name(&token)?;
 
             let id = if <TokenIds<T>>::exists(&token) {
                 <TokenIds<T>>::get(&token)
@@ -182,6 +182,9 @@ impl<T: Trait> Module<T> {
         if name.len() > 10 {
             return Err("the token symbol is too long");
         }
+        if name.len() < 3 {
+            return Err("the token symbol is too short");
+        }
 
         Ok(())
     }
@@ -243,8 +246,9 @@ mod tests {
     type TokenModule = Module<Test>;
 
     const TOKEN_NAME: &[u8; 4] = b"NAME";
-    const TOKEN_LONG_NAME: &[u8] = b"nobody_really_want_long_token";
-    const TOKEN_DESC: &[u8] = b"Description-1234_";
+    const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
+    const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
+    const _TOKEN_DESC: &[u8] = b"Description-1234_";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
 
@@ -301,6 +305,22 @@ mod tests {
     }
 
     #[test]
+    fn mint_new_token_too_short() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_eq!(TokenModule::count(), 0);
+            assert_noop!(
+                TokenModule::mint(
+                    Origin::signed(USER1),
+                    USER2,
+                    1000,
+                    TOKEN_SHORT_NAME.to_vec()
+                ),
+                "the token symbol is too short"
+            );
+        })
+    }
+
+    #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
             assert_ok!(TokenModule::mint(
@@ -314,11 +334,6 @@ mod tests {
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), 0, USER1, 300));
             assert_eq!(TokenModule::balance_of((0, USER2)), 700);
             assert_eq!(TokenModule::balance_of((0, USER1)), 300);
-
-            assert_noop!(
-                TokenModule::mint(Origin::signed(USER1), USER2, 1000, TOKEN_LONG_NAME.to_vec()),
-                "the token symbol is too long"
-            );
         })
     }
 
@@ -337,7 +352,10 @@ mod tests {
             assert_eq!(TokenModule::balance_of((0, USER2)), 700);
             assert_eq!(TokenModule::balance_of((0, USER1)), 300);
 
-            assert_noop!(TokenModule::transfer(Origin::signed(USER2), 0, USER1, 1300), "user does not have enough tokens");
+            assert_noop!(
+                TokenModule::transfer(Origin::signed(USER2), 0, USER1, 1300),
+                "user does not have enough tokens"
+            );
         })
     }
 }
