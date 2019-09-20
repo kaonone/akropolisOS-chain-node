@@ -105,7 +105,7 @@ decl_storage! {
         OpenBridgeProposalsHashes get(open_bridge_proposals_hashes): map(T::Hash) => ProposalId;
         OpenBridgeProposalsHashesIndex get(open_bridge_proposals_hashes_index): map(ProposalId) => T::Hash;
 
-        ValidatorsCount get(validators_count) config(): MemberId;
+        ValidatorsCount get(validators_count) config(): usize = 3;
         Validators get(validators): map MemberId => Validator<T::AccountId>;
         ValidatorsAccounts get(validators_accounts): map MemberId => T::AccountId;
     }
@@ -116,30 +116,17 @@ decl_module! {
         fn deposit_event<T>() = default;
 
         // Burn tokens
-        fn burn(origin, id: TokenId, sender: T::AccountId, #[compact] amount: TokenBalance) -> Result {
-            let _ = ensure_signed(origin)?;
+        fn burn(origin, id: TokenId, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
+            ensure_signed(origin)?;
 
-            ensure!(Self::total_supply(id) > amount, "Cannot burn more than total supply");
-
-            let old_balance = <Balance<T>>::get((id, sender.clone()));
-            ensure!(old_balance > TokenBalance::zero(), "Cannot burn with zero balance");
-
-            let next_balance = old_balance.checked_sub(amount).ok_or("underflow subtracting from balance burn")?;
-            let next_total = Self::total_supply(id).checked_sub(amount).ok_or("underflow subtracting from total supply")?;
-            <Balance<T>>::insert((id, sender.clone()), next_balance);
-            <TotalSupply<T>>::insert(id, next_total);
-
-            Self::deposit_event(RawEvent::Burn(id, sender, amount));
+            Self::_burn(id, from.clone(), amount)?;
 
             Ok(())
         }
 
         fn mint(origin, recepient: T::AccountId, #[compact] amount: TokenBalance, token: Vec<u8>) -> Result{
             let validator = ensure_signed(origin)?;
-
-            ensure!(!amount.is_zero(), "amount should be non-zero");
             Self::validate_name(&token)?;
-
             let id = if <TokenIds<T>>::exists(&token) {
                 <TokenIds<T>>::get(&token)
                 } else {
@@ -147,14 +134,7 @@ decl_module! {
                     Self::count()
                 };
 
-            let old_balance = <Balance<T>>::get((id, recepient.clone()));
-            let next_balance = old_balance.checked_add(amount).ok_or("overflow adding to balance")?;
-            let next_total = Self::total_supply(id).checked_add(amount).ok_or("overflow adding to total supply")?;
-
-            <Balance<T>>::insert((id, recepient.clone()), next_balance);
-            <TotalSupply<T>>::insert(id, next_total);
-
-            Self::deposit_event(RawEvent::Mint(id, recepient, amount));
+            Self::_mint(id, recepient, amount)?;
 
             Ok(())
         }
@@ -213,73 +193,27 @@ decl_module! {
 
             let proposal_hash = ("substrate_to_ethereum", &validator, &from, amount)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
-            let voting_deadline = <system::Module<T>>::block_number() + Self::proposals_period_limit();
-            let mut open_proposals = Self::open_bridge_proposals(voting_deadline);
-
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(),
-            "Maximum number of open proposals is reached for the target block, try later");
-            ensure!(!<OpenBridgeProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             let token_id = <TokenIds<T>>::get(&token);
-            let proposal_id = <BridgeProposalsCount<T>>::get();
-            let bridge_proposals_count = <BridgeProposalsCount<T>>::get();
-            let new_bridge_proposals_count = bridge_proposals_count
-                .checked_add(1)
-                .ok_or("Overflow adding a new bridge proposal")?;
+            let action = Action::Substrate2Ethereum(token_id, from.clone(), amount);
+            Self::create_proposal(proposal_hash, action)?;
 
-            let proposal = BridgeProposal {
-                proposal_id,
-                action: Action::Substrate2Ethereum(token_id, from, amount),
-                open: true,
-                voting_deadline,
-                votes_count: MemberId::default(),
-            };
-
-            open_proposals.push(proposal_id);
-            <BridgeProposals<T>>::insert(proposal_id, proposal);
-            <BridgeProposalsCount<T>>::mutate(|count| *count += new_bridge_proposals_count);
-            <OpenBridgeProposals<T>>::insert(voting_deadline, open_proposals);
-            <OpenBridgeProposalsHashes<T>>::insert(proposal_hash, proposal_id);
-            <OpenBridgeProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
-
+            Self::deposit_event(RawEvent::ProposeToBurn(token_id, from, amount));
             Ok(())
         }
         fn eth2substrate(origin,
             token: Vec<u8>,
             to: T::AccountId,
             #[compact] amount: TokenBalance
-        )-> Result{
+        )-> Result {
             let validator = ensure_signed(origin)?;
 
             let proposal_hash = ("ethereum_to_substrate", &validator, &to, amount)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
-            let voting_deadline = <system::Module<T>>::block_number() + Self::proposals_period_limit();
-            let mut open_proposals = Self::open_bridge_proposals(voting_deadline);
-
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(),
-            "Maximum number of open proposals is reached for the target block, try later");
-            ensure!(!<OpenBridgeProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             let token_id = <TokenIds<T>>::get(&token);
-            let proposal_id = <BridgeProposalsCount<T>>::get();
-            let bridge_proposals_count = <BridgeProposalsCount<T>>::get();
-            let new_bridge_proposals_count = bridge_proposals_count
-                .checked_add(1)
-                .ok_or("Overflow adding a new bridge proposal")?;
+            let action = Action::Ethereum2Substrate(token_id, to.clone(), amount);
+            Self::create_proposal(proposal_hash, action)?;
 
-            let proposal = BridgeProposal {
-                proposal_id,
-                action: Action::Ethereum2Substrate(token_id, to, amount),
-                open: true,
-                voting_deadline,
-                votes_count: MemberId::default(),
-            };
-
-            open_proposals.push(proposal_id);
-            <BridgeProposals<T>>::insert(proposal_id, proposal);
-            <BridgeProposalsCount<T>>::mutate(|count| *count += new_bridge_proposals_count);
-            <OpenBridgeProposals<T>>::insert(voting_deadline, open_proposals);
-            <OpenBridgeProposalsHashes<T>>::insert(proposal_hash, proposal_id);
-            <OpenBridgeProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
-
+            Self::deposit_event(RawEvent::ProposeToMint(token_id, to, amount));
             Ok(())
         }
 
@@ -294,19 +228,18 @@ decl_module! {
             if vote {
                 proposal.votes_count += 1;
             }
-            let votes_count = proposal.votes_count.clone();
 
             let proposal_is_accepted = Self::votes_are_enough(proposal.votes_count);
             let all_validators_voted = proposal.votes_count == 3;
 
             if proposal_is_accepted {
-                Self::execute_proposal(&proposal)?;
+                Self::execute_proposal(proposal.clone())?;
             }
 
             if proposal_is_accepted || all_validators_voted {
                 Self::close_proposal(proposal.clone());
             } else {
-                <BridgeProposals<T>>::insert(proposal_id, proposal.clone());
+                <BridgeProposals<T>>::insert(proposal_id, proposal);
             }
 
             Self::deposit_event(RawEvent::NewVote(proposal_id, voter, vote));
@@ -339,11 +272,52 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    fn _burn(id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result {
+        ensure!(
+            Self::total_supply(id) > amount,
+            "Cannot burn more than total supply"
+        );
+
+        let old_balance = <Balance<T>>::get((id, from.clone()));
+        ensure!(
+            old_balance > TokenBalance::zero(),
+            "Cannot burn with zero balance"
+        );
+
+        let next_balance = old_balance
+            .checked_sub(amount)
+            .ok_or("underflow subtracting from balance burn")?;
+        let next_total = Self::total_supply(id)
+            .checked_sub(amount)
+            .ok_or("underflow subtracting from total supply")?;
+        <Balance<T>>::insert((id, from.clone()), next_balance);
+        <TotalSupply<T>>::insert(id, next_total);
+
+        Self::deposit_event(RawEvent::Burn(id, from, amount));
+
+        Ok(())
+    }
+    fn _mint(id: TokenId, recepient: T::AccountId, amount: TokenBalance) -> Result {
+        ensure!(!amount.is_zero(), "amount should be non-zero");
+
+        let old_balance = <Balance<T>>::get((id, recepient.clone()));
+        let next_balance = old_balance
+            .checked_add(amount)
+            .ok_or("overflow adding to balance")?;
+        let next_total = Self::total_supply(id)
+            .checked_add(amount)
+            .ok_or("overflow adding to total supply")?;
+
+        <Balance<T>>::insert((id, recepient.clone()), next_balance);
+        <TotalSupply<T>>::insert(id, next_total);
+
+        Self::deposit_event(RawEvent::Mint(id, recepient, amount));
+        Ok(())
+    }
     fn create_token(owner: T::AccountId, token: &Vec<u8>) -> Result {
-        let count = <Count<T>>::get();
         let next_id = match <Count<T>>::get() {
             0u32 => 0u32,
-            _ => count
+            count => count
                 .checked_add(One::one())
                 .ok_or("overflow when adding new token")?,
         };
@@ -401,15 +375,53 @@ impl<T: Trait> Module<T> {
     }
 
     fn votes_are_enough(votes: MemberId) -> bool {
-        votes as f64 / 3f64 >= 0.51
+        votes as f64 / Self::validators_count() as f64 >= 0.51
     }
 
-    fn execute_proposal(proposal: &BridgeProposal<T::AccountId, T::BlockNumber>) -> Result {
-        match &proposal.action {
-            Action::Substrate2Ethereum(token_id, from, amount) => Ok(()),
-            Action::Ethereum2Substrate(token_id, to, amount) => Ok(()),
+    fn execute_proposal(proposal: BridgeProposal<T::AccountId, T::BlockNumber>) -> Result {
+        match proposal.action {
+            Action::Substrate2Ethereum(token_id, from, amount) => {
+                Self::_burn(token_id, from, amount)
+            }
+            Action::Ethereum2Substrate(token_id, to, amount) => Self::_mint(token_id, to, amount),
             Action::EmptyAction => Ok(()),
         }
+    }
+    fn create_proposal(proposal_hash: T::Hash, action: Action<T::AccountId>) -> Result {
+        let voting_deadline = <system::Module<T>>::block_number() + Self::proposals_period_limit();
+        let mut open_proposals = Self::open_bridge_proposals(voting_deadline);
+
+        ensure!(
+            open_proposals.len() < Self::open_proposals_per_block(),
+            "Maximum number of open proposals is reached for the target block, try later"
+        );
+        ensure!(
+            !<OpenBridgeProposalsHashes<T>>::exists(proposal_hash),
+            "This proposal already open"
+        );
+        let proposal_id = <BridgeProposalsCount<T>>::get();
+        let bridge_proposals_count = <BridgeProposalsCount<T>>::get();
+        let new_bridge_proposals_count = bridge_proposals_count
+            .checked_add(1)
+            .ok_or("Overflow adding a new bridge proposal")?;
+
+        let proposal = BridgeProposal {
+            proposal_id,
+            action,
+            // action: Action::Substrate2Ethereum(token_id, account, amount),
+            open: true,
+            voting_deadline,
+            votes_count: MemberId::default(),
+        };
+
+        open_proposals.push(proposal_id);
+        <BridgeProposals<T>>::insert(proposal_id, proposal);
+        <BridgeProposalsCount<T>>::mutate(|count| *count += new_bridge_proposals_count);
+        <OpenBridgeProposals<T>>::insert(voting_deadline, open_proposals);
+        <OpenBridgeProposalsHashes<T>>::insert(proposal_hash, proposal_id);
+        <OpenBridgeProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
+
+        Ok(())
     }
 }
 
