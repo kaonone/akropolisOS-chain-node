@@ -101,9 +101,9 @@ decl_storage! {
 
         OpenBridgeProposalsLimit get(open_proposals_per_block) config(): usize = 2;
         OpenBridgeProposals get(open_bridge_proposals): map(T::BlockNumber) => Vec<ProposalId>;
-        OpenBridgeProposalsIndex get(open_bridge_proposals_index): map(ProposalId) => T::BlockNumber;
-        OpenBridgeProposalsHashes get(open_bridge_proposals_hashes): map(T::Hash) => ProposalId;
-        OpenBridgeProposalsHashesIndex get(open_bridge_proposals_hashes_index): map(ProposalId) => T::Hash;
+        OpenBridgeProposalsIndex get(open_proposal_deadline_by_index): map(ProposalId) => T::BlockNumber;
+        OpenBridgeProposalsHashes get(open_proposal_index_by_hash): map(T::Hash) => ProposalId;
+        OpenBridgeProposalsHashesIndex get(open_proposal_hash_by_index): map(ProposalId) => T::Hash;
 
         ValidatorsCount get(validators_count) config(): usize = 3;
         Validators get(validators): map MemberId => Validator<T::AccountId>;
@@ -200,6 +200,7 @@ decl_module! {
             Self::deposit_event(RawEvent::ProposeToBurn(token_id, from, amount));
             Ok(())
         }
+
         fn eth2substrate(origin,
             token: Vec<u8>,
             to: T::AccountId,
@@ -213,7 +214,10 @@ decl_module! {
             let action = Action::Ethereum2Substrate(token_id, to.clone(), amount);
             Self::create_proposal(proposal_hash, action)?;
 
+            // Self::open
             Self::deposit_event(RawEvent::ProposeToMint(token_id, to, amount));
+
+            // Self::
             Ok(())
         }
 
