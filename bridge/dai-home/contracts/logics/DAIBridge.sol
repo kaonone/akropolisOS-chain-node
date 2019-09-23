@@ -21,6 +21,8 @@ contract DAIBridge is  BeneficiaryOperations {
 
         event RelayMessage(bytes32 messageID, address sender, bytes32 recipient, uint amount);
         event WithdrawFromBridge(bytes32 MessageID, address sender, uint amount);
+        event ApprovedRelayMessage(bytes32 messageID, address  sender,  bytes32 recipient, uint amount);
+
 
         mapping(bytes32 => Message) messages;
         mapping(address => Message) messagesBySender;
@@ -57,9 +59,9 @@ contract DAIBridge is  BeneficiaryOperations {
         /*
             check that message is valid
         */
-        modifier validMessage(bytes32 messageID, address spender, string memory substrateAddress, uint availableAmount) {
+        modifier validMessage(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount) {
             require((messages[messageID].spender == spender)
-                && (keccak256(abi.encodePacked(messages[messageID].substrateAddress)) == keccak256(abi.encodePacked(substrateAddress)))
+                && (messages[messageID].substrateAddress == substrateAddress)
                 && (messages[messageID].availableAmount == availableAmount), "data is not valid");
             _;
         }
@@ -92,9 +94,20 @@ contract DAIBridge is  BeneficiaryOperations {
         function withdraw(bytes32 messageID) public pendingMessage(messageID) {
             Message storage message = messages[messageID];
 
+            message.status = Status.WITHDRAW;
+
             token.transfer(msg.sender, message.availableAmount);
 
             emit WithdrawFromBridge(messageID, msg.sender, message.availableAmount);
+        }
+
+        function approveTransfer(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount)
+            public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID )onlyManyBeneficiaries {
+            Message storage message = messages[messageID];
+
+            emit ApprovedRelayMessage(messageID, spender, substrateAddress, availableAmount);
+
+            message.status = Status.APPROVED;
         }
 
 }
