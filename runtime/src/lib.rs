@@ -61,6 +61,7 @@ mod dao;
 mod marketplace;
 mod token;
 mod types;
+mod bridge;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -283,6 +284,10 @@ impl token::Trait for Runtime {
 	type Event = Event;	
 }
 
+impl bridge::Trait for Runtime {
+	type Event = Event;	
+}
+
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId, AuthoritySignature>) where
 		Block = Block,
@@ -308,7 +313,8 @@ construct_runtime!(
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-    Token: token::{Module, Call, Storage, Event<T>},
+        Token: token::{Module, Call, Storage, Event<T>},
+        Bridge: bridge::{Module, Call, Storage, Event<T>},
 	}
 );
 

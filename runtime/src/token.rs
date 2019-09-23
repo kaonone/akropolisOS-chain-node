@@ -1,11 +1,11 @@
 /// runtime module implementing the ERC20 token factory API
-/// You can use mint to create tokens backed by locked funds on Ethereum side
-/// and transfer tokens on substrate side freely
+/// You can use mint to create tokens or burn created tokens
+/// and transfer tokens on substrate side freely or operate with total_supply
 ///
-use crate::types::{MemberId, ProposalId, TokenBalance, TokenId};
+use crate::types::{TokenBalance, TokenId};
 use parity_codec::{Decode, Encode};
 use rstd::prelude::Vec;
-use runtime_primitives::traits::{As, Hash, One, StaticLookup, Zero};
+use runtime_primitives::traits::{One, StaticLookup, Zero};
 use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
@@ -13,50 +13,9 @@ use system::{self, ensure_signed};
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct Validator<AccountId> {
-    validator_id: MemberId,
-    account: AccountId,
-}
-
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Token {
-    id: TokenId,
-    symbol: Vec<u8>,
-}
-
-#[derive(Encode, Decode, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub struct BridgeProposal<AccountId, VotingDeadline> {
-    proposal_id: ProposalId,
-    action: Action<AccountId>,
-    open: bool,
-    voting_deadline: VotingDeadline,
-    votes_count: MemberId,
-}
-
-impl<A, V> Default for BridgeProposal<A, V>
-where
-    A: Default,
-    V: Default,
-{
-    fn default() -> Self {
-        BridgeProposal {
-            proposal_id: ProposalId::default(),
-            action: Action::EmptyAction,
-            open: true,
-            voting_deadline: V::default(),
-            votes_count: MemberId::default(),
-        }
-    }
-}
-
-#[derive(Encode, Decode, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub enum Action<AccountId> {
-    EmptyAction,
-    Ethereum2Substrate(TokenId, AccountId, TokenBalance),
-    Substrate2Ethereum(TokenId, AccountId, TokenBalance),
+    pub id: TokenId,
+    pub symbol: Vec<u8>,
 }
 
 decl_event!(
@@ -65,16 +24,10 @@ decl_event!(
         AccountId = <T as system::Trait>::AccountId,
     {
         NewToken(TokenId, AccountId),
-        NewVote(ProposalId, AccountId, bool),
         Transfer(TokenId, AccountId, AccountId, TokenBalance),
         Approval(TokenId, AccountId, AccountId, TokenBalance),
         Mint(TokenId, AccountId, TokenBalance),
         Burn(TokenId, AccountId, TokenBalance),
-        ProposeToMint(TokenId, AccountId, TokenBalance),
-        ProposeToBurn(TokenId, AccountId, TokenBalance),
-        ProposalIsAccepted(ProposalId),
-        ProposalIsExpired(ProposalId),
-        ProposalIsRejected(ProposalId),
     }
 );
 
@@ -93,23 +46,6 @@ decl_storage! {
         TotalSupply get(total_supply): map TokenId => TokenBalance;
         Balance get(balance_of): map (TokenId, T::AccountId) => TokenBalance;
         Allowance get(allowance_of): map (TokenId, T::AccountId, T::AccountId) => TokenBalance;
-
-        //bridge specific mappings
-        BridgeProposals get(proposals): map ProposalId => BridgeProposal<T::AccountId, T::BlockNumber>;
-        BridgeProposalsVotes get(proposal_votes): map ProposalId => MemberId;
-        BridgeProposalsPeriodLimit get(proposals_period_limit) config(): T::BlockNumber = T::BlockNumber::sa(30);
-        BridgeProposalsCount get(bridge_proposals_count): ProposalId;
-
-        OpenBridgeProposalsLimit get(open_proposals_per_block) config(): usize = 2;
-        OpenBridgeProposals get(open_bridge_proposals): map(T::BlockNumber) => Vec<ProposalId>;
-        OpenBridgeProposalsIndex get(open_proposal_deadline_by_index): map(ProposalId) => T::BlockNumber;
-        OpenBridgeProposalsHashes get(open_proposal_index_by_hash): map(T::Hash) => ProposalId;
-        OpenBridgeProposalsHashesIndex get(open_proposal_hash_by_index): map(ProposalId) => T::Hash;
-
-        EthereumAdressHashes get(ethereum_address): map(ProposalId) => Vec<u8>;
-        ValidatorsCount get(validators_count) config(): usize = 3;
-        Validators get(validators): map MemberId => Validator<T::AccountId>;
-        ValidatorsAccounts get(validators_accounts): map MemberId => T::AccountId;
     }
 }
 
@@ -180,81 +116,11 @@ decl_module! {
             Ok(())
         }
 
-        //bridge specific Extrinsics
-        fn substrate2eth(origin,
-            message_id: Vec<u8>,
-            to: Vec<u8>, //Ethereum address
-            from: T::AccountId,
-            #[compact] amount: TokenBalance
-        )-> Result{
-            let validator =  ensure_signed(origin)?;
-
-            let proposal_hash = message_id.using_encoded(<T as system::Trait>::Hashing::hash);
-            let token_id = Self::token_default().id;
-            let action = Action::Substrate2Ethereum(token_id, from.clone(), amount);
-
-            let proposal_id = match <OpenBridgeProposalsHashes<T>>::exists(proposal_hash) {
-                true => <OpenBridgeProposalsHashes<T>>::get(proposal_hash),
-                false => {
-                    Self::create_proposal(proposal_hash, action)?;
-            Self::deposit_event(RawEvent::ProposeToBurn(token_id, from, amount));
-                    <OpenBridgeProposalsHashes<T>>::get(proposal_hash)
-                }
-            };
-
-            Self::_vote(validator, proposal_id, true)?;
-            <EthereumAdressHashes<T>>::insert(proposal_id, to);
-            Ok(())
-        }
-
-        fn eth2substrate(origin,
-            message_id: Vec<u8>,
-            from: Vec<u8>, //Ethereum address
-            to: T::AccountId,
-            #[compact] amount: TokenBalance
-        )-> Result {
-            let validator = ensure_signed(origin)?;
-
-            let proposal_hash = message_id.using_encoded(<T as system::Trait>::Hashing::hash);
-            let default_token = Self::token_default();
-            Self::check_token_exist(validator.clone(), &default_token.symbol)?;
-            let token_id = <TokenIds<T>>::get(default_token.symbol);
-            let action = Action::Ethereum2Substrate(token_id, to.clone(), amount);
-            let proposal_id = match <OpenBridgeProposalsHashes<T>>::exists(proposal_hash) {
-                true => <OpenBridgeProposalsHashes<T>>::get(proposal_hash),
-                false => {
-            Self::create_proposal(proposal_hash, action)?;
-            Self::deposit_event(RawEvent::ProposeToMint(token_id, to, amount));
-                    <OpenBridgeProposalsHashes<T>>::get(proposal_hash)
-                }
-            };
-
-            Self::_vote(validator, proposal_id, true)?;
-            <EthereumAdressHashes<T>>::insert(proposal_id, from);
-            Ok(())
-        }
-
-        fn on_finalize() {
-            let block_number = <system::Module<T>>::block_number();
-            Self::open_bridge_proposals(block_number)
-                .iter()
-                .for_each(|&proposal_id| {
-                    let proposal = <BridgeProposals<T>>::get(proposal_id);
-
-                    if proposal.open {
-                        Self::close_proposal(proposal);
-
-                        Self::deposit_event(RawEvent::ProposalIsExpired(proposal_id));
-                    }
-                });
-
-            <OpenBridgeProposals<T>>::remove(block_number);
-        }
     }
 }
 
 impl<T: Trait> Module<T> {
-    fn _burn(id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _burn(id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(
             Self::total_supply(id) > amount,
             "Cannot burn more than total supply"
@@ -279,7 +145,7 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    fn _mint(id: TokenId, recepient: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _mint(id: TokenId, recepient: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(!amount.is_zero(), "amount should be non-zero");
 
         let old_balance = <Balance<T>>::get((id, recepient.clone()));
@@ -296,7 +162,8 @@ impl<T: Trait> Module<T> {
         Self::deposit_event(RawEvent::Mint(id, recepient, amount));
         Ok(())
     }
-    fn check_token_exist(validator: T::AccountId, token: &[u8]) -> Result {
+
+    pub fn check_token_exist(validator: T::AccountId, token: &[u8]) -> Result {
         if !<TokenIds<T>>::exists(token.to_vec()) {
             Self::validate_name(token)?;
             Self::create_token(validator, &token.to_vec())?;
@@ -304,42 +171,7 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    fn _vote(voter: T::AccountId, proposal_id: ProposalId, vote: bool) -> Result {
-        ensure!(
-            <BridgeProposals<T>>::exists(proposal_id),
-            "This proposal not exists"
-        );
 
-        let mut proposal = <BridgeProposals<T>>::get(proposal_id);
-        ensure!(proposal.open, "This proposal is not open");
-
-        if vote {
-            proposal.votes_count += 1;
-        }
-
-        let proposal_is_accepted = Self::votes_are_enough(proposal.votes_count);
-        let all_validators_voted = proposal.votes_count == 3;
-
-        if proposal_is_accepted {
-            Self::execute_proposal(proposal.clone())?;
-        }
-
-        if proposal_is_accepted || all_validators_voted {
-            Self::close_proposal(proposal.clone());
-        } else {
-            <BridgeProposals<T>>::insert(proposal_id, proposal);
-        }
-
-        Self::deposit_event(RawEvent::NewVote(proposal_id, voter, vote));
-
-        match (proposal_is_accepted, all_validators_voted) {
-            (true, _) => Self::deposit_event(RawEvent::ProposalIsAccepted(proposal_id)),
-            (_, true) => Self::deposit_event(RawEvent::ProposalIsRejected(proposal_id)),
-            (_, _) => (),
-        }
-
-        Ok(())
-    }
     fn create_token(owner: T::AccountId, token: &Vec<u8>) -> Result {
         let next_id = match <Count<T>>::get() {
             0u32 => 0u32,
@@ -364,7 +196,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    pub fn make_transfer(
+    fn make_transfer(
         id: TokenId,
         from: T::AccountId,
         to: T::AccountId,
@@ -387,64 +219,6 @@ impl<T: Trait> Module<T> {
         if name.len() < 3 {
             return Err("the token symbol is too short");
         }
-
-        Ok(())
-    }
-    fn close_proposal(mut proposal: BridgeProposal<T::AccountId, T::BlockNumber>) {
-        let proposal_id = proposal.proposal_id.clone();
-        proposal.open = false;
-        let proposal_hash = <OpenBridgeProposalsHashesIndex<T>>::get(proposal_id);
-
-        <BridgeProposals<T>>::insert(proposal_id, proposal);
-        <OpenBridgeProposalsHashes<T>>::remove(proposal_hash);
-        <OpenBridgeProposalsHashesIndex<T>>::remove(proposal_id);
-    }
-
-    fn votes_are_enough(votes: MemberId) -> bool {
-        votes as f64 / Self::validators_count() as f64 >= 0.51
-    }
-
-    fn execute_proposal(proposal: BridgeProposal<T::AccountId, T::BlockNumber>) -> Result {
-        match proposal.action {
-            Action::Substrate2Ethereum(token_id, from, amount) => {
-                Self::_burn(token_id, from, amount)
-            }
-            Action::Ethereum2Substrate(token_id, to, amount) => Self::_mint(token_id, to, amount),
-            Action::EmptyAction => Ok(()),
-        }
-    }
-    fn create_proposal(proposal_hash: T::Hash, action: Action<T::AccountId>) -> Result {
-        let voting_deadline = <system::Module<T>>::block_number() + Self::proposals_period_limit();
-        let mut open_proposals = Self::open_bridge_proposals(voting_deadline);
-
-        ensure!(
-            open_proposals.len() < Self::open_proposals_per_block(),
-            "Maximum number of open proposals is reached for the target block, try later"
-        );
-        ensure!(
-            !<OpenBridgeProposalsHashes<T>>::exists(proposal_hash),
-            "This proposal already open"
-        );
-        let proposal_id = <BridgeProposalsCount<T>>::get();
-        let bridge_proposals_count = <BridgeProposalsCount<T>>::get();
-        let new_bridge_proposals_count = bridge_proposals_count
-            .checked_add(1)
-            .ok_or("Overflow adding a new bridge proposal")?;
-
-        let proposal = BridgeProposal {
-            proposal_id,
-            action,
-            open: true,
-            voting_deadline,
-            votes_count: MemberId::default(),
-        };
-
-        open_proposals.push(proposal_id);
-        <BridgeProposals<T>>::insert(proposal_id, proposal);
-        <BridgeProposalsCount<T>>::mutate(|count| *count += new_bridge_proposals_count);
-        <OpenBridgeProposals<T>>::insert(voting_deadline, open_proposals);
-        <OpenBridgeProposalsHashes<T>>::insert(proposal_hash, proposal_id);
-        <OpenBridgeProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
 
         Ok(())
     }
@@ -505,10 +279,9 @@ mod tests {
 
     type TokenModule = Module<Test>;
 
-    const TOKEN_NAME: &[u8; 4] = b"NAME";
+    const TOKEN_NAME: &[u8; 5] = b"TOKEN";
     const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
     const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
-    const _TOKEN_DESC: &[u8] = b"Description-1234_";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
 
