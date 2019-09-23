@@ -3,9 +3,9 @@ pragma solidity ^0.5.9;
 import 'openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol';
 
 //Beneficieries (validators) template
-import "../helpers/BeneficiaryOperations.sol";
+import "../helpers/ValidatorsOperations.sol";
 
-contract DAIBridge is  BeneficiaryOperations {
+contract DAIBridge is ValidatorsOperations {
 
         IERC20 private token;
 
@@ -33,17 +33,17 @@ contract DAIBridge is  BeneficiaryOperations {
        */
 
         constructor (IERC20 _token) public
-            BeneficiaryOperations() {
+            ValidatorsOperations() {
             token = _token;
         }  
 
         // MODIFIERS
         /**
-        * @dev Allows to perform method by existing beneficiary
+        * @dev Allows to perform method by existing Validator
         */
 
-        modifier onlyExistingBeneficiary(address _beneficiary) {
-            require(isExistBeneficiary(_beneficiary), "address is not in beneficiary array");
+        modifier onlyExistingValidator(address _Validator) {
+            require(isExistValidator(_Validator), "address is not in Validator array");
              _;
         }
 
@@ -91,23 +91,33 @@ contract DAIBridge is  BeneficiaryOperations {
             emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
 
-        function withdraw(bytes32 messageID) public pendingMessage(messageID) {
+        /*
+        * Widthdraw finance by message ID
+        */
+        function revert(bytes32 messageID) public pendingMessage(messageID) {
             Message storage message = messages[messageID];
 
-            message.status = Status.WITHDRAW;
+            message.status = Status.CANCELED;
 
             token.transfer(msg.sender, message.availableAmount);
 
             emit WithdrawFromBridge(messageID, msg.sender, message.availableAmount);
         }
 
+
+
         function approveTransfer(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount)
-            public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID )onlyManyBeneficiaries {
+            public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID )onlyManyValidators {
             Message storage message = messages[messageID];
 
             emit ApprovedRelayMessage(messageID, spender, substrateAddress, availableAmount);
 
             message.status = Status.APPROVED;
+        }
+
+        function confirmTransfer(bytes32 messageID) public approvedMessage(messageID) {
+            Message storage message = messages[messageID];
+            message.status = Status.CONFIRMED;
         }
 
 }

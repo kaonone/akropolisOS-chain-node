@@ -1,75 +1,75 @@
 pragma solidity ^0.5.0;
 
-import "../../contracts/helpers/BeneficiaryOperations.sol";
+import "../../contracts/helpers/ValidatorsOperations.sol";
 
 
-contract BeneficiaryOperationsImpl is BeneficiaryOperations {
+contract ValidatorOperationsImpl is ValidatorsOperations {
 
     uint public value;
 
-    function setValue(uint _value) public onlyManyBeneficiaries {
+    function setValue(uint _value) public onlyManyvalidators {
         value = _value;
     }
 
-    function setValueAny(uint _value) public onlyAnyBeneficiary {
+    function setValueAny(uint _value) public onlyAnyValidator {
         value = _value;
     }
 
-    function setValueAll(uint _value) public onlyAllBeneficiaries {
+    function setValueAll(uint _value) public onlyAllvalidators {
         value = _value;
     }
 
-    function setValueSome(uint _value, uint howMany) public onlySomeBeneficiaries(howMany) {
+    function setValueSome(uint _value, uint howMany) public onlySomevalidators(howMany) {
         value = _value;
     }
 
-    function nestedFirst(uint _value) public onlyManyBeneficiaries {
+    function nestedFirst(uint _value) public onlyManyvalidators {
         nestedSecond(_value);
     }
 
-    function nestedSecond(uint _value) public onlyManyBeneficiaries {
+    function nestedSecond(uint _value) public onlyManyvalidators {
         value = _value;
     }
 
     //
 
-    function nestedFirstAllToAll(uint _value) public onlyAllBeneficiaries {
+    function nestedFirstAllToAll(uint _value) public onlyAllvalidators {
         nestedSecondAllToAll(_value);
     }
 
-    function nestedFirstAllToAll2(uint _value) public onlyAllBeneficiaries {
+    function nestedFirstAllToAll2(uint _value) public onlyAllvalidators {
         this.nestedSecondAllToAll(_value); // this.
     }
 
-    function nestedSecondAllToAll(uint _value) public onlyAllBeneficiaries {
+    function nestedSecondAllToAll(uint _value) public onlyAllvalidators {
         value = _value;
     }
 
     //
 
-    function nestedFirstAnyToAny(uint _value) public onlyAnyBeneficiary {
+    function nestedFirstAnyToAny(uint _value) public onlyAnyValidator {
         nestedSecondAnyToAny(_value);
     }
 
-    function nestedFirstAnyToAny2(uint _value) public onlyAnyBeneficiary {
+    function nestedFirstAnyToAny2(uint _value) public onlyAnyValidator {
         this.nestedSecondAnyToAny(_value); // this.
     }
 
-    function nestedSecondAnyToAny(uint _value) public onlyAnyBeneficiary {
+    function nestedSecondAnyToAny(uint _value) public onlyAnyValidator {
         value = _value;
     }
 
     //
 
-    function nestedFirstManyToSome(uint _value, uint howMany) public onlyManyBeneficiaries {
+    function nestedFirstManyToSome(uint _value, uint howMany) public onlyManyvalidators {
         nestedSecondSome(_value, howMany);
     }
 
-    function nestedFirstAnyToSome(uint _value, uint howMany) public onlyAnyBeneficiary {
+    function nestedFirstAnyToSome(uint _value, uint howMany) public onlyAnyValidator {
         nestedSecondSome(_value, howMany);
     }
 
-    function nestedSecondSome(uint _value, uint howMany) public onlySomeBeneficiaries(howMany) {
+    function nestedSecondSome(uint _value, uint howMany) public onlySomevalidators(howMany) {
         value = _value;
     }
 
