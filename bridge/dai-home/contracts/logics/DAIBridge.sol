@@ -20,7 +20,8 @@ contract DAIBridge is ValidatorsOperations {
         }
 
         event RelayMessage(bytes32 messageID, address sender, bytes32 recipient, uint amount);
-        event WithdrawFromBridge(bytes32 MessageID, address sender, uint amount);
+        event RevertMessage(bytes32 messageID, address sender, uint amount);
+        event WithdrawMessage(bytes32 MessageID, bytes32 substrateSender, address recipient, uint amount);
         event ApprovedRelayMessage(bytes32 messageID, address  sender,  bytes32 recipient, uint amount);
 
 
@@ -87,27 +88,30 @@ contract DAIBridge is ValidatorsOperations {
             bytes32 messageID = keccak256(abi.encodePacked(now));
 
             Message  memory message = Message(messageID, msg.sender, substrateAddress, amount, Status.PENDING);
+            messages[messageID] = message;
 
             emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
 
         /*
-        * Widthdraw finance by message ID
+        * Widthdraw finance by message ID when transfer pending
         */
-        function revert(bytes32 messageID) public pendingMessage(messageID) {
+        function revertTransfer(bytes32 messageID) public pendingMessage(messageID) {
             Message storage message = messages[messageID];
 
             message.status = Status.CANCELED;
 
             token.transfer(msg.sender, message.availableAmount);
 
-            emit WithdrawFromBridge(messageID, msg.sender, message.availableAmount);
+            emit RevertMessage(messageID, msg.sender, message.availableAmount);
         }
 
 
-
+        /*
+        * Approve finance by message ID when transfer pending
+        */
         function approveTransfer(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount)
-            public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID )onlyManyValidators {
+            public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID) onlyManyValidators {
             Message storage message = messages[messageID];
 
             emit ApprovedRelayMessage(messageID, spender, substrateAddress, availableAmount);
@@ -115,9 +119,24 @@ contract DAIBridge is ValidatorsOperations {
             message.status = Status.APPROVED;
         }
 
+        /*
+        * Confirm tranfer by message ID when transfer pending
+         */
         function confirmTransfer(bytes32 messageID) public approvedMessage(messageID) {
             Message storage message = messages[messageID];
             message.status = Status.CONFIRMED;
+        }
+
+
+        /*
+        * Withdraw tranfer by message ID after approve from Substrate
+        */
+        function withdrawTransfer(bytes32 messageID, bytes32 substrateSender, address recipient, uint availableAmount)  public onlyManyValidators {
+            require(token.balanceOf(address(this)) >= availableAmount, "Balance is not enough");
+            token.transfer(recipient, availableAmount);
+            Message  memory message = Message(messageID, msg.sender, substrateSender, availableAmount, Status.WITHDRAW);
+            messages[messageID] = message;
+            emit WithdrawMessage(messageID, substrateSender, recipient, availableAmount);
         }
 
 }
