@@ -262,21 +262,22 @@ fn start_event_handler(
                                 Event::bridge(br) => {
                                     log::info!("[substrate] bridge event: {:?}", br);
                                     match &br {
-                                        bridge::RawEvent::Transfer(message_id, from, to, amount) => {
-                                            sign(&sub_api, signer_mnemonic_phrase.clone(), message_id.clone(), from.clone(), to.clone(), *amount);
-                                            log::info!("[substrate] called sign({:?}, {:?}, {:?}, {:?})", message_id, from, to, amount);
+                                        bridge::RawEvent::IntentToBurn(message_id) => {
+                                            sign(&sub_api, signer_mnemonic_phrase.clone(), *message_id);
+                                            log::info!("[substrate] called sign({:?})", message_id);
                                         },
-                                        bridge::RawEvent::Burned(_last_validator, _message_id, from, to, amount) => {
+                                        bridge::RawEvent::Burned(message_id, from, to, amount) => {
                                             let args = (
+                                                message_id.as_fixed_bytes().into_token(),
                                                 H256::from_slice(from.as_slice()).as_fixed_bytes().into_token(),
-                                                Address::from_slice(&to).into_token(),
+                                                Address::from(to.as_fixed_bytes()).into_token(),
                                                 U256::from(*amount).into_token()
                                             );
                                             let contract = contract.clone();
 
-                                            let fut = contract.call("unlock", args.clone(), eth_validator_address, Options::default())
+                                            let fut = contract.call("withdrawTransfer", args.clone(), eth_validator_address, Options::default())
                                                 .then(move |result| {
-                                                    log::info!("[ethereum] called unlock({:?}, {:?}, {:?}), result: {:?}", args.0, args.1, args.2, result);
+                                                    log::info!("[ethereum] called withdrawTransfer({:?}, {:?}, {:?}), result: {:?}", args.0, args.1, args.2, result);
                                                     Ok(())
                                                 });
                                             tokio::run(fut);
@@ -328,17 +329,10 @@ fn mint(
     let _tx_hash = sub_api.send_extrinsic(xthex);
 }
 
-fn sign(
-    sub_api: &Api,
-    signer_mnemonic_phrase: String,
-    message_id: Vec<u8>,
-    from: AccountId,
-    to: Vec<u8>,
-    amount: u128,
-) {
+fn sign(sub_api: &Api, signer_mnemonic_phrase: String, message_id: primitives::H256) {
     let signer = sr25519::Pair::from_phrase(&signer_mnemonic_phrase, None)
         .expect("invalid menemonic phrase");
-    let xthex = extrinsics::build_sign(&sub_api, signer, message_id, from, to, amount);
+    let xthex = extrinsics::build_sign(&sub_api, signer, message_id);
 
     //send and watch extrinsic until finalized
     let _tx_hash = sub_api.send_extrinsic(xthex);
