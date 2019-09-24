@@ -27,7 +27,7 @@ decl_event!(
         Transfer(TokenId, AccountId, AccountId, TokenBalance),
         Approval(TokenId, AccountId, AccountId, TokenBalance),
         Mint(TokenId, AccountId, TokenBalance),
-        Burn(TokenId, AccountId, TokenBalance),
+        Burned(TokenId, AccountId, TokenBalance),
     }
 );
 
@@ -141,7 +141,7 @@ impl<T: Trait> Module<T> {
         <Balance<T>>::insert((id, from.clone()), next_balance);
         <TotalSupply<T>>::insert(id, next_total);
 
-        Self::deposit_event(RawEvent::Burn(id, from, amount));
+        Self::deposit_event(RawEvent::Burned(id, from, amount));
 
         Ok(())
     }
