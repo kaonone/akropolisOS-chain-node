@@ -656,30 +656,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethereum-substrate-bridge"
-version = "0.1.0"
-dependencies = [
- "akropolisos-substrate-node-runtime 1.0.0",
- "dotenv 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-codec 3.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "sr-primitives 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
- "srml-balances 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
- "srml-system 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
- "substrate-api-client 1.0.0",
- "substrate-bip39 0.3.1",
- "substrate-consensus-aura 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
- "substrate-primitives 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
- "tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-threadpool 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "web3 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ethereum-types"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4364,6 +4340,30 @@ dependencies = [
  "idna 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "percent-encoding 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "validator"
+version = "0.1.0"
+dependencies = [
+ "akropolisos-substrate-node-runtime 1.0.0",
+ "dotenv 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-codec 3.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sr-primitives 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
+ "srml-balances 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
+ "srml-system 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
+ "substrate-api-client 1.0.0",
+ "substrate-bip39 0.3.1",
+ "substrate-consensus-aura 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
+ "substrate-primitives 1.0.0 (git+https://github.com/paritytech/substrate.git?rev=fc206f3a009b64fc746202e5b4c701bf7e24d1f1)",
+ "tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-threadpool 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web3 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
