@@ -1,5 +1,5 @@
 [package]
-name = "ethereum-substrate-bridge"
+name = "validator"
 version = "0.1.0"
 authors = ["Andrei Orlov <aaorlov1@gmail.com>"]
 edition = "2018"
