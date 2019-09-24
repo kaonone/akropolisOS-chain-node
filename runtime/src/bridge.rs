@@ -57,10 +57,10 @@ decl_event!(
     pub enum Event<T>
     where
         AccountId = <T as system::Trait>::AccountId,
+        Hash = <T as system::Trait>::Hash,
     {
-        NewVote(ProposalId, AccountId, bool),
-        ProposeToMint(TokenId, AccountId, TokenBalance),
-        ProposeToBurn(TokenId, AccountId, TokenBalance),
+        IntentToMint(TokenId, AccountId, TokenBalance),
+        IntentToBurn(Hash),
         ProposalIsAccepted(ProposalId),
         ProposalIsExpired(ProposalId),
         ProposalIsRejected(ProposalId),
@@ -72,21 +72,18 @@ pub trait Trait: token::Trait + system::Trait {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as TokenStorage {
+    trait Store for Module<T: Trait> as BridgeStorage {
         BridgeProposals get(proposals): map ProposalId => BridgeProposal<T::AccountId, T::BlockNumber>;
-        BridgeProposalsVotes get(proposal_votes): map ProposalId => MemberId;
         BridgeProposalsPeriodLimit get(proposals_period_limit) config(): T::BlockNumber = T::BlockNumber::sa(30);
         BridgeProposalsCount get(bridge_proposals_count): ProposalId;
 
-        OpenBridgeProposalsLimit get(open_proposals_per_block) config(): usize = 2;
+        OpenBridgeProposalsLimit get(open_proposals_per_block) config(): usize = 10;
         OpenBridgeProposals get(open_bridge_proposals): map(T::BlockNumber) => Vec<ProposalId>;
-        OpenBridgeProposalsIndex get(open_proposal_deadline_by_index): map(ProposalId) => T::BlockNumber;
         OpenBridgeProposalsHashes get(open_proposal_index_by_hash): map(T::Hash) => ProposalId;
         OpenBridgeProposalsHashesIndex get(open_proposal_hash_by_index): map(ProposalId) => T::Hash;
 
-        EthereumAdressHashes get(ethereum_address): map(ProposalId) => Vec<u8>;
+        EthereumAdressHashes get(ethereum_address): map(ProposalId) => T::Hash;
         ValidatorsCount get(validators_count) config(): usize = 3;
-        Validators get(validators): map MemberId => Validator<T::AccountId>;
         ValidatorsAccounts get(validators_accounts): map MemberId => T::AccountId;
     }
 }
@@ -95,37 +92,29 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event<T>() = default;
 
-
-        //bridge specific Extrinsics
-        fn substrate2eth(origin,
-            message_id: Vec<u8>,
-            to: Vec<u8>, //Ethereum address
+        fn set_transfer(origin,
+            to: T::Hash, //Ethereum address
             from: T::AccountId,
             #[compact] amount: TokenBalance
         )-> Result{
-            let validator =  ensure_signed(origin)?;
+            ensure_signed(origin)?;
 
-            let proposal_hash = message_id.using_encoded(<T as system::Trait>::Hashing::hash);
+            let proposal_hash = ("set_transfer", &from, amount).using_encoded(<T as system::Trait>::Hashing::hash);
             let token_id = <token::Module<T>>::token_default().id;
             let action = Action::Substrate2Ethereum(token_id, from.clone(), amount);
 
-            let proposal_id = match <OpenBridgeProposalsHashes<T>>::exists(proposal_hash) {
-                true => <OpenBridgeProposalsHashes<T>>::get(proposal_hash),
-                false => {
-                    Self::create_proposal(proposal_hash, action)?;
-                    Self::deposit_event(RawEvent::ProposeToBurn(token_id, from, amount));
-                    <OpenBridgeProposalsHashes<T>>::get(proposal_hash)
-                }
-            };
+            let event = RawEvent::IntentToBurn(proposal_hash);
+            Self::get_id_checked(proposal_hash, event, action)?;
 
-            Self::_vote(validator, proposal_id, true)?;
+            let proposal_id = <OpenBridgeProposalsHashes<T>>::get(proposal_hash);
+            Self::_vote(proposal_id, true)?;
             <EthereumAdressHashes<T>>::insert(proposal_id, to);
             Ok(())
         }
 
         fn eth2substrate(origin,
-            message_id: Vec<u8>,
-            from: Vec<u8>, //Ethereum address
+            message_id: T::Hash,
+            from: T::Hash, //Ethereum address
             to: T::AccountId,
             #[compact] amount: TokenBalance
         )-> Result {
@@ -135,18 +124,23 @@ decl_module! {
             let default_token = <token::Module<T>>::token_default().clone();
             <token::Module<T>>::check_token_exist(validator.clone(), &default_token.symbol)?;
             let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
-            let action = Action::Ethereum2Substrate(token_id, to.clone(), amount);
-            let proposal_id = match <OpenBridgeProposalsHashes<T>>::exists(proposal_hash) {
-                true => <OpenBridgeProposalsHashes<T>>::get(proposal_hash),
-                false => {
-                    Self::create_proposal(proposal_hash, action)?;
-                    Self::deposit_event(RawEvent::ProposeToMint(token_id, to, amount));
-                    <OpenBridgeProposalsHashes<T>>::get(proposal_hash)
-                }
-            };
 
-            Self::_vote(validator, proposal_id, true)?;
+            let action = Action::Ethereum2Substrate(token_id, to.clone(), amount);
+            let event = RawEvent::IntentToMint(token_id, to, amount);
+            Self::get_id_checked(proposal_hash, event, action)?;
+
+            let proposal_id = <OpenBridgeProposalsHashes<T>>::get(proposal_hash);
+            Self::_vote(proposal_id, true)?;
             <EthereumAdressHashes<T>>::insert(proposal_id, from);
+            Ok(())
+        }
+        
+        fn sign(origin, message_id: T::Hash) -> Result {
+            ensure_signed(origin)?;
+            let id = <OpenBridgeProposalsHashes<T>>::get(message_id);
+
+            Self::_vote(id, true)?;
+
             Ok(())
         }
 
@@ -170,12 +164,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    fn _vote(voter: T::AccountId, proposal_id: ProposalId, vote: bool) -> Result {
-        ensure!(
-            <BridgeProposals<T>>::exists(proposal_id),
-            "This proposal not exists"
-        );
-
+    fn _vote(proposal_id: ProposalId, vote: bool) -> Result {
         let mut proposal = <BridgeProposals<T>>::get(proposal_id);
         ensure!(proposal.open, "This proposal is not open");
 
@@ -184,7 +173,7 @@ impl<T: Trait> Module<T> {
         }
 
         let proposal_is_accepted = Self::votes_are_enough(proposal.votes_count);
-        let all_validators_voted = proposal.votes_count == 3;
+        let all_validators_voted = proposal.votes_count == Self::validators_count() as u64;
 
         if proposal_is_accepted {
             Self::execute_proposal(proposal.clone())?;
@@ -196,8 +185,6 @@ impl<T: Trait> Module<T> {
             <BridgeProposals<T>>::insert(proposal_id, proposal);
         }
 
-        Self::deposit_event(RawEvent::NewVote(proposal_id, voter, vote));
-
         match (proposal_is_accepted, all_validators_voted) {
             (true, _) => Self::deposit_event(RawEvent::ProposalIsAccepted(proposal_id)),
             (_, true) => Self::deposit_event(RawEvent::ProposalIsRejected(proposal_id)),
@@ -205,6 +192,20 @@ impl<T: Trait> Module<T> {
         }
 
         Ok(())
+    }
+    fn get_id_checked(
+        proposal_hash: T::Hash,
+        event: RawEvent<T::AccountId, T::Hash>,
+        action: Action<T::AccountId>,
+    ) -> Result {
+        match <OpenBridgeProposalsHashes<T>>::exists(proposal_hash) {
+            true => Ok(()),
+            false => {
+                Self::create_proposal(proposal_hash, action)?;
+                Self::deposit_event(event);
+                Ok(())
+            }
+        }
     }
     fn close_proposal(mut proposal: BridgeProposal<T::AccountId, T::BlockNumber>) {
         let proposal_id = proposal.proposal_id.clone();
@@ -327,9 +328,8 @@ mod tests {
     type BridgeModule = Module<Test>;
     type TokenModule = token::Module<Test>;
 
-    const MESSAGE_ID: &[u8; 67] =
-        b"0x5617efe391579685918e26bf24504b9602268c70d8edbf01b5dc8230db92ba65b";
-    const ETH_ADDRESS: &[u8; 42] = b"0x00b46c2526e227482e2ebb8f4c69e4674d262e75";
+    const MESSAGE_ID: &[u8; 32] = b"0x5617efe391571b5dc8230db92ba65b";
+    const ETH_ADDRESS: &[u8; 32] = b"0x00b46c2526ebb8f4c9e4674d262e75";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
 
@@ -362,17 +362,20 @@ mod tests {
     #[test]
     fn token_eth2sub_mint_works() {
         with_externalities(&mut new_test_ext(), || {
+            let message_id = H256::from(MESSAGE_ID);
+            let eth_address = H256::from(ETH_ADDRESS);
+
             assert_ok!(BridgeModule::eth2substrate(
                 Origin::signed(USER2),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                message_id,
+                eth_address,
                 USER2,
                 1000
             ));
             assert_ok!(BridgeModule::eth2substrate(
                 Origin::signed(USER1),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                message_id,
+                eth_address,
                 USER2,
                 1000
             ));
@@ -384,33 +387,37 @@ mod tests {
     #[test]
     fn token_sub2eth_burn_works() {
         with_externalities(&mut new_test_ext(), || {
+            let message_id = H256::from(MESSAGE_ID);
+            let eth_address = H256::from(ETH_ADDRESS);
+
             assert_ok!(BridgeModule::eth2substrate(
                 Origin::signed(USER2),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                message_id,
+                eth_address,
                 USER2,
                 1000
             ));
             assert_ok!(BridgeModule::eth2substrate(
                 Origin::signed(USER1),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                message_id,
+                eth_address,
                 USER2,
                 1000
             ));
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_eq!(TokenModule::total_supply(0), 1000);
-            assert_ok!(BridgeModule::substrate2eth(
+
+            assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER1),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                // MESSAGE_ID,
+                eth_address,
                 USER2,
                 500
             ));
-            assert_ok!(BridgeModule::substrate2eth(
+            assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
-                MESSAGE_ID.to_vec(),
-                ETH_ADDRESS.to_vec(),
+                // MESSAGE_ID,
+                eth_address,
                 USER2,
                 500
             ));
