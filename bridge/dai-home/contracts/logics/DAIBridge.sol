@@ -14,15 +14,15 @@ contract DAIBridge is ValidatorsOperations {
         struct Message {
             bytes32 messageID;
             address spender;
-            bytes substrateAddress;
+            bytes32 substrateAddress;
             uint availableAmount;
             Status status;
         }
 
-        event RelayMessage(bytes32 messageID, address sender, bytes recipient, uint amount);
+        event RelayMessage(bytes32 messageID, address sender, bytes32 recipient, uint amount);
         event RevertMessage(bytes32 messageID, address sender, uint amount);
-        event WithdrawMessage(bytes32 MessageID, bytes substrateSender, address recipient, uint amount);
-        event ApprovedRelayMessage(bytes32 messageID, address  sender,  bytes recipient, uint amount);
+        event WithdrawMessage(bytes32 MessageID, bytes32 substrateSender, address recipient, uint amount);
+        event ApprovedRelayMessage(bytes32 messageID, address  sender,  bytes32 recipient, uint amount);
 
 
         mapping(bytes32 => Message) messages;
@@ -60,10 +60,10 @@ contract DAIBridge is ValidatorsOperations {
         /*
             check that message is valid
         */
-        modifier validMessage(bytes32 messageID, address spender, bytes memory substrateAddress, uint availableAmount) {
+        modifier validMessage(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount) {
             require((messages[messageID].spender == spender)
-                && (keccak256(abi.encodePacked(messages[messageID].substrateAddress)) == keccak256(abi.encodePacked(substrateAddress)))
-                && (messages[messageID].availableAmount == availableAmount), "data is not valid");
+                && (messages[messageID].substrateAddress == substrateAddress)
+                && (messages[messageID].availableAmount == availableAmount), "Data is not valid");
             _;
         }
 
@@ -77,24 +77,16 @@ contract DAIBridge is ValidatorsOperations {
             _;
         }
 
-        /*
-        * Set Transfer to Bridge
-        */
-
-        function stringToBytesArray(string memory str) public pure returns (bytes memory){
-            return bytes(str);
-        } //
-
-        function setTransfer(uint amount, string memory substrateAddress) public {
+        function setTransfer(uint amount, bytes32 substrateAddress) public {
             require(token.allowance(msg.sender, address(this)) >= amount, "contract is not allowed to this amount");
             token.transferFrom(msg.sender, address(this), amount);
 
             bytes32 messageID = keccak256(abi.encodePacked(now));
 
-            Message  memory message = Message(messageID, msg.sender, stringToBytesArray(substrateAddress), amount, Status.PENDING);
+            Message  memory message = Message(messageID, msg.sender, substrateAddress, amount, Status.PENDING);
             messages[messageID] = message;
 
-            emit RelayMessage(messageID, msg.sender, stringToBytesArray(substrateAddress), amount);
+            emit RelayMessage(messageID, msg.sender, substrateAddress, amount);
         }
 
         /*
@@ -114,7 +106,7 @@ contract DAIBridge is ValidatorsOperations {
         /*
         * Approve finance by message ID when transfer pending
         */
-        function approveTransfer(bytes32 messageID, address spender, bytes memory substrateAddress, uint availableAmount)
+        function approveTransfer(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount)
             public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID) onlyManyValidators {
             Message storage message = messages[messageID];
 
@@ -135,7 +127,7 @@ contract DAIBridge is ValidatorsOperations {
         /*
         * Withdraw tranfer by message ID after approve from Substrate
         */
-        function withdrawTransfer(bytes32 messageID, bytes memory substrateSender, address recipient, uint availableAmount)  public onlyManyValidators {
+        function withdrawTransfer(bytes32 messageID, bytes32  substrateSender, address recipient, uint availableAmount)  public onlyManyValidators {
             require(token.balanceOf(address(this)) >= availableAmount, "Balance is not enough");
             token.transfer(recipient, availableAmount);
             Message  memory message = Message(messageID, msg.sender, substrateSender, availableAmount, Status.WITHDRAW);
