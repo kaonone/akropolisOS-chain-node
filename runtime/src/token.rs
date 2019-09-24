@@ -5,11 +5,12 @@
 use crate::types::{TokenBalance, TokenId};
 use parity_codec::{Decode, Encode};
 use rstd::prelude::Vec;
-use runtime_primitives::traits::{One, StaticLookup, Zero};
+use runtime_primitives::traits::{StaticLookup, Zero};
 use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
 use system::{self, ensure_signed};
+
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -22,12 +23,12 @@ decl_event!(
     pub enum Event<T>
     where
         AccountId = <T as system::Trait>::AccountId,
+        Hash = <T as system::Trait>::Hash,
     {
-        NewToken(TokenId, AccountId),
-        Transfer(TokenId, AccountId, AccountId, TokenBalance),
-        Approval(TokenId, AccountId, AccountId, TokenBalance),
-        Mint(TokenId, AccountId, TokenBalance),
-        Burned(TokenId, AccountId, TokenBalance),
+        Transfer(AccountId, AccountId, TokenBalance),
+        Approval(AccountId, AccountId, TokenBalance),
+        Mint(Hash, AccountId, TokenBalance),
+        Burned(AccountId, Hash, TokenBalance),
     }
 );
 
@@ -39,13 +40,10 @@ decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
         Count get(count): TokenId;
 
-        TokenDefaultSymbol get(token_default): Token = Token{id: 0, symbol: Vec::from("TOKEN")};
-        TokenInfo get(token_info): map(TokenId) => Token;
-        TokenIds get(token_id_by_symbol): map Vec<u8> => TokenId;
-        TokenSymbol get(token_symbol_by_id): map TokenId => Vec<u8>;
-        TotalSupply get(total_supply): map TokenId => TokenBalance;
-        Balance get(balance_of): map (TokenId, T::AccountId) => TokenBalance;
-        Allowance get(allowance_of): map (TokenId, T::AccountId, T::AccountId) => TokenBalance;
+        TokenDefault get(token_default): Token = Token{id: 0, symbol: Vec::from("TOKEN")};
+        TotalSupply get(total_supply): TokenBalance;
+        Balance get(balance_of): map (T::AccountId) => TokenBalance;
+        Allowance get(allowance_of): map (T::AccountId, T::AccountId) => TokenBalance;
     }
 }
 
@@ -54,26 +52,23 @@ decl_module! {
         fn deposit_event<T>() = default;
 
         // Burn tokens
-        fn burn(origin, id: TokenId, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
+        fn burn(origin, from: T::AccountId, to: T::Hash, #[compact] amount: TokenBalance) -> Result {
             ensure_signed(origin)?;
 
-            Self::_burn(id, from.clone(), amount)?;
+            Self::_burn(from.clone(), to, amount)?;
 
             Ok(())
         }
 
-        fn mint(origin, recepient: T::AccountId, #[compact] amount: TokenBalance, token: Vec<u8>) -> Result{
-            let validator = ensure_signed(origin)?;
-            Self::check_token_exist(validator, &token)?;
+        fn mint(origin, from: T::Hash, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
+            ensure_signed(origin)?;
 
-            let id = <TokenIds<T>>::get(&token);
-            Self::_mint(id, recepient, amount)?;
+            Self::_mint(from, to, amount)?;
 
             Ok(())
         }
 
         fn transfer(origin,
-            #[compact] id: TokenId,
             to: <T::Lookup as StaticLookup>::Source,
             #[compact] amount: TokenBalance
         ) -> Result{
@@ -81,38 +76,36 @@ decl_module! {
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "transfer amount should be non-zero");
 
-            Self::make_transfer(id, sender, to, amount)?;
+            Self::make_transfer(sender, to, amount)?;
             Ok(())
         }
 
         fn approve(origin,
-            #[compact] id: TokenId,
             spender: <T::Lookup as StaticLookup>::Source,
             #[compact] value: TokenBalance
         ) -> Result{
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            <Allowance<T>>::insert((id, sender.clone(), spender.clone()), value);
+            <Allowance<T>>::insert((sender.clone(), spender.clone()), value);
 
-            Self::deposit_event(RawEvent::Approval(id, sender, spender, value));
+            Self::deposit_event(RawEvent::Approval(sender, spender, value));
             Ok(())
         }
 
         fn transfer_from(origin,
-            #[compact] id: TokenId,
             from: T::AccountId,
             to: T::AccountId,
             #[compact] value: TokenBalance
         ) -> Result{
             let sender = ensure_signed(origin)?;
-            let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
+            let allowance = Self::allowance_of((from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("underflow in calculating allowance")?;
 
-            Self::make_transfer(id, from.clone(), to.clone(), value)?;
+            Self::make_transfer(from.clone(), to.clone(), value)?;
 
-            <Allowance<T>>::insert((id, from, sender), updated_allowance);
+            <Allowance<T>>::insert((from, sender), updated_allowance);
             Ok(())
         }
 
@@ -120,13 +113,13 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn _burn(id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _burn( from: T::AccountId, to: T::Hash, amount: TokenBalance) -> Result {
         ensure!(
-            Self::total_supply(id) > amount,
+            Self::total_supply() > amount,
             "Cannot burn more than total supply"
         );
 
-        let old_balance = <Balance<T>>::get((id, from.clone()));
+        let old_balance = <Balance<T>>::get(from.clone());
         ensure!(
             old_balance > TokenBalance::zero(),
             "Cannot burn with zero balance"
@@ -135,90 +128,47 @@ impl<T: Trait> Module<T> {
         let next_balance = old_balance
             .checked_sub(amount)
             .ok_or("underflow subtracting from balance burn")?;
-        let next_total = Self::total_supply(id)
+        let next_total = Self::total_supply()
             .checked_sub(amount)
             .ok_or("underflow subtracting from total supply")?;
-        <Balance<T>>::insert((id, from.clone()), next_balance);
-        <TotalSupply<T>>::insert(id, next_total);
 
-        Self::deposit_event(RawEvent::Burned(id, from, amount));
+        <Balance<T>>::insert(from.clone(), next_balance);
+        <TotalSupply<T>>::put(next_total);
+
+        Self::deposit_event(RawEvent::Burned(from, to, amount));
 
         Ok(())
     }
-    pub fn _mint(id: TokenId, recepient: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _mint(from: T::Hash, recepient: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(!amount.is_zero(), "amount should be non-zero");
 
-        let old_balance = <Balance<T>>::get((id, recepient.clone()));
+        let old_balance = <Balance<T>>::get(recepient.clone());
         let next_balance = old_balance
             .checked_add(amount)
             .ok_or("overflow adding to balance")?;
-        let next_total = Self::total_supply(id)
+        let next_total = Self::total_supply()
             .checked_add(amount)
             .ok_or("overflow adding to total supply")?;
 
-        <Balance<T>>::insert((id, recepient.clone()), next_balance);
-        <TotalSupply<T>>::insert(id, next_total);
+        <Balance<T>>::insert(recepient.clone(), next_balance);
+        <TotalSupply<T>>::put(next_total);
 
-        Self::deposit_event(RawEvent::Mint(id, recepient, amount));
-        Ok(())
-    }
-
-    pub fn check_token_exist(validator: T::AccountId, token: &[u8]) -> Result {
-        if !<TokenIds<T>>::exists(token.to_vec()) {
-            Self::validate_name(token)?;
-            Self::create_token(validator, &token.to_vec())?;
-        }
-
-        Ok(())
-    }
-
-    fn create_token(owner: T::AccountId, token: &Vec<u8>) -> Result {
-        let next_id = match <Count<T>>::get() {
-            0u32 => 0u32,
-            count => count
-                .checked_add(One::one())
-                .ok_or("overflow when adding new token")?,
-        };
-
-        <Count<T>>::mutate(|n| *n = if next_id == 0u32 { 1 } else { next_id });
-        <TokenIds<T>>::insert(token.clone(), &next_id);
-        <TokenSymbol<T>>::insert(&next_id, token.clone());
-
-        let next_token = Token {
-            id: next_id,
-            symbol: token.clone(),
-        };
-
-        <TokenInfo<T>>::insert(next_id, next_token);
-
-        Self::deposit_event(RawEvent::NewToken(<Count<T>>::get(), owner.clone()));
-
+        Self::deposit_event(RawEvent::Mint(from, recepient, amount));
         Ok(())
     }
 
     fn make_transfer(
-        id: TokenId,
         from: T::AccountId,
         to: T::AccountId,
         amount: TokenBalance,
     ) -> Result {
-        let from_balance = Self::balance_of((id, from.clone()));
+        let from_balance = Self::balance_of(from.clone());
         ensure!(from_balance >= amount, "user does not have enough tokens");
 
-        <Balance<T>>::insert((id, from.clone()), from_balance - amount);
-        <Balance<T>>::mutate((id, to.clone()), |balance| *balance += amount);
+        <Balance<T>>::insert(from.clone(), from_balance - amount);
+        <Balance<T>>::mutate(to.clone(), |balance| *balance += amount);
 
-        Self::deposit_event(RawEvent::Transfer(id, from, to, amount));
-
-        Ok(())
-    }
-    fn validate_name(name: &[u8]) -> Result {
-        if name.len() > 10 {
-            return Err("the token symbol is too long");
-        }
-        if name.len() < 3 {
-            return Err("the token symbol is too short");
-        }
+        Self::deposit_event(RawEvent::Transfer(from, to, amount));
 
         Ok(())
     }
@@ -279,11 +229,13 @@ mod tests {
 
     type TokenModule = Module<Test>;
 
-    const TOKEN_NAME: &[u8; 5] = b"TOKEN";
-    const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
-    const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
+    // const TOKEN_NAME: &[u8; 5] = b"TOKEN";
+    // const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
+    // const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
+    const ETH_ADDRESS: &[u8; 32] = b"0x00b46c2526ebb8f4c9e4674d262e75";
+
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
@@ -314,79 +266,59 @@ mod tests {
     #[test]
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
+            let eth_address = H256::from(ETH_ADDRESS);
+
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
+                eth_address,
                 USER2,
-                1000,
-                TOKEN_NAME.to_vec()
+                1000
             ));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_eq!(TokenModule::total_supply(0), 1000);
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+            assert_eq!(TokenModule::total_supply(), 1000);
         })
     }
 
-    #[test]
-    fn mint_new_token_too_long() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_eq!(TokenModule::count(), 0);
-            assert_noop!(
-                TokenModule::mint(Origin::signed(USER1), USER2, 1000, TOKEN_LONG_NAME.to_vec()),
-                "the token symbol is too long"
-            );
-        })
-    }
-
-    #[test]
-    fn mint_new_token_too_short() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_eq!(TokenModule::count(), 0);
-            assert_noop!(
-                TokenModule::mint(
-                    Origin::signed(USER1),
-                    USER2,
-                    1000,
-                    TOKEN_SHORT_NAME.to_vec()
-                ),
-                "the token symbol is too short"
-            );
-        })
-    }
 
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
+            let eth_address = H256::from(ETH_ADDRESS);
+
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
+                eth_address,
                 USER2,
-                1000,
-                TOKEN_NAME.to_vec()
+                1000
             ));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), 0, USER1, 300));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
+            assert_eq!(TokenModule::balance_of(USER2), 700);
+            assert_eq!(TokenModule::balance_of(USER1), 300);
         })
     }
 
     #[test]
     fn token_transfer_not_enough() {
         with_externalities(&mut new_test_ext(), || {
+            let eth_address = H256::from(ETH_ADDRESS);
+
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
+                eth_address,
                 USER2,
-                1000,
-                TOKEN_NAME.to_vec()
+                1000
             ));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), 0, USER1, 300));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
+            assert_eq!(TokenModule::balance_of(USER2), 700);
+            assert_eq!(TokenModule::balance_of(USER1), 300);
 
             assert_noop!(
-                TokenModule::transfer(Origin::signed(USER2), 0, USER1, 1300),
+                TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
                 "user does not have enough tokens"
             );
         })
