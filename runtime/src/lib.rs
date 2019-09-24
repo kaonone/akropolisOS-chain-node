@@ -281,9 +281,6 @@ impl marketplace::Trait for Runtime {
 
 impl token::Trait for Runtime {
 	type Event = Event;	
-  type TokenBalance = u64;
-	type TokenId = u32;
-
 }
 
 construct_runtime!(
