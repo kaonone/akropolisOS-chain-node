@@ -7,7 +7,7 @@ require('chai')
     .should();
 
 const ValidatorOperations = artifacts.require('ValidatorsOperations.sol');
-const ValidatorOperationsImpl = artifacts.require('./impl/ValidatorOperationsImpl.sol');
+const ValidatorOperationsImpl = artifacts.require('ValidatorOperationsImpl.sol');
 
 contract('ValidatorOperations', function ([_, wallet1, wallet2, wallet3, wallet4, wallet5]) {
     it('should be initialized correctly', async function () {

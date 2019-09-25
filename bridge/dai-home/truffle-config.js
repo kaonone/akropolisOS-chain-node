@@ -18,14 +18,14 @@ module.exports = {
 	networks: {
 		development: {
 			host: 'localhost',
-			port: 9545,
+			port: 8545,
 			network_id: '*',
 			gas: 4600000
 		},
 
 		mainnet: {
 			  provider: function () {
-	          return new HDWalletProvider(process.env.METAMASK_MNEMONIC, "https://mainnet.infura.io/v3/" + process.env.INFURA_API_KEY, 2)
+	          return new HDWalletProvider(process.env.METAMASK_MNEMONIC, "https://mainnet.infura.io/v3/" + process.env.INFURA_API_KEY)
 	      },
 	      network_id: 1,
 	      network_id: 1,
@@ -35,7 +35,7 @@ module.exports = {
 		
 		kovan: {
 	          provider: function () {
-	          return new HDWalletProvider(process.env.METAMASK_MNEMONIC, "https://kovan.infura.io/v3/" + process.env.INFURA_API_KEY, 2)
+	          return new HDWalletProvider(process.env.METAMASK_MNEMONIC, "https://kovan.infura.io/v3/" + process.env.INFURA_API_KEY)
 	      },
 	      network_id: 42,
 	      gas: 7000000

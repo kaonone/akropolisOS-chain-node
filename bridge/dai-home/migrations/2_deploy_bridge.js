@@ -1,15 +1,15 @@
-var AkropolisTimeLock = artifacts.require("./DAIBridge.sol");
+var DAIBridge = artifacts.require("./DAIBridge.sol");
 
 
 module.exports = function(deployer, network, accounts) {
   let owner = accounts[0];
   
-  let token = "0x8ab7404063ec4dbcfd4598215992dc3f8ec853d7"; //AKRO
-  let releaseDate = 1565913660;
+  let token = "0xc4375b7de8af5a38a93548eb8453a498222c4ff2"; //DAI
+
   
   //console.log('owner of storage contracts: ' + owner)
 
-  deployer.deploy(AkropolisTimeLock, token, releaseDate, {from: owner});
+  deployer.deploy(DAIBridge, token,  {from: owner});
   
 };
 

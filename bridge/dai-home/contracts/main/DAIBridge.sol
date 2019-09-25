@@ -109,10 +109,9 @@ contract DAIBridge is ValidatorsOperations {
         function approveTransfer(bytes32 messageID, address spender, bytes32 substrateAddress, uint availableAmount)
             public validMessage(messageID, spender, substrateAddress, availableAmount) pendingMessage(messageID) onlyManyValidators {
             Message storage message = messages[messageID];
+            message.status = Status.APPROVED;
 
             emit ApprovedRelayMessage(messageID, spender, substrateAddress, availableAmount);
-
-            message.status = Status.APPROVED;
         }
 
         /*

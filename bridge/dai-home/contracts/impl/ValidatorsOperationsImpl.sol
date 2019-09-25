@@ -1,13 +1,13 @@
 pragma solidity ^0.5.0;
 
-import "../../contracts/helpers/ValidatorsOperations.sol";
+import "../helpers/ValidatorsOperations.sol";
 
 
 contract ValidatorOperationsImpl is ValidatorsOperations {
 
     uint public value;
 
-    function setValue(uint _value) public onlyManyvalidators {
+    function setValue(uint _value) public onlyManyValidators {
         value = _value;
     }
 
@@ -15,33 +15,33 @@ contract ValidatorOperationsImpl is ValidatorsOperations {
         value = _value;
     }
 
-    function setValueAll(uint _value) public onlyAllvalidators {
+    function setValueAll(uint _value) public onlyAllValidators {
         value = _value;
     }
 
-    function setValueSome(uint _value, uint howMany) public onlySomevalidators(howMany) {
+    function setValueSome(uint _value, uint howMany) public onlySomeValidators(howMany) {
         value = _value;
     }
 
-    function nestedFirst(uint _value) public onlyManyvalidators {
+    function nestedFirst(uint _value) public onlyManyValidators {
         nestedSecond(_value);
     }
 
-    function nestedSecond(uint _value) public onlyManyvalidators {
+    function nestedSecond(uint _value) public onlyManyValidators {
         value = _value;
     }
 
     //
 
-    function nestedFirstAllToAll(uint _value) public onlyAllvalidators {
+    function nestedFirstAllToAll(uint _value) public onlyAllValidators {
         nestedSecondAllToAll(_value);
     }
 
-    function nestedFirstAllToAll2(uint _value) public onlyAllvalidators {
+    function nestedFirstAllToAll2(uint _value) public onlyAllValidators {
         this.nestedSecondAllToAll(_value); // this.
     }
 
-    function nestedSecondAllToAll(uint _value) public onlyAllvalidators {
+    function nestedSecondAllToAll(uint _value) public onlyAllValidators {
         value = _value;
     }
 
@@ -61,7 +61,7 @@ contract ValidatorOperationsImpl is ValidatorsOperations {
 
     //
 
-    function nestedFirstManyToSome(uint _value, uint howMany) public onlyManyvalidators {
+    function nestedFirstManyToSome(uint _value, uint howMany) public onlyManyValidators {
         nestedSecondSome(_value, howMany);
     }
 
@@ -69,7 +69,7 @@ contract ValidatorOperationsImpl is ValidatorsOperations {
         nestedSecondSome(_value, howMany);
     }
 
-    function nestedSecondSome(uint _value, uint howMany) public onlySomevalidators(howMany) {
+    function nestedSecondSome(uint _value, uint howMany) public onlySomeValidators(howMany) {
         value = _value;
     }
 
