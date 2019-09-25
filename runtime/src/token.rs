@@ -21,13 +21,12 @@ pub struct Token {
 decl_event!(
     pub enum Event<T>
     where
-        AccountId = <T as system::Trait>::AccountId,
-        Hash = <T as system::Trait>::Hash,
+        AccountId = <T as system::Trait>::AccountId
     {
         Transfer(AccountId, AccountId, TokenBalance),
         Approval(AccountId, AccountId, TokenBalance),
-        Minted(Hash, Hash, AccountId, TokenBalance),
-        Burned(AccountId, Hash, TokenBalance),
+        Mint(AccountId, TokenBalance),
+        Burn(AccountId, TokenBalance),
     }
 );
 
@@ -52,18 +51,18 @@ decl_module! {
         fn deposit_event<T>() = default;
 
         // Burn tokens
-        fn burn(origin, from: T::AccountId, to: T::Hash, #[compact] amount: TokenBalance) -> Result {
+        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
             ensure_signed(origin)?;
 
-            Self::_burn(from.clone(), to, amount)?;
+            Self::_burn(from.clone(), amount)?;
 
             Ok(())
         }
 
-        fn mint(origin, message_id: T::Hash,  from: T::Hash, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
+        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
             ensure_signed(origin)?;
 
-            Self::_mint(message_id, from, to, amount)?;
+            Self::_mint(to, amount)?;
 
             Ok(())
         }
@@ -113,22 +112,20 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn _burn(from: T::AccountId, to: T::Hash, amount: TokenBalance) -> Result {
-        let free_balance = <Balance<T>>::get(&from) - <Locked<T>>::get(&from);
-        ensure!(free_balance >= amount, "not enough because of locked funds");
-
+    pub fn _burn(from: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(
             Self::total_supply() > amount,
             "Cannot burn more than total supply"
         );
 
-        let old_balance = <Balance<T>>::get(from.clone());
+        let free_balance = <Balance<T>>::get(&from) - <Locked<T>>::get(&from);
         ensure!(
-            old_balance > TokenBalance::zero(),
+            free_balance > TokenBalance::zero(),
             "Cannot burn with zero balance"
         );
+        ensure!(free_balance >= amount, "not enough because of locked funds");
 
-        let next_balance = old_balance
+        let next_balance = free_balance
             .checked_sub(amount)
             .ok_or("underflow subtracting from balance burn")?;
         let next_total = Self::total_supply()
@@ -138,11 +135,11 @@ impl<T: Trait> Module<T> {
         <Balance<T>>::insert(from.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
 
-        Self::deposit_event(RawEvent::Burned(from, to, amount));
+        Self::deposit_event(RawEvent::Burn(from, amount));
 
         Ok(())
     }
-    pub fn _mint(message_id: T::Hash, from: T::Hash, to: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _mint(to: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(!amount.is_zero(), "amount should be non-zero");
 
         let old_balance = <Balance<T>>::get(to.clone());
@@ -156,7 +153,7 @@ impl<T: Trait> Module<T> {
         <Balance<T>>::insert(to.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
 
-        Self::deposit_event(RawEvent::Minted(message_id, from, to, amount));
+        Self::deposit_event(RawEvent::Mint(to, amount));
         Ok(())
     }
 
@@ -251,7 +248,6 @@ mod tests {
     // const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
-    const ETH_ADDRESS: &[u8; 32] = b"0x00b46c2526ebb8f4c9e4674d262e75";
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
@@ -282,13 +278,8 @@ mod tests {
     #[test]
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
-            let eth_address = H256::from(ETH_ADDRESS);
-            let message_id = H256::from(ETH_ADDRESS);
-
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
-                message_id,
-                eth_address,
                 USER2,
                 1000
             ));
@@ -301,13 +292,8 @@ mod tests {
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
-            let eth_address = H256::from(ETH_ADDRESS);
-            let message_id = H256::from(ETH_ADDRESS);
-
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
-                message_id,
-                eth_address,
                 USER2,
                 1000
             ));
@@ -322,13 +308,8 @@ mod tests {
     #[test]
     fn token_transfer_not_enough() {
         with_externalities(&mut new_test_ext(), || {
-            let eth_address = H256::from(ETH_ADDRESS);
-            let message_id = H256::from(ETH_ADDRESS);
-
             assert_ok!(TokenModule::mint(
                 Origin::signed(USER1),
-                message_id,
-                eth_address,
                 USER2,
                 1000
             ));
