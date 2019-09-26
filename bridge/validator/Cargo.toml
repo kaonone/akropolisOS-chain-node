@@ -19,8 +19,9 @@ dotenv = "0.14.1"
 
 node-runtime = { path = '../../runtime/', package = 'akropolisos-substrate-node-runtime' }
 
-substrate-bip39 = { path="vendor/substrate-bip39" }
+substrate-bip39 = { path = 'vendor/substrate-bip39' }
 substrate-api-client = { path = 'vendor/substrate-api-client' }
+raw-transaction-builder = { path = 'raw-transaction-builder' }
 
 [dependencies.consensus]
 git = 'https://github.com/paritytech/substrate.git'

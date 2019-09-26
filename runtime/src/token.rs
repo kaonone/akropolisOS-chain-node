@@ -21,7 +21,7 @@ pub struct Token {
 decl_event!(
     pub enum Event<T>
     where
-        AccountId = <T as system::Trait>::AccountId
+        AccountId = <T as system::Trait>::AccountId,
     {
         Transfer(AccountId, AccountId, TokenBalance),
         Approval(AccountId, AccountId, TokenBalance),
@@ -278,11 +278,7 @@ mod tests {
     #[test]
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(
-                Origin::signed(USER1),
-                USER2,
-                1000
-            ));
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_eq!(TokenModule::total_supply(), 1000);
@@ -292,11 +288,7 @@ mod tests {
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(
-                Origin::signed(USER1),
-                USER2,
-                1000
-            ));
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
@@ -308,11 +300,7 @@ mod tests {
     #[test]
     fn token_transfer_not_enough() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(
-                Origin::signed(USER1),
-                USER2,
-                1000
-            ));
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));

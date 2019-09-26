@@ -1,6 +1,6 @@
 use node_runtime::{AccountId, BridgeCall, Call, UncheckedExtrinsic};
 use parity_codec::{Compact, Encode};
-use primitives::H256;
+use primitives::{H160, H256};
 use rustc_hex::ToHex;
 use substrate_api_client::{hexstr_to_u256, Api};
 
@@ -10,14 +10,14 @@ use runtime_primitives::generic::Era;
 pub fn build_mint(
     sub_api: &Api,
     signer: sr25519::Pair,
-    message_id: Vec<u8>,
-    from: Vec<u8>,
+    message_id: H256,
+    from: H160,
     to: AccountId,
-    amount: u128,
+    amount: u64,
 ) -> String {
     let signer_index = signer_index(sub_api, &signer);
     let genesis_hash = sub_api.genesis_hash.expect("can not get genesiss hash");
-    let function = Call::Bridge(BridgeCall::eth2substrate(message_id, from, to, amount));
+    let function = Call::Bridge(BridgeCall::multi_signed_mint(message_id, from, to, amount));
     let era = Era::immortal();
 
     log::debug!("using genesis hash: {:?}", genesis_hash);
@@ -45,10 +45,10 @@ pub fn build_mint(
     xthex
 }
 
-pub fn build_sign(sub_api: &Api, signer: sr25519::Pair, message_id: H256) -> String {
+pub fn build_approve_transfer(sub_api: &Api, signer: sr25519::Pair, message_id: H256) -> String {
     let signer_index = signer_index(sub_api, &signer);
     let genesis_hash = sub_api.genesis_hash.expect("can not get genesiss hash");
-    let function = Call::Bridge(BridgeCall::sign(message_id));
+    let function = Call::Bridge(BridgeCall::approve_transfer(message_id));
     let era = Era::immortal();
 
     log::debug!("using genesis hash: {:?}", genesis_hash);
