@@ -1,5 +1,5 @@
 {
-  "name": "hackathon-frontend",
+  "name": "eth-substrate-bridge-frontend",
   "version": "1.0.0",
   "description": "",
   "keywords": [],
@@ -7,8 +7,9 @@
   "scripts": {
     "start": "parcel ./src/index.html",
     "build": "parcel build ./src/index.html",
+    "build:gh": "parcel build ./src/index.html --public-url /akropolisOS-chain-node/",
     "types": "tsc --noEmit --watch",
-    "predeploy": "npm run build",
+    "predeploy": "npm run build:gh",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
