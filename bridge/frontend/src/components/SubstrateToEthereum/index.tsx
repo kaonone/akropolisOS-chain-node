@@ -4,6 +4,7 @@ import { Grid, Typography } from '@material-ui/core';
 import { useSubscribable } from '~util/hooks';
 import { useApi } from '~components/context';
 import { Balance } from '~components/Balance';
+import SendingForm from './SendingForm';
 
 function SubstrateToEthereum() {
   const api = useApi();
@@ -22,7 +23,7 @@ function SubstrateToEthereum() {
         </Grid>
       ))}
       <Grid item xs={12}>
-        Coming Soon
+        <SendingForm />
       </Grid>
     </Grid>
   );

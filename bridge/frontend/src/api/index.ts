@@ -4,7 +4,7 @@ import { Observable, interval, from, fromEventPattern } from "rxjs";
 import BN from "bn.js";
 import { switchMap, skipWhile } from 'rxjs/operators';
 import { ApiRx } from '@polkadot/api';
-import { web3Enable, web3AccountsSubscribe } from '@polkadot/extension-dapp';
+import { web3Enable, web3AccountsSubscribe, web3FromAddress } from '@polkadot/extension-dapp';
 import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { decodeAddress } from "@polkadot/util-crypto";
 import { u8aToHex } from "@polkadot/util";
@@ -28,6 +28,25 @@ export class Api {
       bridgeAbi,
       ETH_NETWORK_CONFIG.contracts.bridge,
     );
+  }
+
+  public async sendToEthereum(from: string, to: string, amount: string): Promise<void> {
+    const substrateApi = await this._substrateApi.toPromise();
+    const substrateWeb3 = await web3FromAddress(from);
+    substrateApi.setSigner(substrateWeb3.signer);
+
+    const transfer = substrateApi.tx.bridge.set_transfer(to, from, amount);
+
+    await new Promise((resolve, reject) => {
+      transfer.signAndSend(from).subscribe({
+        complete: resolve,
+        error: reject,
+        next: ({ isCompleted, isError }) => {
+          isError && reject('tx.bridge.set_transfer extrinsic is failed');
+          isCompleted && resolve();
+        }
+      });
+    });
   }
 
   public async sendToSubstrate(from: string, to: string, amount: string): Promise<void> {

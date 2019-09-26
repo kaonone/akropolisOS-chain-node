@@ -11,7 +11,7 @@ interface Props extends FieldRenderProps<string, HTMLElement> {
   formControlProps: FormControlProps;
 }
 
-function FormHelperTextWrapper ({
+function FormHelperTextWrapper({
   input: { name, value, onChange, ...restInput },
   meta,
   label,
@@ -19,10 +19,15 @@ function FormHelperTextWrapper ({
   ...rest
 }: Props): React.ReactElement<Props> {
   const showError = ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
+  const labelRef = React.useRef<HTMLLabelElement | null>(null);
+  const [labelWidth, setLabelWidth] = React.useState(0);
+  React.useEffect(() => {
+    labelRef.current && setLabelWidth(labelRef.current.offsetWidth);
+  }, [labelRef.current]);
 
   return (
     <FormControl {...formControlProps} error={showError}>
-      <InputLabel htmlFor={name}>{label}</InputLabel>
+      <InputLabel ref={labelRef} htmlFor={name}>{label}</InputLabel>
 
       <Select
         {...rest}
@@ -30,6 +35,7 @@ function FormHelperTextWrapper ({
         onChange={onChange}
         inputProps={restInput}
         value={value}
+        labelWidth={labelWidth}
       />
 
       {showError &&
