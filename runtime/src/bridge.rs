@@ -77,7 +77,7 @@ decl_event!(
         Hash = <T as system::Trait>::Hash,
     {
         RelayMessage(Hash),
-        Minted(Hash, H160, AccountId, TokenBalance),
+        Minted(Hash),
         Burned(AccountId, H160, TokenBalance),
     }
 );
@@ -124,16 +124,11 @@ decl_module! {
             Ok(())
         }
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin,
-            message_id: T::Hash,
-            from: H160, //Ethereum address
-            to: T::AccountId,
-            #[compact] amount: TokenBalance
-        )-> Result {
+        fn multi_signed_mint(origin, message_id: T::Hash)-> Result {
             ensure_signed(origin)?;
             <token::Module<T>>::_mint(to.clone(), amount)?;
 
-            Self::deposit_event(RawEvent::Minted(message_id, from, to, amount));
+            Self::deposit_event(RawEvent::Minted(message_id));
             Ok(())
         }
         // validator`s response to RelayMessage
