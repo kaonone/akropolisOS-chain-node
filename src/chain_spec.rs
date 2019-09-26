@@ -2,6 +2,7 @@ use akropolisos_substrate_node_runtime::{
     AccountId, BalancesConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
     DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill, Permill, Schedule,
     SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TreasuryConfig,
+	BridgeConfig
 };
 use primitives::{crypto::UncheckedInto, ed25519, sr25519, Pair};
 use substrate_service;
@@ -193,6 +194,10 @@ fn testnet_genesis(
 			block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
+		bridge: Some(BridgeConfig {
+			validators_count: 3usize, //default 
+			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
+		}),
 	}
 }
 
@@ -305,5 +310,9 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 			block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
+		bridge: Some(BridgeConfig {
+			validators_count: 3usize, //default 
+			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
+		})
 	}
 }

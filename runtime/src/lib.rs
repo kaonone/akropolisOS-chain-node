@@ -314,7 +314,7 @@ construct_runtime!(
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
         Token: token::{Module, Call, Storage, Event<T>},
-        Bridge: bridge::{Module, Call, Storage, Event<T>},
+        Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
