@@ -125,12 +125,21 @@ decl_module! {
         }
 
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin, message_id: T::Hash, _from: H160, to: T::AccountId, #[compact] amount: TokenBalance)-> Result {
+        fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, #[compact] amount: TokenBalance)-> Result {
             ensure_signed(origin)?;
+            ensure!(!<Messages<T>>::exists(message_id), "this transaction is already minted");
 
             <token::Module<T>>::_mint(to.clone(), amount)?;
+            let message = Message{
+                message_id,
+                eth_address: from,
+                substrate_address: to,
+                amount,
+                status: Status::Confirmed,
+            };
 
             Self::deposit_event(RawEvent::Minted(message_id));
+            <Messages<T>>::insert(message_id, message);
             Ok(())
         }
 
@@ -385,6 +394,30 @@ mod tests {
             ));
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_eq!(TokenModule::total_supply(), 1000);
+        })
+    }
+    #[test]
+    fn token_eth2sub_multi_call_prevented() {
+        with_externalities(&mut new_test_ext(), || {
+            let message_id = H256::from(ETH_MESSAGE_ID);
+            let eth_address = H160::from(ETH_ADDRESS);
+
+            assert_ok!(BridgeModule::multi_signed_mint(
+                Origin::signed(USER2),
+                message_id,
+                eth_address,
+                USER2,
+                1000
+            ));
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+            assert_eq!(TokenModule::total_supply(), 1000);
+            assert_noop!(BridgeModule::multi_signed_mint(
+                Origin::signed(USER2),
+                message_id,
+                eth_address,
+                USER2,
+                1000
+            ), "this transaction is already minted");
         })
     }
 
