@@ -13,11 +13,11 @@ use grandpa::fg_primitives::{self, ScheduledChange};
 use primitives::u32_trait::{_2, _4};
 use primitives::{ed25519, sr25519, OpaqueMetadata};
 use rstd::prelude::*;
-use runtime_primitives::{self,
-    create_runtime_str, generic,
+use runtime_primitives::{
+    self, create_runtime_str, generic,
     traits::{BlakeTwo256, Block as BlockT, Convert, DigestFor, NumberFor, StaticLookup, Verify},
     transaction_validity::TransactionValidity,
-    ApplyResult
+    ApplyResult,
 };
 #[cfg(feature = "std")]
 use version::NativeVersion;
@@ -32,9 +32,11 @@ pub use contract::Schedule;
 #[cfg(any(feature = "std", test))]
 pub use runtime_primitives::BuildStorage;
 pub use runtime_primitives::{Perbill, Permill};
-pub use support::{construct_runtime, StorageValue, traits::{Currency}};
+pub use support::{construct_runtime, traits::Currency, StorageValue};
 pub use timestamp::BlockPeriod;
 pub use timestamp::Call as TimestampCall;
+
+pub use bridge::Call as BridgeCall;
 
 /// The type that is used for identifying authorities.
 pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
@@ -57,11 +59,11 @@ pub type BlockNumber = u64;
 /// Index of an account's extrinsic in the chain.
 pub type Nonce = u64;
 
+pub mod bridge;
 mod dao;
 mod marketplace;
 mod token;
 mod types;
-mod bridge;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -69,7 +71,7 @@ mod bridge;
 /// to even the core datastructures.
 pub mod opaque {
     use super::*;
-    
+
     /// Opaque, encoded, unchecked extrinsic.
     pub use runtime_primitives::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -281,11 +283,11 @@ impl marketplace::Trait for Runtime {
 }
 
 impl token::Trait for Runtime {
-	type Event = Event;	
+    type Event = Event;
 }
 
 impl bridge::Trait for Runtime {
-	type Event = Event;	
+    type Event = Event;
 }
 
 construct_runtime!(

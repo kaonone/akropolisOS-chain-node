@@ -78,7 +78,7 @@ decl_event!(
     {
         RelayMessage(Hash),
         Minted(Hash),
-        Burned(AccountId, H160, TokenBalance),
+        Burned(Hash, AccountId, H160, TokenBalance),
     }
 );
 
@@ -109,7 +109,7 @@ decl_module! {
             let from = ensure_signed(origin)?;
 
             let transfer_hash = (&from, &to, amount).using_encoded(<T as system::Trait>::Hashing::hash);
-            let event = RawEvent::RelayMessage(transfer_hash.clone());
+            let event = RawEvent::RelayMessage(transfer_hash);
 
             let message = Message{
                 message_id: transfer_hash,
@@ -123,14 +123,17 @@ decl_module! {
             <Messages<T>>::insert(transfer_hash, message);
             Ok(())
         }
+
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin, message_id: T::Hash)-> Result {
+        fn multi_signed_mint(origin, message_id: T::Hash, _from: H160, to: T::AccountId, #[compact] amount: TokenBalance)-> Result {
             ensure_signed(origin)?;
+
             <token::Module<T>>::_mint(to.clone(), amount)?;
 
             Self::deposit_event(RawEvent::Minted(message_id));
             Ok(())
         }
+
         // validator`s response to RelayMessage
         fn approve_transfer(origin, message_id: T::Hash) -> Result {
             ensure_signed(origin)?;
@@ -138,12 +141,14 @@ decl_module! {
 
             Self::_sign(id, true)
         }
+
         //confirm burn from validator
         fn confirm_transfer(origin, message_id: T::Hash) -> Result {
             ensure_signed(origin)?;
 
             Self::execute_burn(message_id)
         }
+
         //confirm burn from validator
         fn cancel_transfer(origin, message_id: T::Hash) -> Result {
             ensure_signed(origin)?;
@@ -189,22 +194,22 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
+
     ///ensure that such transfer exist
     fn get_transfer_id_checked(
         transfer_hash: T::Hash,
         event: RawEvent<T::AccountId, T::Hash>,
     ) -> Result {
-        match <TransferId<T>>::exists(transfer_hash) {
-            true => Ok(()),
-            false => {
-                Self::create_transfer(transfer_hash)?;
-                Self::deposit_event(event);
-                Ok(())
-            }
+        if !<TransferId<T>>::exists(transfer_hash) {
+            Self::create_transfer(transfer_hash)?;
+            Self::deposit_event(event);
         }
+
+        Ok(())
     }
+
     fn close_transfer(mut transfer: BridgeTransfer<T::Hash>) {
-        let transfer_id = transfer.transfer_id.clone();
+        let transfer_id = transfer.transfer_id;
         transfer.open = false;
         let transfer_hash = <MessageId<T>>::get(transfer_id);
 
@@ -216,12 +221,14 @@ impl<T: Trait> Module<T> {
     fn votes_are_enough(votes: MemberId) -> bool {
         votes as f64 / Self::validators_count() as f64 >= 0.51
     }
+
     /// lock funds after set_transfer call
     fn lock_for_burn(account: T::AccountId, amount: TokenBalance) -> Result {
         <token::Module<T>>::lock(account.clone(), amount)?;
 
         Ok(())
     }
+
     fn execute_burn(message_id: T::Hash) -> Result {
         let mut message = <Messages<T>>::get(message_id);
         ensure!(
@@ -234,17 +241,18 @@ impl<T: Trait> Module<T> {
         );
 
         let from = message.substrate_address.clone();
-        let to = message.eth_address.clone();
+        let to = message.eth_address;
 
         <token::Module<T>>::unlock(&from, message.amount)?;
         <token::Module<T>>::_burn(from.clone(), message.amount)?;
 
-        Self::deposit_event(RawEvent::Burned(from, to, message.amount));
+        Self::deposit_event(RawEvent::Burned(message_id, from, to, message.amount));
 
         message.status = Status::Confirmed;
         <Messages<T>>::insert(message_id, message);
         Ok(())
     }
+
     fn create_transfer(transfer_hash: T::Hash) -> Result {
         ensure!(
             !<TransferId<T>>::exists(transfer_hash),
