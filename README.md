@@ -133,6 +133,28 @@ This guide will walk you through how to create account and how to connect to Akr
   "Token": {
     "token_id": "u32",
     "symbol": "Vec<u8>"
+  },
+  "Status": {
+      "_enum":[
+        "Pending",
+        "Withdraw",
+        "Approved",
+        "Canceled",
+        "Confirmed"
+      ]
+  },
+    "Message": {
+      "message_id": "H256",
+      "eth_address": "H160",
+      "substrate_address": "AccountId",
+      "amount": "TokenBalance",
+      "status": "Status"
+  },
+  "BridgeTransfer": {
+    "transfer_id": "ProposalId",
+    "message_id": "H256",
+    "open": "bool",
+    "votes": "MemberId"
   }
 }
 
