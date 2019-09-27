@@ -84,7 +84,7 @@ export class Api {
   }
 
   public getSubstrateBalance$(_address: string): Observable<BN> {
-    return callPolkaApi(this._substrateApi, 'query.token.balance_of', _address);
+    return callPolkaApi(this._substrateApi, 'query.token.balance', _address);
   }
 
   public getEthAccount$(): Observable<string | null> {

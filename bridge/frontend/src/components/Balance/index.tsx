@@ -26,7 +26,7 @@ export function Balance({ address, type, name }: IProps) {
     <>
       {!!name && <Typography variant="h5">{name}</Typography>}
       <Typography>Address: {address}</Typography>
-      <Typography>Balance:
+      <Typography component="div">Balance:
         {!loaded && !error && <Box display="inline"><LinearProgress /></Box>}
         {!!error && <Typography component="span" color="error">{error}</Typography>}
         {loaded && !error && ` ${formatDai(balance)} DAI`}

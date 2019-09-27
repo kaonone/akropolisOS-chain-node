@@ -18,7 +18,7 @@ function SubstrateToEthereum() {
         </Grid>
       )}
       {accounts && accounts.map(account => (
-        <Grid item xs={12}>
+        <Grid key={account.address} item xs={12}>
           <Balance type="substrate" address={account.address} name={account.meta.name} />
         </Grid>
       ))}

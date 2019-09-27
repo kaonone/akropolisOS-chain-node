@@ -58,12 +58,6 @@ function SendingForm() {
             component={Select as any}
             label='From'
             error={false}
-            InputProps={{
-              autoFocus: true
-            }}
-            InputLabelProps={{
-              shrink: true
-            }}
             formControlProps={{
               fullWidth: true,
               variant: "outlined",
