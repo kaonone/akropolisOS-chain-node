@@ -10,7 +10,8 @@ export function formatDai(value: BN): string {
   const zeroSymbol = '0';
   const additionalZeroSymbolsCount =Math.max(DEFAULT_DECIMALS - afterDecimal.length, 0);
 
-  const afterDecimalCompact = afterDecimal.replace(/^(.+?)0+$/, '$1');
+  const afterDecimalWithZeroPrefix = `${zeroSymbol.repeat(additionalZeroSymbolsCount)}${afterDecimal}`;
+  const afterDecimalCompact = afterDecimalWithZeroPrefix.replace(/^(.+?)0+$/, '$1');
 
-  return `${beforeDecimal}.${zeroSymbol.repeat(additionalZeroSymbolsCount)}${afterDecimalCompact}`;
+  return `${beforeDecimal}.${afterDecimalCompact}`;
 }
