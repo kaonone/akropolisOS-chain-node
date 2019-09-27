@@ -8,6 +8,7 @@ interface INetworkConfig {
     bridge: string;
     dai: string;
   };
+  etherskanDomain: string;
 }
 
 const ethNetworkConfigs: Record<number, INetworkConfig> = {
@@ -18,7 +19,8 @@ const ethNetworkConfigs: Record<number, INetworkConfig> = {
     contracts: {
       bridge: "0x9ff8c644F09B0B7dc030C8aaD52dC1628a22C4c2",
       dai: "0xC4375B7De8af5a38a93548eb8453a498222C4fF2"
-    }
+    },
+    etherskanDomain: 'https://kovan.etherscan.io/',
   },
   "1": {
     id: 1,
@@ -27,7 +29,8 @@ const ethNetworkConfigs: Record<number, INetworkConfig> = {
     contracts: {
       bridge: "0x9ff8c644F09B0B7dc030C8aaD52dC1628a22C4c2",
       dai: "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
-    }
+    },
+    etherskanDomain: 'https://etherscan.io/',
   }
 };
 

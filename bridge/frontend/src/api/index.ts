@@ -70,10 +70,23 @@ export class Api {
     await this._bridgeContract.methods.setTransfer(amount, bytesAddress).send({ from });
   }
 
+  public getEthValidators$(): Observable<string[]> {
+    return from([[
+      '6a8357ae0173737209af59152ee30a786dbade70',
+      '93880d6508e3ffee5a4376939d3322f2f11b56d1',
+      '9194ad793e72052992f9a1b3b8eaef5463300f87',
+    ]]);
+    return getContractData$<string[], string[]>(this._bridgeContract, "validators", {
+      eventsForReload: [
+        ["ValidatorShipTransferred"],
+      ],
+    });
+  }
+
   public getEthBalance$(_address: string): Observable<BN> {
     const address = _address.toLowerCase();
 
-    return getContractData$<BN>(this._daiContract, "balanceOf", {
+    return getContractData$<string, BN>(this._daiContract, "balanceOf", {
       args: [address],
       eventsForReload: [
         ["Transfer", { filter: { _from: address } }],

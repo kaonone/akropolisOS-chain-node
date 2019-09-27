@@ -4,6 +4,7 @@ import { Grid, Typography } from '@material-ui/core';
 import { useSubscribable } from '~util/hooks';
 import { useApi } from '~components/context';
 import { Balance } from '~components/Balance';
+import EthereumValidators from '~components/EthereumValidators';
 
 import SendingForm from './SendingForm';
 
@@ -19,6 +20,9 @@ function EthereumToSubstrate() {
       </Grid>
       <Grid item xs={12}>
         <SendingForm />
+      </Grid>
+      <Grid item xs={12}>
+        <EthereumValidators />
       </Grid>
     </Grid>
   );

@@ -12,22 +12,22 @@ interface ISubscribeEventOptions {
   topics?: string[];
 }
 
-interface IOptions<T> {
+interface IOptions<IV, RV> {
   eventsForReload?: "none" | "all" | Array<[string, ISubscribeEventOptions?]>;
   reloadTrigger$?: Observable<any>;
   args?: Array<string | number>;
-  convert?(value: string | number): T;
+  convert?(value: IV): RV;
 }
 
 function identity(value: any) {
   return value;
 }
 
-export function getContractData$<T>(
+export function getContractData$<IV, RV>(
   contract: Contract,
   method: string,
-  options: IOptions<T> = {}
-): Observable<T> {
+  options: IOptions<IV, RV> = {}
+): Observable<RV> {
   const {
     eventsForReload = "all",
     reloadTrigger$ = empty(),
