@@ -117,7 +117,7 @@ contract DAIBridge is ValidatorsOperations {
         /*
         * Confirm tranfer by message ID when transfer pending
          */
-        function confirmTransfer(bytes32 messageID) public approvedMessage(messageID) {
+        function confirmTransfer(bytes32 messageID) public approvedMessage(messageID) onlyManyValidators {
             Message storage message = messages[messageID];
             message.status = Status.CONFIRMED;
         }
