@@ -7,9 +7,8 @@
   "scripts": {
     "start": "parcel ./src/index.html",
     "build": "parcel build ./src/index.html",
-    "build:gh": "parcel build ./src/index.html --public-url /akropolisOS-chain-node/",
     "types": "tsc --noEmit --watch",
-    "predeploy": "npm run build:gh",
+    "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
@@ -39,6 +38,7 @@
     "@types/react-dom": "^16.8.2",
     "@types/web3": "^1.0.19",
     "parcel": "^1.12.3",
+    "parcel-plugin-static-files-copy": "^2.2.1",
     "typescript": "^3.5.3"
   },
   "browserslist": [
