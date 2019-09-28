@@ -54,7 +54,10 @@ decl_module! {
         fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
             ensure_signed(origin)?;
 
+            // (!) : can be called directly
+            // do we even need this?
             Self::_burn(from.clone(), amount)?;
+            Self::deposit_event(RawEvent::Burn(from, amount));
 
             Ok(())
         }
@@ -62,7 +65,10 @@ decl_module! {
         fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
             ensure_signed(origin)?;
 
-            Self::_mint(to, amount)?;
+            // (!) : can be called directly
+            // do we even need this ?
+            Self::_mint(to.clone(), amount)?;
+            Self::deposit_event(RawEvent::Mint(to, amount));
 
             Ok(())
         }
@@ -135,8 +141,6 @@ impl<T: Trait> Module<T> {
         <Balance<T>>::insert(from.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
 
-        Self::deposit_event(RawEvent::Burn(from, amount));
-
         Ok(())
     }
     pub fn _mint(to: T::AccountId, amount: TokenBalance) -> Result {
@@ -153,7 +157,6 @@ impl<T: Trait> Module<T> {
         <Balance<T>>::insert(to.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
 
-        Self::deposit_event(RawEvent::Mint(to, amount));
         Ok(())
     }
 
