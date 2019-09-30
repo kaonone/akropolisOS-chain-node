@@ -132,11 +132,13 @@ This guide will walk you through how to create account and how to connect to Akr
   },
   "Token": {
     "token_id": "u32",
+    "decimals": "u16",
     "symbol": "Vec<u8>"
   },
   "Status": {
       "_enum":[
         "Pending",
+        "Deposit",
         "Withdraw",
         "Approved",
         "Canceled",
@@ -148,7 +150,8 @@ This guide will walk you through how to create account and how to connect to Akr
       "eth_address": "H160",
       "substrate_address": "AccountId",
       "amount": "TokenBalance",
-      "status": "Status"
+      "status": "Status",
+      "direction": "Status"
   },
   "BridgeTransfer": {
     "transfer_id": "ProposalId",

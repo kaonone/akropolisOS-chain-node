@@ -15,7 +15,7 @@ use system::{self, ensure_signed};
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Token {
     pub id: TokenId,
-    pub decimals: u8,
+    pub decimals: u16,
     pub symbol: Vec<u8>,
 }
 
@@ -121,7 +121,7 @@ decl_module! {
 impl<T: Trait> Module<T> {
     pub fn _burn(from: T::AccountId, amount: TokenBalance) -> Result {
         ensure!(
-            Self::total_supply() > amount,
+            Self::total_supply() >= amount,
             "Cannot burn more than total supply"
         );
 
@@ -265,11 +265,11 @@ mod tests {
             balances::GenesisConfig::<Test> {
                 balances: vec![(USER1, 100000), (USER2, 300000)],
                 vesting: vec![],
-                transaction_base_fee: 0,
-                transaction_byte_fee: 0,
+                transaction_base_fee: 1,
+                transaction_byte_fee: 1,
                 existential_deposit: 500,
-                transfer_fee: 0,
-                creation_fee: 0,
+                transfer_fee: 1,
+                creation_fee: 1,
             }
             .build_storage()
             .unwrap()
@@ -315,6 +315,26 @@ mod tests {
                 TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
                 "user does not have enough tokens"
             );
+        })
+    }
+    #[test]
+    fn token_transfer_burn_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+
+            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 300));
+            assert_eq!(TokenModule::balance_of(USER2), 700);
+        })
+    }
+    #[test]
+    fn token_transfer_burn_all_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::balance_of(USER2), 1000);
+
+            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::balance_of(USER2), 0);
         })
     }
 }
