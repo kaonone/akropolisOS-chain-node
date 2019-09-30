@@ -10,6 +10,7 @@ import { useApi } from '~components/context';
 import { useSubscribable } from '~util/hooks';
 import getErrorMsg from '~util/getErrorMsg';
 import { validateFloat, validateRequired, validateSubstrateAddress } from '~util/validators';
+import { DEFAULT_DECIMALS } from '~env';
 
 interface FormData {
   address: string;
@@ -26,7 +27,7 @@ type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
 function validate(values: FormData): Errors {
   return {
     address: validateRequired(values.address) || validateSubstrateAddress(values.address),
-    amount: validateRequired(values.amount) || validateFloat(values.amount),
+    amount: validateRequired(values.amount) || validateFloat(values.amount, DEFAULT_DECIMALS),
   };
 }
 

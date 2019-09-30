@@ -10,6 +10,7 @@ import { useApi } from '~components/context';
 import { useSubscribable } from '~util/hooks';
 import getErrorMsg from '~util/getErrorMsg';
 import { validateRequired, validateEthereumAddress, validateFloat } from '~util/validators';
+import { DEFAULT_DECIMALS } from '~env';
 
 interface FormData {
   address: string;
@@ -29,7 +30,7 @@ function validate(values: FormData): Errors {
   return {
     from: validateRequired(values.from.toLowerCase()),
     address: validateRequired(values.address) || validateEthereumAddress(values.address),
-    amount: validateRequired(values.amount) || validateFloat(values.amount),
+    amount: validateRequired(values.amount) || validateFloat(values.amount, DEFAULT_DECIMALS),
   };
 }
 

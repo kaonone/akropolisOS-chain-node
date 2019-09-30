@@ -2,8 +2,9 @@ import React from "react";
 import BN from 'bn.js';
 import { Typography, LinearProgress, Box } from '@material-ui/core';
 
+import { DEFAULT_DECIMALS } from '~env';
 import { useSubscribable } from '~util/hooks';
-import { formatDai } from '~util/formatDai';
+import { fromBaseUnit } from '~util/fromBaseUnit';
 import { useApi } from "../context";
 
 interface IProps {
@@ -29,7 +30,7 @@ export function Balance({ address, type, name }: IProps) {
       <Typography component="div">Balance:
         {!loaded && !error && <Box display="inline"><LinearProgress /></Box>}
         {!!error && <Typography component="span" color="error">{error}</Typography>}
-        {loaded && !error && ` ${formatDai(balance)} DAI`}
+        {loaded && !error && ` ${fromBaseUnit(balance, DEFAULT_DECIMALS)} DAI`}
       </Typography>
     </>
   );
