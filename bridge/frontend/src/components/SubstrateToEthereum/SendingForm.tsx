@@ -3,11 +3,13 @@ import { useCallback } from 'react';
 import { Form, Field } from 'react-final-form';
 import { FORM_ERROR } from 'final-form';
 import { Button, Typography, MenuItem } from '@material-ui/core';
+import { O } from 'ts-toolbelt';
 
 import { TextField, Select } from '~components/form';
 import { useApi } from '~components/context';
 import { useSubscribable } from '~util/hooks';
 import getErrorMsg from '~util/getErrorMsg';
+import { validateRequired, validateEthereumAddress, validateFloat } from '~util/validators';
 
 interface FormData {
   address: string;
@@ -20,6 +22,16 @@ const fields: { [key in keyof FormData]: key } = {
   amount: 'amount',
   from: 'from',
 };
+
+type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
+
+function validate(values: FormData): Errors {
+  return {
+    from: validateRequired(values.from.toLowerCase()),
+    address: validateRequired(values.address) || validateEthereumAddress(values.address),
+    amount: validateRequired(values.amount) || validateFloat(values.amount),
+  };
+}
 
 function SendingForm() {
   const api = useApi();
@@ -50,6 +62,7 @@ function SendingForm() {
       onSubmit={handleSubmit}
       subscription={{ submitting: true, submitError: true }}
       initialValues={{ from: accounts[0].address, address: '', amount: '' }}
+      validate={validate}
     >
       {({ handleSubmit, submitting, submitError }): React.ReactElement<{}> => (
         <form onSubmit={handleSubmit}>

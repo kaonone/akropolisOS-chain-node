@@ -3,11 +3,13 @@ import { useCallback } from 'react';
 import { Form, Field } from 'react-final-form';
 import { FORM_ERROR } from 'final-form';
 import { Button, Typography } from '@material-ui/core';
+import { O } from 'ts-toolbelt';
 
 import { TextField } from '~components/form';
 import { useApi } from '~components/context';
 import { useSubscribable } from '~util/hooks';
 import getErrorMsg from '~util/getErrorMsg';
+import { validateFloat, validateRequired, validateSubstrateAddress } from '~util/validators';
 
 interface FormData {
   address: string;
@@ -18,6 +20,15 @@ const fields: { [key in keyof FormData]: key } = {
   address: 'address',
   amount: 'amount',
 };
+
+type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
+
+function validate(values: FormData): Errors {
+  return {
+    address: validateRequired(values.address) || validateSubstrateAddress(values.address),
+    amount: validateRequired(values.amount) || validateFloat(values.amount),
+  };
+}
 
 function SendingForm() {
   const api = useApi();
@@ -35,7 +46,12 @@ function SendingForm() {
   }, [account]);
 
   return (
-    <Form<FormData> onSubmit={handleSubmit} subscription={{ submitting: true, submitError: true }}>
+    <Form<FormData>
+      onSubmit={handleSubmit}
+      subscription={{ submitting: true, submitError: true }}
+      initialValues={{ address: '', amount: '' }}
+      validate={validate}
+    >
       {({ handleSubmit, submitting, submitError }): React.ReactElement<{}> => (
         <form onSubmit={handleSubmit}>
           <Field
