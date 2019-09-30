@@ -15,7 +15,7 @@ use system::{self, ensure_signed};
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Token {
     pub id: TokenId,
-    pub decimals: u8,
+    pub decimals: u16,
     pub symbol: Vec<u8>,
 }
 
