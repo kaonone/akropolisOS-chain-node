@@ -15,6 +15,7 @@ use system::{self, ensure_signed};
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Token {
     pub id: TokenId,
+    pub decimals: u8,
     pub symbol: Vec<u8>,
 }
 
@@ -39,7 +40,7 @@ decl_storage! {
         Count get(count): TokenId;
         Locked get(locked): map(T::AccountId) => TokenBalance;
 
-        TokenDefault get(token_default): Token = Token{id: 0, symbol: Vec::from("TOKEN")};
+        TokenDefault get(token_default): Token = Token{id: 0, decimals: 18, symbol: Vec::from("TOKEN")};
         TotalSupply get(total_supply): TokenBalance;
         Balance get(balance_of): map (T::AccountId) => TokenBalance;
         Allowance get(allowance_of): map (T::AccountId, T::AccountId) => TokenBalance;
