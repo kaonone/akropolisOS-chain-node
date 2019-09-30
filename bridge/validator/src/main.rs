@@ -11,7 +11,7 @@ use tokio_threadpool::blocking;
 use web3::{
     contract::{
         tokens::{Tokenizable, Tokenize},
-        Contract, Options,
+        Contract,
     },
     futures::Future,
     types::FilterBuilder,
@@ -34,7 +34,7 @@ mod extrinsics;
 mod raw_transaction;
 
 const AMOUNT: u64 = 0;
-const GAS_PRICE: u64 = 1_000_000;
+const GAS_PRICE: u64 = 24_000_000_000;
 const GAS: u64 = 5_000_000;
 
 fn main() {
@@ -48,6 +48,7 @@ fn main() {
         eth_contract_address,
         eth_relay_message_hash,
         eth_approved_relay_message_hash,
+        eth_withdraw_message_hash,
         sub_api_url,
         sub_validator_mnemonic_phrase,
     ) = read_env();
@@ -92,6 +93,7 @@ fn main() {
             Some(vec![
                 eth_relay_message_hash,
                 eth_approved_relay_message_hash,
+                eth_withdraw_message_hash,
             ]),
             None,
             None,
@@ -107,9 +109,10 @@ fn main() {
                 log::info!("[ethereum] got log: {:?}", log);
                 let received_relay_message = log.topics.iter().any(|addr| addr == &eth_relay_message_hash);
                 let received_approved_relay_message = log.topics.iter().any(|addr| addr == &eth_approved_relay_message_hash);
+                let withdraw_message = log.topics.iter().any(|addr| addr == &eth_withdraw_message_hash);
 
-                match (received_relay_message, received_approved_relay_message) {
-                    (true, _) => {
+                match (received_relay_message, received_approved_relay_message, withdraw_message) {
+                    (true, _, _) => {
                         let result = ethabi::decode(&[ParamType::FixedBytes(32), ParamType::Address, ParamType::FixedBytes(32), ParamType::Uint(256)], &log.data.0);
                         if let Ok(params) = result {
                             log::info!("[ethereum] got decoded log.data: {:?}", params);
@@ -122,14 +125,19 @@ fn main() {
                                 let fut = web3.eth().transaction_count(eth_validator_address, None)
                                     .and_then(move |nonce| {
                                         let tx = raw_transaction::build(eth_validator_private_key, eth_contract_address, nonce, AMOUNT, GAS_PRICE, GAS, data);
+                                        log::debug!("raw approveTransfer: {:?}", tx);
                                         web3.eth().send_raw_transaction(Bytes::from(tx))
-                                            .and_then(move |tx_res| {
-                                                log::info!("[ethereum] called approveTransfer({:?}, {:?}, {:?}, {:?}), result: {:?}",
-                                                   params[0], params[1], params[2], params[3], tx_res);
-                                                Ok(())
-                                            })
-                                            .or_else(|e| {
-                                                log::warn!("can not send approveTransfer: {:?}", e);
+                                            .then(move |res| {
+                                                match res {
+                                                    Ok(tx_res) => {
+                                                        log::info!("[ethereum] called approveTransfer({:?}, {:?}, {:?}, {:?}), nonce: {:?}, result: {:?}",
+                                                                    params[0], params[1], params[2], params[3], nonce, tx_res);
+                                                    },
+                                                    Err(err) => {
+                                                        log::warn!("[ethereum] can not send approveTransfer({:?}, {:?}, {:?}, {:?}), nonce: {:?}, reason: {:?}",
+                                                                    params[0], params[1], params[2], params[3], nonce, err);
+                                                    }
+                                                }
                                                 Ok(())
                                             })
 
@@ -140,7 +148,7 @@ fn main() {
                         }
                         Ok(())
                     },
-                    (_, true) => {
+                    (_, true, _) => {
                         let result = ethabi::decode(&[ParamType::FixedBytes(32), ParamType::Address, ParamType::FixedBytes(32), ParamType::Uint(256)], &log.data.0);
                         if let Ok(params) = result {
                             log::info!("[ethereum] got decoded log.data: {:?}", params);
@@ -150,12 +158,12 @@ fn main() {
                                 let to = params[2].clone().to_fixed_bytes().map(|x| sr25519::Public::from_slice(&x)).expect("can not parse 'to' address");
                                 let amount = params[3].clone().to_uint().map(|x| x.low_u64()).expect("can not parse amount");
 
-                                let sub_validator_mnemonic_phrase2 = sub_validator_mnemonic_phrase.clone();
-                                let sub_api2 = sub_api.clone();
+                                let sub_validator_mnemonic_phrase = sub_validator_mnemonic_phrase.clone();
+                                let sub_api = sub_api.clone();
                                 tokio::spawn(lazy(move || {
                                     poll_fn(move || {
                                         blocking(|| {
-                                            mint(sub_api2.clone(), sub_validator_mnemonic_phrase2.clone(), message_id, from, to.clone(), amount);
+                                            mint(sub_api.clone(), sub_validator_mnemonic_phrase.clone(), message_id, from, to.clone(), amount);
                                             log::info!("[substrate] called multi_signed_mint({:?}, {:?}, {:?}, {:?})", message_id, from, to, amount);
                                         }).map_err(|_| panic!("the threadpool shut down"))
                                     })
@@ -164,7 +172,28 @@ fn main() {
                         }
                         Ok(())
                     }
-                    (_, _) => {
+                    (_, _, true) => {
+                        let result = ethabi::decode(&[ParamType::FixedBytes(32), ParamType::FixedBytes(32), ParamType::Address, ParamType::Uint(256)], &log.data.0);
+                        if let Ok(params) = result {
+                            log::info!("[ethereum] got decoded log.data: {:?}", params);
+                            if params.len() >= 4 {
+                                let message_id = params[0].clone().to_fixed_bytes().map(|x| primitives::H256::from_slice(&x)).expect("can not parse message_id");
+
+                                let sub_validator_mnemonic_phrase = sub_validator_mnemonic_phrase.clone();
+                                let sub_api = sub_api.clone();
+                                tokio::spawn(lazy(move || {
+                                    poll_fn(move || {
+                                        blocking(|| {
+                                            confirm_transfer(&sub_api, sub_validator_mnemonic_phrase.clone(), message_id);
+                                            log::info!("[substrate] called confirm_transfer({:?})", message_id);
+                                        }).map_err(|_| panic!("the threadpool shut down"))
+                                    })
+                                }));
+                            }
+                        }
+                        Ok(())
+                    }
+                    (_, _, _) => {
                         log::warn!("received unknown log: {:?}", log);
                         Ok(())
                     }
@@ -192,7 +221,17 @@ where
         })
 }
 
-fn read_env() -> (String, Address, String, Address, H256, H256, String, String) {
+fn read_env() -> (
+    String,
+    Address,
+    String,
+    Address,
+    H256,
+    H256,
+    H256,
+    String,
+    String,
+) {
     let eth_api_url = env::var("ETH_API_URL").expect("can not read ETH_API_URL");
     let eth_validator_address =
         env::var("ETH_VALIDATOR_ADDRESS").expect("can not read ETH_VALIDATOR_ADDRESS");
@@ -204,6 +243,8 @@ fn read_env() -> (String, Address, String, Address, H256, H256, String, String) 
         env::var("ETH_RELAY_MESSAGE_HASH").expect("can not read ETH_RELAY_MESSAGE_HASH");
     let eth_approved_relay_message_hash = env::var("ETH_APPROVED_RELAY_MESSAGE_HASH")
         .expect("can not read ETH_APPROVED_RELAY_MESSAGE_HASH");
+    let eth_withdraw_message_hash =
+        env::var("ETH_WITHDRAW_MESSAGE_HASH").expect("can not read ETH_WITHDRAW_MESSAGE_HASH");
 
     let sub_api_url = env::var("SUB_API_URL").expect("can not read SUB_API_URL");
     let sub_validator_mnemonic_phrase = env::var("SUB_VALIDATOR_MNEMONIC_PHRASE")
@@ -230,6 +271,9 @@ fn read_env() -> (String, Address, String, Address, H256, H256, String, String) 
             .parse()
             .expect("can not parse event hash"),
         eth_approved_relay_message_hash[2..]
+            .parse()
+            .expect("can not parse event hash"),
+        eth_withdraw_message_hash[2..]
             .parse()
             .expect("can not parse event hash"),
         sub_api_url.to_string(),
@@ -295,12 +339,6 @@ fn start_event_handler(
             let web3 = web3::Web3::new(transport);
 
             let abi = ethabi::Contract::load(include_bytes!("../res/EthContract.abi").to_vec().as_slice()).expect("can read ABI");
-            let contract = Contract::from_json(
-                web3.eth(),
-                eth_contract_address,
-                include_bytes!("../res/EthContract.abi")
-            ).expect("can not create contract");
-            let contract = Arc::new(contract);
 
             for event in events_out {
                 log::debug!("[substrate] got event: {:?}", event);
@@ -321,21 +359,45 @@ fn start_event_handler(
                                             approve_transfer(&sub_api, signer_mnemonic_phrase.clone(), *message_id);
                                             log::info!("[substrate] called approve_transfer({:?})", message_id);
                                         },
-                                        bridge::RawEvent::Burned(message_id, from, to, amount) => {
+                                        bridge::RawEvent::ApprovedRelayMessage(message_id, from, to, amount) => {
                                             let args = (
                                                 message_id.as_fixed_bytes().into_token(),
                                                 H256::from_slice(from.as_slice()).as_fixed_bytes().into_token(),
                                                 Address::from(to.as_fixed_bytes()).into_token(),
                                                 U256::from(*amount).into_token()
                                             );
-                                            let contract = contract.clone();
+                                            let web3 = web3.clone();
+                                            let eth_validator_private_key =  eth_validator_private_key.clone();
+                                            let data = build_transaction_data(&abi, "withdrawTransfer", args.clone());
+                                            let fut = web3.eth().transaction_count(eth_validator_address, None)
+                                                .and_then(move |nonce| {
+                                                    let tx = raw_transaction::build(eth_validator_private_key, eth_contract_address, nonce, AMOUNT, GAS_PRICE, GAS, data);
+                                                    log::debug!("raw withdrawTransfer: {:?}", tx);
+                                                    web3.eth().send_raw_transaction(Bytes::from(tx))
+                                                        .then(move |res| {
+                                                            match res {
+                                                                Ok(tx_res) => {
+                                                                    log::info!("[ethereum] called withdrawTransfer({:?}, {:?}, {:?}, {:?}), nonce: {:?}, result: {:?}",
+                                                                               args.0, args.1, args.2, args.3, nonce, tx_res)
+                                                                },
+                                                                Err(err) => {
+                                                                    log::warn!("can not send withdrawTransfer({:?}, {:?}, {:?}, {:?}), nonce: {:?}, reason: {:?}",
+                                                                               args.0, args.1, args.2, args.3, nonce, err);
 
-                                            let fut = contract.call("withdrawTransfer", args.clone(), eth_validator_address, Options::default())
-                                                .then(move |result| {
-                                                    log::info!("[ethereum] called withdrawTransfer({:?}, {:?}, {:?}), result: {:?}", args.0, args.1, args.2, result);
+                                                                }
+                                                            }
+
+                                                            Ok(())
+                                                        })
+                                                })
+                                                .or_else(|e| {
+                                                    log::warn!("can not get nonce: {:?}", e);
                                                     Ok(())
                                                 });
                                             tokio::run(fut);
+                                        },
+                                        bridge::RawEvent::Burned(message_id, from, to, amount) => {
+                                            log::info!("[substrate] received Burned({:?}, {:?}, {:?}, {:?})", message_id, from, to, amount);
                                         },
                                         bridge::RawEvent::Minted(message_id) => {
                                             let args = (
@@ -348,16 +410,22 @@ fn start_event_handler(
                                             let fut = web3.eth().transaction_count(eth_validator_address, None)
                                                 .and_then(move |nonce| {
                                                     let tx = raw_transaction::build(eth_validator_private_key, eth_contract_address, nonce, AMOUNT, GAS_PRICE, GAS, data);
+                                                    log::debug!("raw confirmTransfer: {:?}", tx);
                                                     web3.eth().send_raw_transaction(Bytes::from(tx))
-                                                        .and_then(move |tx_res| {
-                                                            log::info!("[ethereum] called confirmTransfer({:?}), result: {:?}", args.0, tx_res);
-                                                            Ok(())
-                                                        })
-                                                        .or_else(|e| {
-                                                            log::warn!("can not send confirmTransfer: {:?}", e);
-                                                            Ok(())
-                                                        })
+                                                        .then(move |res| {
+                                                            match res {
+                                                                Ok(tx_res) => {
+                                                                    log::info!("[ethereum] called confirmTransfer({:?}), nonce: {:?}, result: {:?}",
+                                                                               args.0, nonce, tx_res)
+                                                                },
+                                                                Err(err) => {
+                                                                    log::info!("[ethereum] can not send confirmTransfer({:?}), nonce: {:?}, reason: {:?}",
+                                                                               args.0, nonce, err)
+                                                                }
+                                                            }
 
+                                                            Ok(())
+                                                        })
                                                 })
                                                 .or_else(|e| {
                                                     log::warn!("can not get nonce: {:?}", e);
@@ -402,6 +470,15 @@ fn approve_transfer(sub_api: &Api, signer_mnemonic_phrase: String, message_id: p
     let signer = sr25519::Pair::from_phrase(&signer_mnemonic_phrase, None)
         .expect("invalid menemonic phrase");
     let xthex = extrinsics::build_approve_transfer(&sub_api, signer, message_id);
+
+    //send and watch extrinsic until finalized
+    let _tx_hash = sub_api.send_extrinsic(xthex);
+}
+
+fn confirm_transfer(sub_api: &Api, signer_mnemonic_phrase: String, message_id: primitives::H256) {
+    let signer = sr25519::Pair::from_phrase(&signer_mnemonic_phrase, None)
+        .expect("invalid menemonic phrase");
+    let xthex = extrinsics::build_confirm_transfer(&sub_api, signer, message_id);
 
     //send and watch extrinsic until finalized
     let _tx_hash = sub_api.send_extrinsic(xthex);
