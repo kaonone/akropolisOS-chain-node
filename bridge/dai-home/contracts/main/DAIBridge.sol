@@ -21,7 +21,7 @@ contract DAIBridge is ValidatorsOperations {
 
         event RelayMessage(bytes32 messageID, address sender, bytes32 recipient, uint amount);
         event RevertMessage(bytes32 messageID, address sender, uint amount);
-        event WithdrawMessage(bytes32 MessageID, bytes32 substrateSender, address recipient, uint amount);
+        event WithdrawMessage(bytes32 MessageID);
         event ApprovedRelayMessage(bytes32 messageID, address  sender,  bytes32 recipient, uint amount);
 
 
@@ -131,7 +131,7 @@ contract DAIBridge is ValidatorsOperations {
             token.transfer(recipient, availableAmount);
             Message  memory message = Message(messageID, msg.sender, substrateSender, availableAmount, Status.WITHDRAW);
             messages[messageID] = message;
-            emit WithdrawMessage(messageID, substrateSender, recipient, availableAmount);
+            emit WithdrawMessage(messageID);
         }
 
 }
