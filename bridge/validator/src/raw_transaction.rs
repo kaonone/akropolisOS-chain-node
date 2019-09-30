@@ -2,7 +2,7 @@ use raw_transaction_builder::{Bip32ECKeyPair, RawTransaction};
 use rustc_hex::FromHex;
 use web3::{self, types::U256};
 
-const CHAIN_ID: u8 = 1;
+const CHAIN_ID: u8 = 42;
 
 pub fn build(
     private_key: String,
