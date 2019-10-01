@@ -3,7 +3,7 @@ import { Grid, Typography } from '@material-ui/core';
 
 import { useSubscribable } from '~util/hooks';
 import { useApi } from '~components/context';
-import { Balance } from '~components/Balance';
+import { Address } from '~components/Address';
 import SendingForm from './SendingForm';
 
 function SubstrateToEthereum() {
@@ -19,7 +19,7 @@ function SubstrateToEthereum() {
       )}
       {accounts && accounts.map(account => (
         <Grid key={account.address} item xs={12}>
-          <Balance type="substrate" address={account.address} name={account.meta.name} />
+          <Address type="substrate" address={account.address} name={account.meta.name} />
         </Grid>
       ))}
       <Grid item xs={12}>

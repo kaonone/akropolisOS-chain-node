@@ -18,6 +18,15 @@ const theme = createMuiTheme({
       main: '#6931b6',
     },
   },
+  overrides: {
+    MuiFormHelperText: {
+      root: {
+        '&:empty': {
+          display: 'none',
+        },
+      },
+    },
+  },
 });
 
 function Root() {

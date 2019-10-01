@@ -10,10 +10,9 @@ import { useApi } from "../context";
 interface IProps {
   type: 'ethereum' | 'substrate';
   address: string;
-  name?: string;
 }
 
-export function Balance({ address, type, name }: IProps) {
+export function Balance({ address, type }: IProps) {
   const api = useApi();
   const [balance, { error, loaded }] = useSubscribable(
     type === 'ethereum'
@@ -25,13 +24,9 @@ export function Balance({ address, type, name }: IProps) {
 
   return (
     <>
-      {!!name && <Typography variant="h5">{name}</Typography>}
-      <Typography>Address: {address}</Typography>
-      <Typography component="div">Balance:
-        {!loaded && !error && <Box display="inline"><LinearProgress /></Box>}
-        {!!error && <Typography component="span" color="error">{error}</Typography>}
-        {loaded && !error && ` ${fromBaseUnit(balance, DEFAULT_DECIMALS)} DAI`}
-      </Typography>
+      {!loaded && !error && <Box display="inline"><LinearProgress /></Box>}
+      {!!error && <Typography component="span" color="error">{error}</Typography>}
+      {loaded && !error && `Available: ${fromBaseUnit(balance, DEFAULT_DECIMALS)} ${type === 'ethereum' ? 'DAI' : 'sDAI'}`}
     </>
   );
 }
