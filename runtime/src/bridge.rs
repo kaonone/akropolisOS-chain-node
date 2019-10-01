@@ -130,6 +130,10 @@ decl_module! {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
+//             let default_token = <token::Module<T>>::token_default().clone();
+// -            <token::Module<T>>::check_token_exist(validator.clone(), &default_token.symbol)?;
+// -            let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
+
             Self::check_validator(validator.clone())?;
             Self::check_pending_mint(amount)?;
             Self::check_amount(amount)?;
@@ -381,7 +385,8 @@ impl<T: Trait> Module<T> {
             <DailyHolds<T>>::insert(to.clone(), (T::BlockNumber::sa(0), message.message_id));
         }
 
-        <token::Module<T>>::_mint(to, message.amount)?;
+        //TODO: implement actual token id instead of 0
+        <token::Module<T>>::_mint(0, to, message.amount)?;
 
         Self::deposit_event(RawEvent::MintedMessage(message.message_id));
         Self::update_status(message.message_id, Status::Confirmed, Kind::Transfer)
@@ -403,7 +408,8 @@ impl<T: Trait> Module<T> {
         Self::update_status(message.message_id, Status::Approved, Kind::Transfer)
     }
     fn _cancel_transfer(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
-        <token::Module<T>>::unlock(&message.substrate_address, message.amount)?;
+        //TODO: implement actual token id instead of 0
+        <token::Module<T>>::unlock(0, &message.substrate_address, message.amount)?;
         Self::update_status(message.message_id, Status::Canceled, Kind::Transfer)
     }
     fn pause_the_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result {
@@ -477,7 +483,8 @@ impl<T: Trait> Module<T> {
 
     /// lock funds after set_transfer call
     fn lock_for_burn(account: T::AccountId, amount: TokenBalance) -> Result {
-        <token::Module<T>>::lock(account, amount)?;
+        //TODO: use token_id instead of 0
+        <token::Module<T>>::lock(0, account, amount)?;
 
         Ok(())
     }
@@ -487,8 +494,9 @@ impl<T: Trait> Module<T> {
         let from = message.substrate_address.clone();
         let to = message.eth_address;
 
-        <token::Module<T>>::unlock(&from, message.amount)?;
-        <token::Module<T>>::_burn(from.clone(), message.amount)?;
+        //TODO: implement actual token id instead of 0
+        <token::Module<T>>::unlock(0, &from, message.amount)?;
+        <token::Module<T>>::_burn(0, from.clone(), message.amount)?;
         <DailyLimits<T>>::mutate(from.clone(), |a| *a -= message.amount);
 
         Self::deposit_event(RawEvent::BurnedMessage(
@@ -708,7 +716,7 @@ impl<T: Trait> Module<T> {
         let day_passed = first_tx.0 + daily_hold < T::BlockNumber::sa(0);
 
         if !day_passed {
-            let account_balance = <token::Module<T>>::balance_of(from);
+            let account_balance = <token::Module<T>>::balance_of((0, from));
             // 75% of potentially really big numbers
             let allowed_amount = account_balance
                 .checked_div(100)
@@ -965,7 +973,7 @@ mod tests {
             assert_eq!(message.status, Status::Withdraw);
 
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
@@ -1028,7 +1036,7 @@ mod tests {
             let message = BridgeModule::messages(sub_message_id);
             assert_eq!(message.status, Status::Withdraw);
 
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             // lets say validators blacked out and we
             // try to confirm without approval anyway
             assert_noop!(
