@@ -41,7 +41,7 @@ function validate(values: FormData): Errors {
 
 function SendingForm({ onChange }: Props) {
   const api = useApi();
-  const [accounts, { loaded: accountsLoaded }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+  const [accounts, { loaded: accountsLoaded, error: accountsError }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
 
   const handleChange = useCallback(
     (formState: FormState<FormData>) => onChange && onChange(formState.values, formState.errors),
@@ -60,12 +60,15 @@ function SendingForm({ onChange }: Props) {
     return null;
   }
 
-  if (!accounts || !accounts.length) {
-    return (
+  if (!accounts || !accounts.length || accountsError) {
+    return (<>
       <Typography color="error">
-        You don't have any Substrate accounts, you need to create an account in the browser extension Polkadot.js
+        You Substrate account can not be found, please install Polkadot.js browser extension and create an account.
       </Typography>
-    )
+      <Typography color="error">
+        If you already have account in the extension, please reopen the browser tab.
+      </Typography>
+    </>)
   }
 
   return (

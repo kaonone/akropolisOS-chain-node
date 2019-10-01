@@ -38,7 +38,10 @@ function useSubscribable<T>(getTarget: () => Subscribable<T>, deps: any[], fallb
         setUpdatedAt(Date.now());
         setValue(value);
       },
-      error: err => setError(getErrorMsg(err)),
+      error: err => {
+        setLoaded(true);
+        setError(getErrorMsg(err))
+      },
     });
 
     return () => subscribtion.unsubscribe();

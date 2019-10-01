@@ -114,10 +114,13 @@ export class Api {
 
   public getSubstrateAccounts$(): Observable<InjectedAccountWithMeta[]> {
     return from(web3Enable('Akropolis Network Dapp')).pipe(
-      switchMap(() => fromEventPattern<InjectedAccountWithMeta[]>(
-        emitter => web3AccountsSubscribe(emitter),
-        (_, signal: ReturnType<typeof web3AccountsSubscribe>) => signal.then(unsubscribe => unsubscribe()),
-      ))
+      switchMap((injectedExtensions) => injectedExtensions.length
+        ? fromEventPattern<InjectedAccountWithMeta[]>(
+          emitter => web3AccountsSubscribe(emitter),
+          (_, signal: ReturnType<typeof web3AccountsSubscribe>) => signal.then(unsubscribe => unsubscribe()),
+        )
+        : new Observable<InjectedAccountWithMeta[]>(subscriber => subscriber.error(new Error('Injected extensions not found'))),
+      )
     );
   }
 }
