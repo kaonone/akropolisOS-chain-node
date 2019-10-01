@@ -90,9 +90,6 @@ function SendingForm() {
             label='To'
             margin="normal"
             error={false}
-            InputProps={{
-              autoFocus: true
-            }}
             InputLabelProps={{
               shrink: true
             }}

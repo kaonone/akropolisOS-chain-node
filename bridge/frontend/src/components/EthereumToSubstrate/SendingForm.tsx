@@ -63,9 +63,6 @@ function SendingForm() {
             label='Address'
             margin="normal"
             error={false}
-            InputProps={{
-              autoFocus: true
-            }}
             InputLabelProps={{
               shrink: true
             }}
