@@ -3,7 +3,8 @@ import { Grid, Typography } from '@material-ui/core';
 
 import { useSubscribable } from '~util/hooks';
 import { useApi } from '~components/context';
-import { Balance } from '~components/Balance';
+import { Address } from '~components/Address';
+import EthereumValidators from '~components/EthereumValidators';
 
 import SendingForm from './SendingForm';
 
@@ -15,10 +16,13 @@ function EthereumToSubstrate() {
     <Grid container spacing={2}>
       <Grid item xs={12}>
         {!!accountError && <Typography color="error">{accountError}</Typography>}
-        {account && <Balance address={account} type="ethereum" />}
+        {account && <Address address={account} type="ethereum" />}
       </Grid>
       <Grid item xs={12}>
         <SendingForm />
+      </Grid>
+      <Grid item xs={12}>
+        <EthereumValidators />
       </Grid>
     </Grid>
   );

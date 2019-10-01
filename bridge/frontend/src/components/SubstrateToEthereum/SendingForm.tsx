@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { useCallback } from 'react';
-import { Form, Field } from 'react-final-form';
-import { FORM_ERROR } from 'final-form';
-import { Button, Typography, MenuItem } from '@material-ui/core';
+import { Form, Field, FormSpy } from 'react-final-form';
+import { FORM_ERROR, FormState } from 'final-form';
+import { Button, Typography, MenuItem, Box } from '@material-ui/core';
+import { O } from 'ts-toolbelt';
 
+import { DEFAULT_DECIMALS } from '~env';
 import { TextField, Select } from '~components/form';
 import { useApi } from '~components/context';
+import { Balance } from '~components/Balance';
 import { useSubscribable } from '~util/hooks';
 import getErrorMsg from '~util/getErrorMsg';
+import { validateRequired, validateEthereumAddress, validateFloat } from '~util/validators';
 
 interface FormData {
   address: string;
@@ -21,9 +25,28 @@ const fields: { [key in keyof FormData]: key } = {
   from: 'from',
 };
 
-function SendingForm() {
+type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
+
+interface Props {
+  onChange?(values: FormData, errors: Errors): void;
+}
+
+function validate(values: FormData): Errors {
+  return {
+    from: validateRequired(values.from.toLowerCase()),
+    address: validateRequired(values.address) || validateEthereumAddress(values.address),
+    amount: validateRequired(values.amount) || validateFloat(values.amount, DEFAULT_DECIMALS),
+  };
+}
+
+function SendingForm({ onChange }: Props) {
   const api = useApi();
-  const [accounts, { loaded: accountsLoaded }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+  const [accounts, { loaded: accountsLoaded, error: accountsError }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+
+  const handleChange = useCallback(
+    (formState: FormState<FormData>) => onChange && onChange(formState.values, formState.errors),
+    [onChange]
+  );
 
   const handleSubmit = useCallback(async ({ from, address, amount }: FormData) => {
     try {
@@ -37,12 +60,15 @@ function SendingForm() {
     return null;
   }
 
-  if (!accounts || !accounts.length) {
-    return (
+  if (!accounts || !accounts.length || accountsError) {
+    return (<>
       <Typography color="error">
-        You don't have any Substrate accounts, you need to create an account in the browser extension Polkadot.js
+        You Substrate account can not be found, please install Polkadot.js browser extension and create an account.
       </Typography>
-    )
+      <Typography color="error">
+        If you already have account in the extension, please reopen the browser tab.
+      </Typography>
+    </>)
   }
 
   return (
@@ -50,20 +76,16 @@ function SendingForm() {
       onSubmit={handleSubmit}
       subscription={{ submitting: true, submitError: true }}
       initialValues={{ from: accounts[0].address, address: '', amount: '' }}
+      validate={validate}
     >
       {({ handleSubmit, submitting, submitError }): React.ReactElement<{}> => (
         <form onSubmit={handleSubmit}>
+          <FormSpy<FormData> onChange={handleChange} />
           <Field
             name={fields.from}
             component={Select as any}
             label='From'
             error={false}
-            InputProps={{
-              autoFocus: true
-            }}
-            InputLabelProps={{
-              shrink: true
-            }}
             formControlProps={{
               fullWidth: true,
               variant: "outlined",
@@ -71,24 +93,33 @@ function SendingForm() {
             }}
           >
             {accounts.map(value => (
-              <MenuItem value={value.address} key={value.address}>{value.meta.name}</MenuItem>
+              <MenuItem value={value.address} key={value.address}>{value.meta.name} ({value.address})</MenuItem>
             ))}
           </Field>
-          <Field
-            name={fields.address}
-            component={TextField}
-            fullWidth
-            variant="outlined"
-            label='To'
-            margin="normal"
-            error={false}
-            InputProps={{
-              autoFocus: true
-            }}
-            InputLabelProps={{
-              shrink: true
-            }}
-          />
+          <FormSpy<FormData> subscription={{ errors: true, values: true }}>
+            {({ errors, values }: { values: FormData, errors: Errors }) => (
+              <Field
+                name={fields.address}
+                component={TextField}
+                fullWidth
+                variant="outlined"
+                label='To'
+                margin="normal"
+                error={false}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                helperText={!errors.address && !!values.address && (
+                  <Box color="primary.main">
+                    Available: <Balance address={values.address} type="ethereum" />
+                  </Box>
+                )}
+                FormHelperTextProps={{
+                  component: 'div',
+                }}
+              />
+            )}
+          </FormSpy>
           <Field
             name={fields.amount}
             component={TextField}
@@ -111,4 +142,5 @@ function SendingForm() {
   );
 }
 
+export { Props as SendingFormProps };
 export default SendingForm;

@@ -9,10 +9,11 @@ import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { decodeAddress } from "@polkadot/util-crypto";
 import { u8aToHex } from "@polkadot/util";
 
-import { ETH_NETWORK_CONFIG } from "~/env";
+import { ETH_NETWORK_CONFIG, DEFAULT_DECIMALS } from "~/env";
 import bridgeAbi from "~/abis/bridge.json";
 import erc20Abi from "~/abis/erc20.json";
 import { getContractData$ } from "~/util/getContractData$";
+import { toBaseUnit } from '~util/toBaseUnit';
 import { callPolkaApi } from './callPolkaApi';
 
 export class Api {
@@ -35,14 +36,15 @@ export class Api {
     const substrateWeb3 = await web3FromAddress(from);
     substrateApi.setSigner(substrateWeb3.signer);
 
-    const transfer = substrateApi.tx.bridge.set_transfer(to, from, amount);
+    const units = toBaseUnit(amount, DEFAULT_DECIMALS).toString();
+    const transfer = substrateApi.tx.bridge.setTransfer(to, units);
 
     await new Promise((resolve, reject) => {
       transfer.signAndSend(from).subscribe({
         complete: resolve,
         error: reject,
         next: ({ isCompleted, isError }) => {
-          isError && reject('tx.bridge.set_transfer extrinsic is failed');
+          isError && reject('tx.bridge.setTransfer extrinsic is failed');
           isCompleted && resolve();
         }
       });
@@ -50,8 +52,9 @@ export class Api {
   }
 
   public async sendToSubstrate(from: string, to: string, amount: string): Promise<void> {
-    await this.approveBridge(from, amount);
-    await this.sendToBridge(from, to, amount);
+    const units = toBaseUnit(amount, DEFAULT_DECIMALS).toString();
+    await this.approveBridge(from, units);
+    await this.sendToBridge(from, to, units);
   }
 
   private async approveBridge(from: string, amount: string): Promise<void> {
@@ -70,10 +73,23 @@ export class Api {
     await this._bridgeContract.methods.setTransfer(amount, bytesAddress).send({ from });
   }
 
+  public getEthValidators$(): Observable<string[]> {
+    return from([[
+      '6a8357ae0173737209af59152ee30a786dbade70',
+      '93880d6508e3ffee5a4376939d3322f2f11b56d1',
+      '9194ad793e72052992f9a1b3b8eaef5463300f87',
+    ]]);
+    return getContractData$<string[], string[]>(this._bridgeContract, "validators", {
+      eventsForReload: [
+        ["ValidatorShipTransferred"],
+      ],
+    });
+  }
+
   public getEthBalance$(_address: string): Observable<BN> {
     const address = _address.toLowerCase();
 
-    return getContractData$<BN>(this._daiContract, "balanceOf", {
+    return getContractData$<string, BN>(this._daiContract, "balanceOf", {
       args: [address],
       eventsForReload: [
         ["Transfer", { filter: { _from: address } }],
@@ -84,7 +100,7 @@ export class Api {
   }
 
   public getSubstrateBalance$(_address: string): Observable<BN> {
-    return callPolkaApi(this._substrateApi, 'query.token.balance_of', _address);
+    return callPolkaApi(this._substrateApi, 'query.token.balance', _address);
   }
 
   public getEthAccount$(): Observable<string | null> {
@@ -98,10 +114,13 @@ export class Api {
 
   public getSubstrateAccounts$(): Observable<InjectedAccountWithMeta[]> {
     return from(web3Enable('Akropolis Network Dapp')).pipe(
-      switchMap(() => fromEventPattern<InjectedAccountWithMeta[]>(
-        emitter => web3AccountsSubscribe(emitter),
-        (_, signal: ReturnType<typeof web3AccountsSubscribe>) => signal.then(unsubscribe => unsubscribe()),
-      ))
+      switchMap((injectedExtensions) => injectedExtensions.length
+        ? fromEventPattern<InjectedAccountWithMeta[]>(
+          emitter => web3AccountsSubscribe(emitter),
+          (_, signal: ReturnType<typeof web3AccountsSubscribe>) => signal.then(unsubscribe => unsubscribe()),
+        )
+        : new Observable<InjectedAccountWithMeta[]>(subscriber => subscriber.error(new Error('Injected extensions not found'))),
+      )
     );
   }
 }

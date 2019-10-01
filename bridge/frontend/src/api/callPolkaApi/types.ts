@@ -4,7 +4,7 @@ import { GenericAccountId, u64 } from '@polkadot/types';
 
 // [Endpoint]: [Request, ConvertedRequestForApi, ApiResponse, ConvertedResponse]
 interface ISignatures {
-  'query.token.balance_of': [string, GenericAccountId, u64, BN];
+  'query.token.balance': [string, GenericAccountId, u64, BN];
 }
 
 export type Endpoint = keyof ISignatures;
