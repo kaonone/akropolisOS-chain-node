@@ -72,8 +72,8 @@ function SendingForm() {
                       shrink: true
                     }}
                     helperText={!errors.address && !!values.address && (
-                      <Box color="primary">
-                        <Balance address={values.address} type="substrate" />
+                      <Box color="primary.main">
+                        Available: <Balance address={values.address} type="substrate" />
                       </Box>
                     )}
                     FormHelperTextProps={{

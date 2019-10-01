@@ -1,14 +1,25 @@
-import * as React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Grid, Typography } from '@material-ui/core';
 
 import { useSubscribable } from '~util/hooks';
 import { useApi } from '~components/context';
 import { Address } from '~components/Address';
-import SendingForm from './SendingForm';
+import SendingForm, { SendingFormProps } from './SendingForm';
 
 function SubstrateToEthereum() {
   const api = useApi();
-  const [accounts, { error: accountError }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+  const [, { error: accountError }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+  const [selectedFromAddress, selectFromAddress] = useState<string | null>(null);
+
+  const handleFormChange: NonNullable<SendingFormProps['onChange']> = useCallback(
+    (values, errors) => {
+      if (selectedFromAddress !== values.from) {
+        !values.from && selectFromAddress(null);
+        values.from && !errors.from && selectFromAddress(values.from);
+      }
+    },
+    []
+  );
 
   return (
     <Grid container spacing={2}>
@@ -17,13 +28,13 @@ function SubstrateToEthereum() {
           <Typography color="error">{accountError}</Typography>
         </Grid>
       )}
-      {accounts && accounts.map(account => (
-        <Grid key={account.address} item xs={12}>
-          <Address type="substrate" address={account.address} name={account.meta.name} />
+      {selectedFromAddress && (
+        <Grid item xs={12}>
+          <Address type="substrate" address={selectedFromAddress} />
         </Grid>
-      ))}
+      )}
       <Grid item xs={12}>
-        <SendingForm />
+        <SendingForm onChange={handleFormChange} />
       </Grid>
     </Grid>
   );

@@ -2,19 +2,23 @@ import * as React from 'react';
 import Select from '@material-ui/core/Select';
 import FormControl, { FormControlProps } from '@material-ui/core/FormControl';
 import InputLabel from '@material-ui/core/InputLabel';
-import FormHelperText from '@material-ui/core/FormHelperText';
+import FormHelperText, { FormHelperTextProps } from '@material-ui/core/FormHelperText';
 
 import { FieldRenderProps } from 'react-final-form';
 
 interface Props extends FieldRenderProps<string, HTMLElement> {
   label: string;
   formControlProps: FormControlProps;
+  FormHelperTextProps?: Partial<FormHelperTextProps>;
+  helperText?: React.ReactNode;
 }
 
 function FormHelperTextWrapper({
   input: { name, value, onChange, ...restInput },
   meta,
   label,
+  helperText,
+  FormHelperTextProps,
   formControlProps,
   ...rest
 }: Props): React.ReactElement<Props> {
@@ -38,8 +42,10 @@ function FormHelperTextWrapper({
         labelWidth={labelWidth}
       />
 
-      {showError &&
-        <FormHelperText>{meta.error || meta.submitError}</FormHelperText>
+      {(showError || helperText) &&
+        <FormHelperText {...FormHelperTextProps}>
+          {meta.error || meta.submitError || helperText}
+        </FormHelperText>
       }
     </FormControl>
   );

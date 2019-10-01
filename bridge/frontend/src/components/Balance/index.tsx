@@ -26,7 +26,7 @@ export function Balance({ address, type }: IProps) {
     <>
       {!loaded && !error && <Box display="inline"><LinearProgress /></Box>}
       {!!error && <Typography component="span" color="error">{error}</Typography>}
-      {loaded && !error && `Available: ${fromBaseUnit(balance, DEFAULT_DECIMALS)} ${type === 'ethereum' ? 'DAI' : 'sDAI'}`}
+      {loaded && !error && `${fromBaseUnit(balance, DEFAULT_DECIMALS)} ${type === 'ethereum' ? 'DAI' : 'sDAI'}`}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { Subscribable } from 'rxjs';
 import { useState, useEffect, useMemo } from 'react';
 import getErrorMsg from '~util/getErrorMsg';
+import React from 'react';
 
 type Meta = {
   loaded: boolean;
@@ -18,9 +19,18 @@ function useSubscribable<T>(getTarget: () => Subscribable<T>, deps: any[], fallb
   const [updatedAt, setUpdatedAt] = useState(() => Date.now());
   const [value, setValue] = useState<T | undefined>(fallback);
 
+  const resetState = React.useCallback(() => {
+    setLoaded(false);
+    setError(null);
+    setUpdatedAt(Date.now());
+    setValue(fallback);
+  }, [fallback]);
+
   const target = useMemo(getTarget, deps);
 
   useEffect(() => {
+    resetState();
+
     const subscribtion = target.subscribe({
       next: value => {
         setLoaded(true);
@@ -30,6 +40,7 @@ function useSubscribable<T>(getTarget: () => Subscribable<T>, deps: any[], fallb
       },
       error: err => setError(getErrorMsg(err)),
     });
+
     return () => subscribtion.unsubscribe();
   }, [target]);
 
