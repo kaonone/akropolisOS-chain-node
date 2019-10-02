@@ -2,9 +2,9 @@
 /// You can use mint to create tokens or burn created tokens
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///
-use crate::types::{TokenBalance, Token, TokenId};
+use crate::types::{Token, TokenBalance, TokenId};
 use rstd::prelude::Vec;
-use runtime_primitives::traits::{StaticLookup, Zero};
+use runtime_primitives::traits::{One, StaticLookup, Zero};
 use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
@@ -15,7 +15,7 @@ decl_event!(
     where
         AccountId = <T as system::Trait>::AccountId,
     {
-        NewToken(TokenId, AccountId),
+        NewToken(TokenId),
         Transfer(AccountId, AccountId, TokenBalance),
         Approval(AccountId, AccountId, TokenBalance),
         Mint(AccountId, TokenBalance),
@@ -33,6 +33,7 @@ decl_storage! {
         Locked get(locked): map(TokenId, T::AccountId) => TokenBalance;
 
         TokenDefault get(token_default): Token = Token{id: 0, decimals: 18, symbol: Vec::from("TOKEN")};
+        TokenInfo get(token_info): map (TokenId) => Token;
         TokenIds get(token_id_by_symbol): map Vec<u8> => TokenId;
         TokenSymbol get(token_symbol_by_id): map TokenId => Vec<u8>;
         TotalSupply get(total_supply): map TokenId => TokenBalance;
@@ -49,6 +50,9 @@ decl_module! {
         // // ( ? ): do we even need this?
         // fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
         //     ensure_signed(origin)?;
+        // TODO: replace this by adding it to extrinsics call    ^
+        //     let token = <TokenDefault<T>>::get();
+        //     Self::check_token_exist(&token.symbol)?;
         //     Self::_burn(from.clone(), amount)?;
         //     Self::deposit_event(RawEvent::Burn(from, amount));
         //     Ok(())
@@ -58,6 +62,9 @@ decl_module! {
         // // ( ? ): do we even need this?
         // fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
         //     ensure_signed(origin)?;
+        // TODO: replace this by adding it to extrinsics call    ^
+        //     let token = <TokenDefault<T>>::get();
+        //     Self::check_token_exist(&token.symbol)?;
         //     Self::_mint(to.clone(), amount)?;
         //     Self::deposit_event(RawEvent::Mint(to, amount));
         //     let id = <TokenDefault<T>>::get().id;
@@ -65,6 +72,12 @@ decl_module! {
         //     Self::deposit_event(RawEvent::Mint(to, amount));
         //     Ok(())
         // }
+
+        fn create_token(origin, token: Vec<u8>) -> Result {
+            ensure_signed(origin)?;
+
+            Self::check_token_exist(&token)
+        }
 
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
@@ -122,7 +135,8 @@ impl<T: Trait> Module<T> {
             "Cannot burn more than total supply"
         );
 
-        let free_balance = <Balance<T>>::get((token_id, from.clone())) - <Locked<T>>::get((token_id, from.clone()));
+        let free_balance = <Balance<T>>::get((token_id, from.clone()))
+            - <Locked<T>>::get((token_id, from.clone()));
         ensure!(
             free_balance > TokenBalance::zero(),
             "Cannot burn with zero balance"
@@ -165,8 +179,9 @@ impl<T: Trait> Module<T> {
         amount: TokenBalance,
     ) -> Result {
         let from_balance = <Balance<T>>::get((token_id, from.clone()));
-        ensure!(from_balance >= amount, "user does not have enough tokens");
-        let free_balance = <Balance<T>>::get((token_id, from.clone())) - <Locked<T>>::get((token_id, from.clone()));
+        ensure!(from_balance >= amount, "not enough balance");
+        let free_balance = <Balance<T>>::get((token_id, from.clone()))
+            - <Locked<T>>::get((token_id, from.clone()));
         ensure!(free_balance >= amount, "not enough because of locked funds");
 
         <Balance<T>>::insert((token_id, from.clone()), from_balance - amount);
@@ -177,11 +192,19 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     pub fn lock(token_id: TokenId, account: T::AccountId, amount: TokenBalance) -> Result {
+        //TODO: substract this amount from the main balance?
+        //              Balance: 1000, Locked: 0
+        // lock(400) => Balance: 1000, Locked: 400 or
+        // lock(400) => Balance: 600, Locked: 400
         <Locked<T>>::insert((token_id, account.clone()), amount);
 
         Ok(())
     }
     pub fn unlock(token_id: TokenId, account: &T::AccountId, amount: TokenBalance) -> Result {
+        //TODO: add this amount to the main balance?
+        //                Balance: 1000, Locked: 400
+        // unlock(400) => Balance: 1000, Locked: 0 or
+        // unlock(400) => Balance: 1400, Locked: 0
         let balance = <Locked<T>>::get((token_id, account.clone()));
         let new_balance = balance
             .checked_sub(amount)
@@ -190,6 +213,50 @@ impl<T: Trait> Module<T> {
             0 => <Locked<T>>::remove((token_id, account.clone())),
             _ => <Locked<T>>::insert((token_id, account.clone()), new_balance),
         }
+        Ok(())
+    }
+    // Token management
+    pub fn check_token_exist(token: &Vec<u8>) -> Result {
+        if !<TokenIds<T>>::exists(token.clone()) {
+            Self::validate_name(token)?;
+            Self::_create_token(&token)
+        } else {
+            Ok(())
+        }
+    }
+    fn _create_token(token: &Vec<u8>) -> Result {
+        let next_id = match <Count<T>>::get() {
+            0u32 => 0u32,
+            count => count
+                .checked_add(One::one())
+                .ok_or("overflow when adding new token")?,
+        };
+
+        <Count<T>>::mutate(|n| *n = if next_id == 0u32 { 1 } else { next_id });
+        <TokenIds<T>>::insert(token.clone(), &next_id);
+        <TokenSymbol<T>>::insert(&next_id, token.clone());
+
+        //TODO: choose the right way to add\customize decimals
+        let next_token = Token {
+            id: next_id,
+            decimals: 18,
+            symbol: token.clone(),
+        };
+
+        <TokenInfo<T>>::insert(next_id, next_token);
+        Self::deposit_event(RawEvent::NewToken(next_id));
+
+        Ok(())
+    }
+
+    fn validate_name(name: &[u8]) -> Result {
+        if name.len() > 10 {
+            return Err("the token symbol is too long");
+        }
+        if name.len() < 3 {
+            return Err("the token symbol is too short");
+        }
+
         Ok(())
     }
 }
@@ -249,9 +316,9 @@ mod tests {
 
     type TokenModule = Module<Test>;
 
-    // const TOKEN_NAME: &[u8; 5] = b"TOKEN";
-    // const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
-    // const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
+    const TOKEN_NAME: &[u8; 4] = b"DOOM";
+    const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
+    const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
 
@@ -284,7 +351,9 @@ mod tests {
     #[test]
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(USER2, 1000));
+            assert_eq!(TokenModule::count(), 0);
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::count(), 1);
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_eq!(TokenModule::total_supply(0), 1000);
@@ -294,12 +363,35 @@ mod tests {
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint( USER2, 1000));
+            assert_ok!(TokenModule::_mint(USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0,USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0,USER1)), 300);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
+            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
+        })
+    }
+    #[test]
+    fn token_lock_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_ok!(TokenModule::lock(0, USER2, 400));
+            assert_eq!(TokenModule::locked((0, USER2)), 400);
+        })
+    }
+
+    #[test]
+    fn token_unlock_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_ok!(TokenModule::lock(0, USER2, 400));
+            assert_eq!(TokenModule::locked((0, USER2)), 400);
+            assert_ok!(TokenModule::unlock(0, &USER2, 400));
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
         })
     }
 
@@ -308,10 +400,10 @@ mod tests {
         with_externalities(&mut new_test_ext(), || {
             assert_ok!(TokenModule::_mint(USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0,USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0,USER1)), 300);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
+            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
             assert_eq!(TokenModule::locked((0, USER2)), 0);
             assert_noop!(
                 TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
@@ -323,20 +415,53 @@ mod tests {
     fn token_transfer_burn_works() {
         with_externalities(&mut new_test_ext(), || {
             assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
 
             assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 300));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 700);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
         })
     }
     #[test]
     fn token_transfer_burn_all_works() {
         with_externalities(&mut new_test_ext(), || {
             assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
 
             assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0,USER2)), 0);
+            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
+        })
+    }
+
+    #[test]
+    fn new_token_mint_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_eq!(TokenModule::count(), 0);
+            assert_ok!(TokenModule::create_token(
+                Origin::signed(USER1),
+                TOKEN_NAME.to_vec()
+            ));
+            assert_eq!(TokenModule::count(), 1);
+
+            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_eq!(TokenModule::count(), 2);
+
+            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
+            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
+        })
+    }
+    #[test]
+    fn new_token_symbol_len_failed() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_noop!(
+                TokenModule::create_token(Origin::signed(USER1), TOKEN_SHORT_NAME.to_vec()),
+                "the token symbol is too short"
+            );
+            assert_noop!(
+                TokenModule::create_token(Origin::signed(USER1), TOKEN_LONG_NAME.to_vec()),
+                "the token symbol is too long"
+            );
+            assert_eq!(TokenModule::count(), 0);
         })
     }
 }

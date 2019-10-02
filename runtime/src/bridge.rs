@@ -96,7 +96,7 @@ decl_module! {
         fn deposit_event<T>() = default;
 
         // initiate substrate -> ethereum transfer.
-        // create proposition and emit the RelayMessage event
+        // create transfer and emit the RelayMessage event
         fn set_transfer(origin, to: H160, #[compact] amount: TokenBalance)-> Result
         {
             let from = ensure_signed(origin)?;
@@ -114,6 +114,7 @@ decl_module! {
                 eth_address: to,
                 substrate_address: from.clone(),
                 amount,
+                token: token_id,
                 status: Status::Withdraw,
                 action: Status::Withdraw,
             };
@@ -144,6 +145,7 @@ decl_module! {
                     eth_address: from,
                     substrate_address: to,
                     amount,
+                    token: token_id,
                     status: Status::Deposit,
                     action: Status::Deposit,
                 };
