@@ -263,7 +263,7 @@ mod tests {
 
         r.extend(
             balances::GenesisConfig::<Test> {
-                balances: vec![(USER1, 100000), (USER2, 300000)],
+                balances: vec![(USER1, 100_000), (USER2, 300_000)],
                 vesting: vec![],
                 transaction_base_fee: 1,
                 transaction_byte_fee: 1,
