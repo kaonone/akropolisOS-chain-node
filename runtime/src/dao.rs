@@ -7,7 +7,7 @@ use support::{
 };
 use system::ensure_signed;
 
-use runtime_primitives::traits::{As, Zero, Bounded, Hash};
+use runtime_primitives::traits::{As, Bounded, Hash};
 
 use parity_codec::{Decode, Encode};
 
@@ -17,6 +17,8 @@ use crate::marketplace;
 use crate::types::{Count, DaoId, Days, MemberId, ProposalId, Rate, VotesCount};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
+const BASIC_TIOMEOUT: u64 = 30; // ~5 min
+const MAX_TIMEOUT: u64 = 777600; //  3 months
 
 /// The module's configuration trait.
 pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + system::Trait {
@@ -147,7 +149,7 @@ decl_module! {
             <DaosCount<T>>::put(new_daos_count);
             <DaoNames<T>>::insert(name_hash, dao_id);
             <DaoAddresses<T>>::insert(&address, dao_id);
-            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::sa(30));
+            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::sa(BASIC_TIOMEOUT));
             <Address<T>>::insert(dao_id, &address);
             <Members<T>>::insert((dao_id, 0), &founder);
             <MembersCount<T>>::insert(dao_id, 1);
@@ -330,7 +332,8 @@ decl_module! {
                 .using_encoded(<T as system::Trait>::Hashing::hash);
             let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
             let mut open_proposals = Self::open_dao_proposals(voting_deadline);
-            ensure!(value > T::BlockNumber::zero(), "Timeout must be more than zero");
+
+            Self::validate_timeout(value)?;
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, proposer.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
@@ -503,6 +506,16 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
+    fn validate_timeout(timeout: T::BlockNumber) -> Result {
+        if timeout <= T::BlockNumber::sa(BASIC_TIOMEOUT) {
+            return Err("timeout must be at least 5 minutes");
+        }
+        if timeout > T::BlockNumber::sa(MAX_TIMEOUT) {
+            return Err("timeout must be less than 3 month period");
+        }
+
+        Ok(())
+    }
 
     fn add_member(dao_id: DaoId, member: T::AccountId) -> Result {
         ensure!(
@@ -625,9 +638,7 @@ impl<T: Trait> Module<T> {
             Action::Withdraw(member, amount, ..) => {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
             }
-            Action::ChangeTimeout(dao_id, value) => {
-                Self::change_timeout(*dao_id, *value)
-            }
+            Action::ChangeTimeout(dao_id, value) => Self::change_timeout(*dao_id, *value),
             Action::EmptyAction => Ok(()),
         }
     }
@@ -709,6 +720,7 @@ mod tests {
     const RATE: Rate = 1000;
     const VALUE: u128 = 1_000_000;
     const VOTE_TIMEOUT: u64 = 100;
+    const INVALID_VOTE_TIMEOUT: u64 = 1_000_000;
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
@@ -1928,14 +1940,18 @@ mod tests {
 
             assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 5500);
-            
             let old_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
                 Origin::signed(USER2),
                 dao_id,
                 VOTE_TIMEOUT
             ));
-            assert_ok!(DaoModule::vote(Origin::signed(USER), dao_id, CHANGE_TIMEOUT, YES));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                CHANGE_TIMEOUT,
+                YES
+            ));
             assert_ok!(DaoModule::vote(
                 Origin::signed(USER2),
                 dao_id,
@@ -1945,6 +1961,47 @@ mod tests {
 
             let new_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ne!(new_vote_timeout, old_vote_timeout);
+        })
+    }
+
+    #[test]
+    fn change_vote_timeout_should_fail() {
+        with_externalities(&mut new_test_ext(), || {
+            const AMOUNT: u128 = 5000;
+            const ADD_MEMBER1: ProposalId = 0;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_ok!(DaoModule::propose_to_add_member(
+                Origin::signed(USER2),
+                dao_id
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                ADD_MEMBER1,
+                YES
+            ));
+            assert_eq!(DaoModule::members_count(dao_id), 2);
+
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_noop!(DaoModule::propose_to_change_vote_timeout(
+                Origin::signed(USER2),
+                dao_id,
+                INVALID_VOTE_TIMEOUT
+            ), "timeout must be less than 3 month period");
         })
     }
 
