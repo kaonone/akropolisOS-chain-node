@@ -1,8 +1,7 @@
 use akropolisos_substrate_node_runtime::{
-    AccountId, BalancesConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
+    AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
     DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill, Permill, Schedule,
     SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TreasuryConfig,
-	BridgeConfig
 };
 use primitives::{crypto::UncheckedInto, ed25519, sr25519, Pair};
 use substrate_service;
