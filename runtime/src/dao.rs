@@ -17,8 +17,8 @@ use crate::marketplace;
 use crate::types::{Count, DaoId, Days, MemberId, ProposalId, Rate, VotesCount};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
-const BASIC_TIOMEOUT: u64 = 30; // ~5 min
-const MAX_TIMEOUT: u64 = 777600; //  3 months
+const MINIMUM_VOTE_TIOMEOUT: u64 = 30; // ~5 min
+const MAXIMUM_VOTE_TIMEOUT: u64 = 3 * 30 * 24 * 60 * 6; // ~90 days
 
 /// The module's configuration trait.
 pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + system::Trait {
@@ -77,6 +77,7 @@ pub enum Action<AccountId, Balance, Timeout> {
     GetLoan(Vec<u8>, Days, Rate, Balance),
     Withdraw(AccountId, Balance, Vec<u8>),
     ChangeTimeout(DaoId, Timeout),
+    ChangeMaximumNumberOfMembers(DaoId, MemberId),
 }
 
 // This module's storage items.
@@ -87,8 +88,10 @@ decl_storage! {
         DaoNames get(dao_names): map(T::Hash) => DaoId;
         DaoAddresses get(dao_addresses): map(T::AccountId) => DaoId;
         DaoTimeouts get(dao_timeouts): map(DaoId) => T::BlockNumber;
+        DaoMaximumNumberOfMembers get(dao_maximum_number_of_members): map(DaoId) => MemberId;
         Address get(address): map(DaoId) => T::AccountId;
 
+        MinumumNumberOfMebers get(minimum_number_of_members) config(): MemberId = 1;
         MaximumNumberOfMebers get(maximum_number_of_members) config(): MemberId = 4;
         Members get(members): map(DaoId, MemberId) => T::AccountId;
         MembersCount get(members_count): map(DaoId) => MemberId;
@@ -149,7 +152,8 @@ decl_module! {
             <DaosCount<T>>::put(new_daos_count);
             <DaoNames<T>>::insert(name_hash, dao_id);
             <DaoAddresses<T>>::insert(&address, dao_id);
-            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::sa(BASIC_TIOMEOUT));
+            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::sa(MINIMUM_VOTE_TIOMEOUT));
+            <DaoMaximumNumberOfMembers<T>>::insert(dao_id, Self::maximum_number_of_members());
             <Address<T>>::insert(dao_id, &address);
             <Members<T>>::insert((dao_id, 0), &founder);
             <MembersCount<T>>::insert(dao_id, 1);
@@ -170,7 +174,7 @@ decl_module! {
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(!<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You already are a member of this DAO");
             ensure!(!<DaoAddresses<T>>::exists(candidate.clone()), "A DAO can not be a member of other DAO");
-            ensure!(<MembersCount<T>>::get(dao_id) < Self::maximum_number_of_members(), "Maximum number of members for this DAO is reached");
+            ensure!(<MembersCount<T>>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id), "Maximum number of members for this DAO is reached");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
@@ -333,10 +337,11 @@ decl_module! {
             let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
             let mut open_proposals = Self::open_dao_proposals(voting_deadline);
 
-            Self::validate_timeout(value)?;
+            Self::validate_vote_timeout(value)?;
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, proposer.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
+            ensure!(<DaoTimeouts<T>>::get(dao_id) != value, "new vote timeout equal current vote timeout");
             ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
             let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
@@ -363,6 +368,49 @@ decl_module! {
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
             Self::deposit_event(RawEvent::ProposeToChangeTimeout(dao_id, value));
+            Ok(())
+        }
+
+        pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> Result {
+            let proposer = ensure_signed(origin)?;
+
+            let proposal_hash = ("propose_to_change_maximum_number_of_members", &proposer, dao_id)
+                .using_encoded(<T as system::Trait>::Hashing::hash);
+            let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
+            let mut open_proposals = Self::open_dao_proposals(voting_deadline);
+
+            Self::validate_number_of_members(value)?;
+            ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
+            ensure!(<DaoMembers<T>>::exists((dao_id, proposer.clone())), "You are not a member of this DAO");
+            ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
+            ensure!(Self::dao_maximum_number_of_members(dao_id) != value, "New maximum number of members equal current number of members");
+            ensure!(Self::members_count(dao_id) <= value, "The current number of members in this DAO more than the new maximum number of members");
+            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+
+            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let new_dao_proposals_count = dao_proposals_count
+                .checked_add(1)
+                .ok_or("Overflow adding a new DAO proposal")?;
+
+            let proposal = Proposal {
+                dao_id,
+                action: Action::ChangeMaximumNumberOfMembers(dao_id, value),
+                open: true,
+                accepted: false,
+                voting_deadline,
+                yes_count: 0,
+                no_count: 0
+            };
+
+            let proposal_id = dao_proposals_count;
+            open_proposals.push(proposal_id);
+            <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
+            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
+            <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
+            <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
+            Self::deposit_event(RawEvent::ProposeToChangeMaximumNumberOfMembers(dao_id, value));
             Ok(())
         }
 
@@ -471,16 +519,17 @@ decl_event!(
         ProposeToGetLoan(DaoId, AccountId, Days, Rate, Balance, BlockNumber),
         ProposeToWithdraw(DaoId, AccountId, BlockNumber, Balance),
         ProposeToChangeTimeout(DaoId, BlockNumber),
+        ProposeToChangeMaximumNumberOfMembers(DaoId, MemberId),
     }
 );
 
 impl<T: Trait> Module<T> {
     fn validate_name(name: &[u8]) -> Result {
         if name.len() < 10 {
-            return Err("the name is very short");
+            return Err("The name is very short");
         }
         if name.len() > 255 {
-            return Err("the name is very long");
+            return Err("The name is very long");
         }
 
         let is_valid_char = |&c| {
@@ -490,7 +539,7 @@ impl<T: Trait> Module<T> {
             c == 45 || c == 95 // '-', '_'
         };
         if !(name.iter().all(is_valid_char)) {
-            return Err("the name has invalid chars");
+            return Err("The name has invalid chars");
         }
 
         Ok(())
@@ -498,20 +547,31 @@ impl<T: Trait> Module<T> {
 
     fn validate_description(description: &[u8]) -> Result {
         if description.len() < 10 {
-            return Err("the description is very short");
+            return Err("The description is very short");
         }
         if description.len() > 4096 {
-            return Err("the description is very long");
+            return Err("The description is very long");
         }
 
         Ok(())
     }
-    fn validate_timeout(timeout: T::BlockNumber) -> Result {
-        if timeout <= T::BlockNumber::sa(BASIC_TIOMEOUT) {
-            return Err("timeout must be at least 5 minutes");
+    fn validate_vote_timeout(timeout: T::BlockNumber) -> Result {
+        if timeout < T::BlockNumber::sa(MINIMUM_VOTE_TIOMEOUT) {
+            return Err("The vote timeout must be not less 30 blocks");
         }
-        if timeout > T::BlockNumber::sa(MAX_TIMEOUT) {
-            return Err("timeout must be less than 3 month period");
+        if timeout > T::BlockNumber::sa(MAXIMUM_VOTE_TIMEOUT) {
+            return Err("The vote timeout must be not more 777600 blocks");
+        }
+
+        Ok(())
+    }
+
+    fn validate_number_of_members(number_of_members: MemberId) -> Result {
+        if number_of_members < Self::minimum_number_of_members() {
+            return Err("The new maximum number of members is very small");
+        }
+        if number_of_members > Self::maximum_number_of_members() {
+            return Err("The new maximum number of members is very big");
         }
 
         Ok(())
@@ -519,7 +579,7 @@ impl<T: Trait> Module<T> {
 
     fn add_member(dao_id: DaoId, member: T::AccountId) -> Result {
         ensure!(
-            <MembersCount<T>>::get(dao_id) < Self::maximum_number_of_members(),
+            <MembersCount<T>>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id),
             "Maximum number of members for this DAO is reached"
         );
 
@@ -571,6 +631,14 @@ impl<T: Trait> Module<T> {
 
     fn change_timeout(dao_id: DaoId, timeout: T::BlockNumber) -> Result {
         <DaoTimeouts<T>>::mutate(dao_id, |old_timeout| *old_timeout = timeout);
+
+        Ok(())
+    }
+
+    fn change_maximum_number_of_members(dao_id: DaoId, number_of_members: MemberId) -> Result {
+        <DaoMaximumNumberOfMembers<T>>::mutate(dao_id, |old_number_of_members| {
+            *old_number_of_members = number_of_members
+        });
 
         Ok(())
     }
@@ -639,6 +707,9 @@ impl<T: Trait> Module<T> {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
             }
             Action::ChangeTimeout(dao_id, value) => Self::change_timeout(*dao_id, *value),
+            Action::ChangeMaximumNumberOfMembers(dao_id, value) => {
+                Self::change_maximum_number_of_members(*dao_id, *value)
+            }
             Action::EmptyAction => Ok(()),
         }
     }
@@ -719,8 +790,9 @@ mod tests {
     const DAYS: Days = 365;
     const RATE: Rate = 1000;
     const VALUE: u128 = 1_000_000;
-    const VOTE_TIMEOUT: u64 = 100;
-    const INVALID_VOTE_TIMEOUT: u64 = 1_000_000;
+    const VOTE_TIMEOUT: u64 = MINIMUM_VOTE_TIOMEOUT + 1;
+    const VERY_SMALL_VOTE_TIMEOUT: u64 = MINIMUM_VOTE_TIOMEOUT - 1;
+    const VERY_BIG_VOTE_TIMEOUT: u64 = MAXIMUM_VOTE_TIMEOUT + 1;
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
@@ -733,10 +805,10 @@ mod tests {
         r.extend(
             balances::GenesisConfig::<Test> {
                 balances: vec![
-                    (USER, 100000),
+                    (USER, 100_000),
                     (DAO, 0),
                     (NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE),
-                    (USER3, 300000),
+                    (USER3, 300_000),
                     (EMPTY_USER, 0),
                 ],
                 vesting: vec![],
@@ -804,7 +876,7 @@ mod tests {
                     DAO_NAME.to_vec().drain(1..).collect(),
                     DAO_DESC.to_vec()
                 ),
-                "the name is very short"
+                "The name is very short"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -821,7 +893,7 @@ mod tests {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(Origin::signed(USER), DAO, name, DAO_DESC.to_vec()),
-                "the name has invalid chars"
+                "The name has invalid chars"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -840,7 +912,7 @@ mod tests {
                     [ASCII_CODE_OF_A; 256].to_vec(),
                     DAO_DESC.to_vec()
                 ),
-                "the name is very long"
+                "The name is very long"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -857,7 +929,7 @@ mod tests {
                     DAO_NAME.to_vec(),
                     DAO_DESC.to_vec().drain(1..).collect()
                 ),
-                "the description is very short"
+                "The description is very short"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -876,7 +948,7 @@ mod tests {
                     DAO_NAME.to_vec().to_vec(),
                     [ASCII_CODE_OF_A; 4097].to_vec()
                 ),
-                "the description is very long"
+                "The description is very long"
             );
             assert_eq!(DaoModule::daos_count(), 0);
         })
@@ -1906,12 +1978,14 @@ mod tests {
             assert_eq!(Balances::free_balance(DAO), 2500);
         })
     }
+
     #[test]
     fn change_vote_timeout_should_work() {
         with_externalities(&mut new_test_ext(), || {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
             const CHANGE_TIMEOUT: ProposalId = 1;
+            const CHANGE_TIMEOUT2: ProposalId = 2;
             const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1961,11 +2035,30 @@ mod tests {
 
             let new_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ne!(new_vote_timeout, old_vote_timeout);
+
+            assert_ok!(DaoModule::propose_to_change_vote_timeout(
+                Origin::signed(USER2),
+                dao_id,
+                MINIMUM_VOTE_TIOMEOUT
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                CHANGE_TIMEOUT2,
+                YES
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER2),
+                dao_id,
+                CHANGE_TIMEOUT2,
+                YES
+            ));
+            assert_eq!(DaoModule::dao_timeouts(dao_id), old_vote_timeout);
         })
     }
 
     #[test]
-    fn change_vote_timeout_should_fail() {
+    fn change_vote_timeout_case_new_vote_timeout_equal_current_vote_timeout() {
         with_externalities(&mut new_test_ext(), || {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
@@ -1997,11 +2090,270 @@ mod tests {
 
             assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 5500);
-            assert_noop!(DaoModule::propose_to_change_vote_timeout(
+
+            assert_noop!(
+                DaoModule::propose_to_change_vote_timeout(
+                    Origin::signed(USER2),
+                    dao_id,
+                    MINIMUM_VOTE_TIOMEOUT
+                ),
+                "new vote timeout equal current vote timeout"
+            );
+        })
+    }
+
+    #[test]
+    fn change_vote_timeout_case_new_voting_timeout_is_very_small() {
+        with_externalities(&mut new_test_ext(), || {
+            const AMOUNT: u128 = 5000;
+            const ADD_MEMBER1: ProposalId = 0;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_ok!(DaoModule::propose_to_add_member(
                 Origin::signed(USER2),
+                dao_id
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
                 dao_id,
-                INVALID_VOTE_TIMEOUT
-            ), "timeout must be less than 3 month period");
+                ADD_MEMBER1,
+                YES
+            ));
+            assert_eq!(DaoModule::members_count(dao_id), 2);
+
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_noop!(
+                DaoModule::propose_to_change_vote_timeout(
+                    Origin::signed(USER2),
+                    dao_id,
+                    VERY_SMALL_VOTE_TIMEOUT
+                ),
+                "The vote timeout must be not less 30 blocks"
+            );
+        })
+    }
+
+    #[test]
+    fn change_vote_timeout_case_new_voting_timeout_is_very_big() {
+        with_externalities(&mut new_test_ext(), || {
+            const AMOUNT: u128 = 5000;
+            const ADD_MEMBER1: ProposalId = 0;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_ok!(DaoModule::propose_to_add_member(
+                Origin::signed(USER2),
+                dao_id
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                ADD_MEMBER1,
+                YES
+            ));
+            assert_eq!(DaoModule::members_count(dao_id), 2);
+
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_noop!(
+                DaoModule::propose_to_change_vote_timeout(
+                    Origin::signed(USER2),
+                    dao_id,
+                    VERY_BIG_VOTE_TIMEOUT
+                ),
+                "The vote timeout must be not more 777600 blocks"
+            );
+        })
+    }
+
+    #[test]
+    fn change_maximum_number_of_members_should_work() {
+        with_externalities(&mut new_test_ext(), || {
+            const PROPOSAL_ID: ProposalId = 0;
+            const PROPOSAL_ID2: ProposalId = 1;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            let old_maximum_number_of_members = DaoModule::dao_maximum_number_of_members(dao_id);
+            assert_ok!(DaoModule::propose_to_change_maximum_number_of_members(
+                Origin::signed(USER),
+                dao_id,
+                DaoModule::minimum_number_of_members(),
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                PROPOSAL_ID,
+                YES
+            ));
+
+            let new_maximum_number_of_members = DaoModule::dao_maximum_number_of_members(dao_id);
+            assert_ne!(new_maximum_number_of_members, old_maximum_number_of_members);
+
+            assert_ok!(DaoModule::propose_to_change_maximum_number_of_members(
+                Origin::signed(USER),
+                dao_id,
+                DaoModule::maximum_number_of_members()
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                PROPOSAL_ID2,
+                YES
+            ));
+            assert_eq!(
+                DaoModule::dao_maximum_number_of_members(dao_id),
+                DaoModule::maximum_number_of_members()
+            );
+        })
+    }
+
+    #[test]
+    fn change_maximum_number_of_members_case_current_number_of_members_more_than_new_maximum_number_of_members(
+    ) {
+        with_externalities(&mut new_test_ext(), || {
+            const PROPOSAL_ID: ProposalId = 0;
+            const YES: bool = true;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            assert_ok!(DaoModule::propose_to_add_member(
+                Origin::signed(USER2),
+                dao_id
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                dao_id,
+                PROPOSAL_ID,
+                YES
+            ));
+            assert_eq!(DaoModule::members_count(dao_id), 2);
+
+            assert_noop!(DaoModule::propose_to_change_maximum_number_of_members(
+                Origin::signed(USER),
+                dao_id,
+                DaoModule::members_count(dao_id) - 1,
+            ), "The current number of members in this DAO more than the new maximum number of members");
+        })
+    }
+
+    #[test]
+    fn change_maximum_number_of_members_case_new_maximum_number_of_members_equal_current_maximum_number_of_members(
+    ) {
+        with_externalities(&mut new_test_ext(), || {
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            let dao_id = DaoModule::dao_addresses(DAO);
+            assert_noop!(
+                DaoModule::propose_to_change_maximum_number_of_members(
+                    Origin::signed(USER),
+                    dao_id,
+                    DaoModule::dao_maximum_number_of_members(dao_id),
+                ),
+                "New maximum number of members equal current number of members"
+            );
+        })
+    }
+
+    #[test]
+    fn change_maximum_number_of_members_case_new_maximum_number_of_members_is_very_small() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_noop!(
+                DaoModule::propose_to_change_maximum_number_of_members(
+                    Origin::signed(USER2),
+                    DaoModule::dao_addresses(DAO),
+                    DaoModule::minimum_number_of_members() - 1,
+                ),
+                "The new maximum number of members is very small"
+            );
+        })
+    }
+
+    #[test]
+    fn change_maximum_number_of_members_case_new_voting_timeout_is_very_big() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+
+            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_noop!(
+                DaoModule::propose_to_change_maximum_number_of_members(
+                    Origin::signed(USER),
+                    DaoModule::dao_addresses(DAO),
+                    DaoModule::maximum_number_of_members() + 1,
+                ),
+                "The new maximum number of members is very big"
+            );
         })
     }
 

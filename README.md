@@ -118,7 +118,9 @@ This guide will walk you through how to create account and how to connect to Akr
       "AddMember": "AccountId",
       "RemoveMember": "AccountId",
       "GetLoan": "(Vec<u8>, Days, Rate, Balance)",
-      "Withdraw": "(AccountId, Balance, Vec<u8>)"
+      "Withdraw": "(AccountId, Balance, Vec<u8>)",
+      "ChangeTimeout": "(DaoId, BlockNumber)",
+      "ChangeMaximumNumberOfMembers": "(DaoId, MemberId)"
     }
   },
   "Proposal": {
