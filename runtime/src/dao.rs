@@ -216,7 +216,7 @@ decl_module! {
 
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You already are not a member of this DAO");
-            ensure!(<MembersCount<T>>::get(dao_id) > 1, "You are the latest member of this DAO");
+            ensure!(<MembersCount<T>>::get(dao_id) > 1, "You are the last member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
@@ -597,6 +597,7 @@ impl<T: Trait> Module<T> {
 
     fn remove_member(dao_id: DaoId, member: T::AccountId) -> Result {
         let members_count = <MembersCount<T>>::get(dao_id);
+        ensure!(<MembersCount<T>>::get(dao_id) > 1, "Cannot remove last member of this DAO");
 
         let new_members_count = members_count
             .checked_sub(1)
