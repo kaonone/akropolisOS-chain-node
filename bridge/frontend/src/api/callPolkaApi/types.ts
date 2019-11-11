@@ -1,6 +1,5 @@
 import BN from 'bn.js';
 import { O } from 'ts-toolbelt';
-/* eslint-disable import/no-extraneous-dependencies */
 import { GenericAccountId, u64 } from '@polkadot/types';
 
 // [Endpoint]: [Request, ConvertedRequestForApi, ApiResponse, ConvertedResponse]
@@ -47,4 +46,4 @@ export type FromResponseConverters = {
   [E in Endpoint]: (response: ApiResponse<E>) => ConvertedResponse<E>;
 };
 
-/** ** CHAIN TYPES *** */
+/** ** CHAIN TYPES ** **/

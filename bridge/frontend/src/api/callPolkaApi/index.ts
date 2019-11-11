@@ -1,6 +1,5 @@
 import { Observable, BehaviorSubject } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
-/* eslint-disable import/no-extraneous-dependencies */
 import { Codec } from '@polkadot/types/types';
 import { ApiRx } from '@polkadot/api';
 

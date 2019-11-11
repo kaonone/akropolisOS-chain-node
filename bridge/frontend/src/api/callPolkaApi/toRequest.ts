@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { GenericAccountId } from '@polkadot/types';
 
 import { ToRequestConverters } from './types';

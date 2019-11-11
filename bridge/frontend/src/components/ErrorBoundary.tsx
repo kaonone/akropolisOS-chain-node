@@ -13,8 +13,7 @@ export class ErrorBoundary extends React.Component<{}, IState> {
   public state: IState = { hasError: false, error: null };
 
   componentDidCatch(error: any, info: any) {
-    // eslint-disable-next-line no-console
-    console.log(error, info);
+    console.error(error, info);
   }
 
   render() {
