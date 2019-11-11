@@ -46,4 +46,4 @@ export type FromResponseConverters = {
   [E in Endpoint]: (response: ApiResponse<E>) => ConvertedResponse<E>;
 };
 
-/** ** CHAIN TYPES ** **/
+/* *** CHAIN TYPES *** */
