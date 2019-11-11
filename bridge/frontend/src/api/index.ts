@@ -1,8 +1,8 @@
 import Web3 from 'web3';
 import Contract from 'web3/eth/contract';
-import { Observable, interval, from, fromEventPattern } from 'rxjs';
+import { Observable, interval, from, fromEventPattern, ReplaySubject, defer } from 'rxjs';
+import { switchMap, skipWhile, retry } from 'rxjs/operators';
 import BN from 'bn.js';
-import { switchMap, skipWhile } from 'rxjs/operators';
 import { ApiRx } from '@polkadot/api';
 import { web3Enable, web3AccountsSubscribe, web3FromAddress } from '@polkadot/extension-dapp';
 import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
@@ -14,6 +14,7 @@ import bridgeAbi from 'abis/bridge.json';
 import erc20Abi from 'abis/erc20.json';
 import { getContractData$ } from 'util/getContractData$';
 import { toBaseUnit } from 'util/toBaseUnit';
+import { delay } from 'util/helpers';
 
 import { callPolkaApi } from './callPolkaApi';
 
@@ -116,19 +117,36 @@ export class Api {
 
   // eslint-disable-next-line class-methods-use-this
   public getSubstrateAccounts$(): Observable<InjectedAccountWithMeta[]> {
-    return from(web3Enable('Akropolis Network Dapp')).pipe(
-      switchMap(injectedExtensions =>
-        injectedExtensions.length
-          ? fromEventPattern<InjectedAccountWithMeta[]>(
-              emitter => web3AccountsSubscribe(emitter),
-              (_, signal: ReturnType<typeof web3AccountsSubscribe>) =>
-                signal.then(unsubscribe => unsubscribe()),
-            )
-          : new Observable<InjectedAccountWithMeta[]>(subscriber =>
-              subscriber.error(new Error('Injected extensions not found')),
-            ),
+    const accounts$ = new ReplaySubject<InjectedAccountWithMeta[]>();
+
+    defer(() =>
+      from(
+        (async () => {
+          const injected = await web3Enable('Akropolis Network Dapp');
+          if (!injected.length) {
+            await delay(1000);
+          }
+          return injected;
+        })(),
       ),
-    );
+    )
+      .pipe(
+        switchMap(injectedExtensions =>
+          injectedExtensions.length
+            ? fromEventPattern<InjectedAccountWithMeta[]>(
+                emitter => web3AccountsSubscribe(emitter),
+                (_, signal: ReturnType<typeof web3AccountsSubscribe>) =>
+                  signal.then(unsubscribe => unsubscribe()),
+              )
+            : new Observable<InjectedAccountWithMeta[]>(subscriber =>
+                subscriber.error(new Error('Injected extensions not found')),
+              ),
+        ),
+        retry(3),
+      )
+      .subscribe(accounts$);
+
+    return accounts$;
   }
 }
 
