@@ -1,9 +1,9 @@
-import { fromEventPattern, Observable } from "rxjs";
-import { EventEmitter, EventLog } from "web3/types";
+import { fromEventPattern, Observable } from 'rxjs';
+import { EventEmitter, EventLog } from 'web3/types';
 
 export function fromWeb3Event(
   emitter: EventEmitter,
-  type: "error" | "data" | "changed"
+  type: 'error' | 'data' | 'changed',
 ): Observable<EventLog> {
   interface IUnsubscribable {
     unsubscribe: () => void;
@@ -11,6 +11,6 @@ export function fromWeb3Event(
 
   return fromEventPattern<EventLog>(
     handler => emitter.on(type, handler),
-    (_, signal: IUnsubscribable) => signal.unsubscribe()
+    (_, signal: IUnsubscribable) => signal.unsubscribe(),
   );
 }

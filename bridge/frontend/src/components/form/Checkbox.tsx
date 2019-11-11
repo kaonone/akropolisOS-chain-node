@@ -1,18 +1,19 @@
 import * as React from 'react';
+import * as R from 'ramda';
 import Checkbox from '@material-ui/core/Checkbox';
 import { FieldRenderProps } from 'react-final-form';
 
 type Props = FieldRenderProps<string | number | string[] | undefined, HTMLInputElement>;
 
-function CheckboxWrapper ({
+function CheckboxWrapper({
   input: { checked, name, onChange, ...restInput },
   ...rest
 }: Props): React.ReactElement<Props> {
-  delete rest.meta;
+  const restProps = R.omit(['meta'], rest);
 
   return (
     <Checkbox
-      {...rest}
+      {...restProps}
       name={name}
       inputProps={restInput}
       onChange={onChange}
@@ -21,4 +22,4 @@ function CheckboxWrapper ({
   );
 }
 
-export default CheckboxWrapper;
+export { CheckboxWrapper };

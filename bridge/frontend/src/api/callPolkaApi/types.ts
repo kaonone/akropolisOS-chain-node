@@ -35,7 +35,9 @@ export interface ICallMeta {
 
 export type ICallResult<E extends Endpoint> = [ConvertedResponse<E> | null, ICallMeta];
 
-export type ToRequestConverter<E extends Endpoint> = (request: Request<E>) => ConvertedRequestForApi<E>;
+export type ToRequestConverter<E extends Endpoint> = (
+  request: Request<E>,
+) => ConvertedRequestForApi<E>;
 export type ToRequestConverters = {
   [E in EndpointWithRequest]: ToRequestConverter<E>;
 };
@@ -44,4 +46,4 @@ export type FromResponseConverters = {
   [E in Endpoint]: (response: ApiResponse<E>) => ConvertedResponse<E>;
 };
 
-/**** CHAIN TYPES ****/
+/* *** CHAIN TYPES *** */

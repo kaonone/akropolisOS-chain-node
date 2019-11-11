@@ -1,16 +1,16 @@
-import "reflect-metadata";
-import Web3 from "web3";
+import 'reflect-metadata';
+import Web3 from 'web3';
 import { ApiRx, WsProvider } from '@polkadot/api';
-import * as React from "react";
-import { render } from "react-dom";
-import { MuiThemeProvider, createMuiTheme, CssBaseline } from '@material-ui/core';
+import * as React from 'react';
+import { render } from 'react-dom';
+import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
+import CssBaseline from '@material-ui/core/CssBaseline';
 
-import { Api } from "~/api";
-import { SUBSTRATE_NODE_URL, SUBSTRATE_NODE_CUSTOM_TYPES } from '~env';
-
-import App from '~components/App';
-import { ApiContext } from "~/components/context";
-import { ErrorBoundary } from "~/components/ErrorBoundary";
+import { Api } from 'api';
+import { SUBSTRATE_NODE_URL, SUBSTRATE_NODE_CUSTOM_TYPES } from 'env';
+import { App } from 'components/App';
+import { ApiContext } from 'components/context';
+import { ErrorBoundary } from 'components/ErrorBoundary';
 
 const theme = createMuiTheme({
   palette: {
@@ -49,10 +49,9 @@ function Root() {
         </MuiThemeProvider>
       </ErrorBoundary>
     );
-  } else {
-    return <div>You need to install Metamask</div>;
   }
+  return <div>You need to install Metamask</div>;
 }
 
-const rootElement = document.getElementById("root");
+const rootElement = document.getElementById('root');
 render(<Root />, rootElement);

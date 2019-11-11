@@ -1,3 +1,3 @@
 export function validateRequired(value: any): string | undefined {
-  return !!value ? undefined : 'Is required';
+  return value ? undefined : 'Is required';
 }

@@ -2,14 +2,15 @@ import * as React from 'react';
 import Select from '@material-ui/core/Select';
 import FormControl, { FormControlProps } from '@material-ui/core/FormControl';
 import InputLabel from '@material-ui/core/InputLabel';
-import FormHelperText, { FormHelperTextProps } from '@material-ui/core/FormHelperText';
-
+import FormHelperText, {
+  FormHelperTextProps as IFormHelperTextProps,
+} from '@material-ui/core/FormHelperText';
 import { FieldRenderProps } from 'react-final-form';
 
 interface Props extends FieldRenderProps<string, HTMLElement> {
   label: string;
   formControlProps: FormControlProps;
-  FormHelperTextProps?: Partial<FormHelperTextProps>;
+  FormHelperTextProps?: Partial<IFormHelperTextProps>;
   helperText?: React.ReactNode;
 }
 
@@ -22,7 +23,8 @@ function FormHelperTextWrapper({
   formControlProps,
   ...rest
 }: Props): React.ReactElement<Props> {
-  const showError = ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
+  const showError =
+    ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
   const labelRef = React.useRef<HTMLLabelElement | null>(null);
   const [labelWidth, setLabelWidth] = React.useState(0);
   React.useEffect(() => {
@@ -31,7 +33,9 @@ function FormHelperTextWrapper({
 
   return (
     <FormControl {...formControlProps} error={showError}>
-      <InputLabel ref={labelRef} htmlFor={name}>{label}</InputLabel>
+      <InputLabel ref={labelRef} htmlFor={name}>
+        {label}
+      </InputLabel>
 
       <Select
         {...rest}
@@ -42,13 +46,13 @@ function FormHelperTextWrapper({
         labelWidth={labelWidth}
       />
 
-      {(showError || helperText) &&
+      {(showError || helperText) && (
         <FormHelperText {...FormHelperTextProps}>
           {meta.error || meta.submitError || helperText}
         </FormHelperText>
-      }
+      )}
     </FormControl>
   );
 }
 
-export default FormHelperTextWrapper;
+export { FormHelperTextWrapper };

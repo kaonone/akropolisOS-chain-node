@@ -22,7 +22,7 @@ export function fromBaseUnit(input: BN | string, decimals: number): string {
 
   const whole = wei.div(base).toString(10);
 
-  let value = `${whole}${fraction == '0' ? '' : `.${fraction}`}`;
+  let value = `${whole}${fraction === '0' ? '' : `.${fraction}`}`;
 
   if (negative) {
     value = `-${value}`;

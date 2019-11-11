@@ -1,17 +1,16 @@
-import * as React from 'react';
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Form, Field, FormSpy } from 'react-final-form';
 import { FORM_ERROR, FormState } from 'final-form';
-import { Button, Typography, MenuItem, Box } from '@material-ui/core';
 import { O } from 'ts-toolbelt';
 
-import { DEFAULT_DECIMALS } from '~env';
-import { TextField, Select } from '~components/form';
-import { useApi } from '~components/context';
-import { Balance } from '~components/Balance';
-import { useSubscribable } from '~util/hooks';
-import getErrorMsg from '~util/getErrorMsg';
-import { validateRequired, validateEthereumAddress, validateFloat } from '~util/validators';
+import { Button, Typography, MenuItem, Box } from 'components';
+import { DEFAULT_DECIMALS } from 'env';
+import { TextField, Select } from 'components/form';
+import { useApi } from 'components/context';
+import { Balance } from 'components/Balance';
+import { useSubscribable } from 'util/hooks';
+import { getErrorMsg } from 'util/getErrorMsg';
+import { validateRequired, validateEthereumAddress, validateFloat } from 'util/validators';
 
 interface FormData {
   address: string;
@@ -41,16 +40,19 @@ function validate(values: FormData): Errors {
 
 function SendingForm({ onChange }: Props) {
   const api = useApi();
-  const [accounts, { loaded: accountsLoaded, error: accountsError }] = useSubscribable(() => api.getSubstrateAccounts$(), []);
+  const [accounts, { loaded: accountsLoaded, error: accountsError }] = useSubscribable(
+    () => api.getSubstrateAccounts$(),
+    [],
+  );
 
   const handleChange = useCallback(
     (formState: FormState<FormData>) => onChange && onChange(formState.values, formState.errors),
-    [onChange]
+    [onChange],
   );
 
-  const handleSubmit = useCallback(async ({ from, address, amount }: FormData) => {
+  const onSubmit = useCallback(async ({ from, address, amount }: FormData) => {
     try {
-      await api.sendToEthereum(from, address, amount);
+      return await api.sendToEthereum(from, address, amount);
     } catch (error) {
       return { [FORM_ERROR]: getErrorMsg(error) };
     }
@@ -61,19 +63,22 @@ function SendingForm({ onChange }: Props) {
   }
 
   if (!accounts || !accounts.length || accountsError) {
-    return (<>
-      <Typography color="error">
-        You Substrate account can not be found, please install Polkadot.js browser extension and create an account.
-      </Typography>
-      <Typography color="error">
-        If you already have account in the extension, please reopen the browser tab.
-      </Typography>
-    </>)
+    return (
+      <>
+        <Typography color="error">
+          You Substrate account can not be found, please install Polkadot.js browser extension and
+          create an account.
+        </Typography>
+        <Typography color="error">
+          If you already have account in the extension, please reopen the browser tab.
+        </Typography>
+      </>
+    );
   }
 
   return (
     <Form<FormData>
-      onSubmit={handleSubmit}
+      onSubmit={onSubmit}
       subscription={{ submitting: true, submitError: true }}
       initialValues={{ from: accounts[0].address, address: '', amount: '' }}
       validate={validate}
@@ -84,36 +89,41 @@ function SendingForm({ onChange }: Props) {
           <Field
             name={fields.from}
             component={Select as any}
-            label='From'
+            label="From"
             error={false}
             formControlProps={{
               fullWidth: true,
-              variant: "outlined",
-              margin: "normal"
+              variant: 'outlined',
+              margin: 'normal',
             }}
           >
             {accounts.map(value => (
-              <MenuItem value={value.address} key={value.address}>{value.meta.name} ({value.address})</MenuItem>
+              <MenuItem value={value.address} key={value.address}>
+                {value.meta.name} ({value.address})
+              </MenuItem>
             ))}
           </Field>
           <FormSpy<FormData> subscription={{ errors: true, values: true }}>
-            {({ errors, values }: { values: FormData, errors: Errors }) => (
+            {({ errors, values }: { values: FormData; errors: Errors }) => (
               <Field
                 name={fields.address}
                 component={TextField}
                 fullWidth
                 variant="outlined"
-                label='To'
+                label="To"
                 margin="normal"
                 error={false}
                 InputLabelProps={{
-                  shrink: true
+                  shrink: true,
                 }}
-                helperText={!errors.address && !!values.address && (
-                  <Box color="primary.main">
-                    Available: <Balance address={values.address} type="ethereum" />
-                  </Box>
-                )}
+                helperText={
+                  !errors.address &&
+                  !!values.address && (
+                    <Box color="primary.main">
+                      Available: <Balance address={values.address} type="ethereum" />
+                    </Box>
+                  )
+                }
                 FormHelperTextProps={{
                   component: 'div',
                 }}
@@ -125,14 +135,18 @@ function SendingForm({ onChange }: Props) {
             component={TextField}
             fullWidth
             variant="outlined"
-            label='Amount'
+            label="Amount"
             margin="normal"
             error={false}
             InputLabelProps={{
-              shrink: true
+              shrink: true,
             }}
           />
-          {!!submitError && <Typography variant='body1' color="error">{submitError}</Typography>}
+          {!!submitError && (
+            <Typography variant="body1" color="error">
+              {submitError}
+            </Typography>
+          )}
           <Button fullWidth type="submit" variant="contained" color="primary" disabled={submitting}>
             Send{submitting && 'ing'}
           </Button>
@@ -142,5 +156,4 @@ function SendingForm({ onChange }: Props) {
   );
 }
 
-export { Props as SendingFormProps };
-export default SendingForm;
+export { Props as SendingFormProps, SendingForm };

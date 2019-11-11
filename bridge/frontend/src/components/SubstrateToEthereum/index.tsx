@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { Grid } from '@material-ui/core';
 
-import { Address } from '~components/Address';
-import SendingForm, { SendingFormProps } from './SendingForm';
+import { Grid } from 'components';
+import { Address } from 'components/Address';
+
+import { SendingFormProps, SendingForm } from './SendingForm';
 
 function SubstrateToEthereum() {
   const [selectedFromAddress, selectFromAddress] = useState<string | null>(null);
@@ -14,7 +15,7 @@ function SubstrateToEthereum() {
         values.from && !errors.from && selectFromAddress(values.from);
       }
     },
-    []
+    [],
   );
 
   return (
@@ -31,4 +32,4 @@ function SubstrateToEthereum() {
   );
 }
 
-export default SubstrateToEthereum;
+export { SubstrateToEthereum };
