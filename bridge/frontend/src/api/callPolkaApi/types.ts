@@ -1,5 +1,6 @@
 import BN from 'bn.js';
 import { O } from 'ts-toolbelt';
+/* eslint-disable import/no-extraneous-dependencies */
 import { GenericAccountId, u64 } from '@polkadot/types';
 
 // [Endpoint]: [Request, ConvertedRequestForApi, ApiResponse, ConvertedResponse]
@@ -35,7 +36,9 @@ export interface ICallMeta {
 
 export type ICallResult<E extends Endpoint> = [ConvertedResponse<E> | null, ICallMeta];
 
-export type ToRequestConverter<E extends Endpoint> = (request: Request<E>) => ConvertedRequestForApi<E>;
+export type ToRequestConverter<E extends Endpoint> = (
+  request: Request<E>,
+) => ConvertedRequestForApi<E>;
 export type ToRequestConverters = {
   [E in EndpointWithRequest]: ToRequestConverter<E>;
 };
@@ -44,4 +47,4 @@ export type FromResponseConverters = {
   [E in Endpoint]: (response: ApiResponse<E>) => ConvertedResponse<E>;
 };
 
-/**** CHAIN TYPES ****/
+/** ** CHAIN TYPES *** */

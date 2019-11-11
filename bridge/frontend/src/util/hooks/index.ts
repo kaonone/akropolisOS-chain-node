@@ -1,1 +1,1 @@
-export * from "./useSubscribable";
+export * from './useSubscribable';

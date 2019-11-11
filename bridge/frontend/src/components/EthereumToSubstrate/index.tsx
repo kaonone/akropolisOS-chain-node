@@ -1,12 +1,12 @@
 import * as React from 'react';
-import { Grid, Typography } from '@material-ui/core';
 
-import { useSubscribable } from '~util/hooks';
-import { useApi } from '~components/context';
-import { Address } from '~components/Address';
-import EthereumValidators from '~components/EthereumValidators';
+import { Grid, Typography } from 'components';
+import { useSubscribable } from 'util/hooks';
+import { useApi } from 'components/context';
+import { Address } from 'components/Address';
+import { EthereumValidators } from 'components/EthereumValidators';
 
-import SendingForm from './SendingForm';
+import { SendingForm } from './SendingForm';
 
 function EthereumToSubstrate() {
   const api = useApi();
@@ -28,4 +28,4 @@ function EthereumToSubstrate() {
   );
 }
 
-export default EthereumToSubstrate;
+export { EthereumToSubstrate };

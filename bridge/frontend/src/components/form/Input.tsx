@@ -5,8 +5,13 @@ import FormHelperText from '@material-ui/core/FormHelperText';
 
 type Props = FieldRenderProps<string, HTMLInputElement | HTMLTextAreaElement>;
 
-function InputWrapper ({ input: { name, onChange, value, ...restInput }, meta, ...rest }: Props): React.ReactElement<Props> {
-  const showError = ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
+function InputWrapper({
+  input: { name, onChange, value, ...restInput },
+  meta,
+  ...rest
+}: Props): React.ReactElement<Props> {
+  const showError =
+    ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
 
   return (
     <>
@@ -19,13 +24,9 @@ function InputWrapper ({ input: { name, onChange, value, ...restInput }, meta, .
         value={value}
       />
 
-      {showError &&
-        <FormHelperText>
-          {meta.error || meta.submitError}
-        </FormHelperText>
-      }
+      {showError && <FormHelperText>{meta.error || meta.submitError}</FormHelperText>}
     </>
   );
 }
 
-export default InputWrapper;
+export { InputWrapper };

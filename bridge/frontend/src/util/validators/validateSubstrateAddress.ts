@@ -1,5 +1,6 @@
 import { checkAddress } from '@polkadot/util-crypto';
-import { SUBSTRATE_DEFAULT_ADDRESS_PREFIX } from '~env';
+
+import { SUBSTRATE_DEFAULT_ADDRESS_PREFIX } from 'env';
 
 export function validateSubstrateAddress(value: string): string | undefined {
   try {

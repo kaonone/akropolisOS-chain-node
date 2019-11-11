@@ -1,5 +1,7 @@
-import { ToRequestConverters } from './types';
+/* eslint-disable import/no-extraneous-dependencies */
 import { GenericAccountId } from '@polkadot/types';
+
+import { ToRequestConverters } from './types';
 
 export const toRequestConverters: ToRequestConverters = {
   'query.token.balance': address => new GenericAccountId(address),

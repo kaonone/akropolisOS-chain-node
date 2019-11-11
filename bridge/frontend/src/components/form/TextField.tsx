@@ -2,10 +2,16 @@ import * as React from 'react';
 import { FieldRenderProps } from 'react-final-form';
 import TextField, { TextFieldProps } from '@material-ui/core/TextField';
 
-type Props = FieldRenderProps<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> & TextFieldProps
+type Props = FieldRenderProps<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> &
+  TextFieldProps;
 
-function TextFieldWrapper({ input: { name, onChange, value, ...restInput }, meta, ...rest }: Props): React.ReactElement<Props> {
-  const showError = ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
+function TextFieldWrapper({
+  input: { name, onChange, value, ...restInput },
+  meta,
+  ...rest
+}: Props): React.ReactElement<Props> {
+  const showError =
+    ((meta.submitError && !meta.dirtySinceLastSubmit) || meta.error) && meta.touched;
 
   return (
     <TextField
@@ -20,4 +26,4 @@ function TextFieldWrapper({ input: { name, onChange, value, ...restInput }, meta
   );
 }
 
-export default TextFieldWrapper;
+export { TextFieldWrapper };

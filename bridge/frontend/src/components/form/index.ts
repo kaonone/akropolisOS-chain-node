@@ -1,7 +1,7 @@
-import TextField from './TextField';
-import Checkbox from './Checkbox';
-import Radio from './Radio';
-import Select from './Select';
-import Input from './Input';
+import { TextFieldWrapper as TextField } from './TextField';
+import { CheckboxWrapper as Checkbox } from './Checkbox';
+import { RadioWrapper as Radio } from './Radio';
+import { FormHelperTextWrapper as Select } from './Select';
+import { InputWrapper as Input } from './Input';
 
 export { TextField, Checkbox, Radio, Select, Input };

@@ -1,18 +1,19 @@
 import * as React from 'react';
+import * as R from 'ramda';
 import Radio from '@material-ui/core/Radio';
 import { FieldRenderProps } from 'react-final-form';
 
 type Props = FieldRenderProps<string, HTMLInputElement>;
 
-function RadioWrapper ({
+function RadioWrapper({
   input: { checked, value, name, onChange, ...restInput },
   ...rest
 }: Props): React.ReactElement<Props> {
-  delete rest.meta;
+  const restProps = R.omit(['meta'], rest);
 
   return (
     <Radio
-      {...rest}
+      {...restProps}
       name={name}
       inputProps={restInput}
       onChange={onChange}
@@ -22,4 +23,4 @@ function RadioWrapper ({
   );
 }
 
-export default RadioWrapper;
+export { RadioWrapper };
