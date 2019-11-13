@@ -1,9 +1,12 @@
 import * as React from 'react';
+import Typography from '@material-ui/core/Typography';
+import LinearProgress from '@material-ui/core/LinearProgress';
+import Button from '@material-ui/core/Button';
+import Grid from '@material-ui/core/Grid';
 
-import { Typography, LinearProgress, Button, Grid } from 'components';
 import { ETH_NETWORK_CONFIG } from 'env';
-import { useSubscribable } from 'util/hooks';
-import { useApi } from 'components/context';
+import { useSubscribable } from 'utils/hooks';
+import { useApi } from 'services/api';
 
 function EthereumValidators() {
   const api = useApi();

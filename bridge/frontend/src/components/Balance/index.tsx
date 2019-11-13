@@ -1,12 +1,13 @@
 import React from 'react';
 import BN from 'bn.js';
+import Typography from '@material-ui/core/Typography';
+import LinearProgress from '@material-ui/core/LinearProgress';
+import Box from '@material-ui/core/Box';
 
-import { Typography, LinearProgress, Box } from 'components';
 import { DEFAULT_DECIMALS } from 'env';
-import { useSubscribable } from 'util/hooks';
-import { fromBaseUnit } from 'util/fromBaseUnit';
-
-import { useApi } from '../context';
+import { useSubscribable } from 'utils/react';
+import { fromBaseUnit } from 'utils/bn';
+import { useApi } from 'services/api';
 
 interface IProps {
   type: 'ethereum' | 'substrate';
