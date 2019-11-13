@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom';
 import { Grid, Typography, Paper, Tabs, Tab, Box } from 'components';
 import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
 
+import { routes } from '../../routes';
+
 const useStyles = makeStyles(theme => ({
   root: {
     padding: theme.spacing(3),
@@ -15,7 +17,14 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-function BridgePage(props: RouteComponentProps<{ sourceChain: 'ethereum' | 'substrate' }>) {
+type SourceChain = 'ethereum' | 'substrate';
+
+const viewIndexBySourceChain: Record<SourceChain, number> = {
+  ethereum: 0,
+  substrate: 1,
+};
+
+function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
   const classes = useStyles();
 
   const {
@@ -24,10 +33,7 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: 'ethereum' | 'subs
     },
   } = props;
 
-  const viewIndexBySourceChain: Record<'ethereum' | 'substrate', number> = {
-    ethereum: 0,
-    substrate: 1,
-  };
+  const currentTabIndex = viewIndexBySourceChain[sourceChain] || 0;
 
   return (
     <Grid container spacing={3} className={classes.root}>
@@ -39,23 +45,31 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: 'ethereum' | 'subs
       <Grid item xs={12}>
         <Paper>
           <Tabs
-            value={viewIndexBySourceChain[sourceChain] || 0}
+            value={currentTabIndex}
             indicatorColor="primary"
             textColor="primary"
             variant="fullWidth"
           >
-            <Tab label="Ethereum to Substrate" component={Link} to="/ethereum" />
-            <Tab label="Substrate to Ethereum" component={Link} to="/substrate" />
+            <Tab
+              label="Ethereum to Substrate"
+              component={Link}
+              to={routes.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })}
+            />
+            <Tab
+              label="Substrate to Ethereum"
+              component={Link}
+              to={routes.sourceChain.getRedirectPath({ sourceChain: 'substrate' })}
+            />
           </Tabs>
-          <SwipeableViews index={viewIndexBySourceChain[sourceChain] || 0}>
-            <Box p={2}>
-              <EthereumToSubstrate />
-            </Box>
-            <Box p={2}>
-              <SubstrateToEthereum />
-            </Box>
-          </SwipeableViews>
         </Paper>
+        <SwipeableViews index={currentTabIndex}>
+          <Box p={2}>
+            <EthereumToSubstrate />
+          </Box>
+          <Box p={2}>
+            <SubstrateToEthereum />
+          </Box>
+        </SwipeableViews>
       </Grid>
     </Grid>
   );

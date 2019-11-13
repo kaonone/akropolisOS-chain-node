@@ -11,8 +11,8 @@ export function App() {
       {process.env.NODE_ENV !== 'production' && (
         <Route exact path={routes.demo.getRoutePath()} component={DemoPage} />
       )}
-      <Route exact path="/:sourceChain" component={BridgePage} />
-      <Redirect to={routes.ethereum.getRedirectPath()} />
+      <Route exact path={routes.sourceChain.getRoutePath()} component={BridgePage} />
+      <Redirect to={routes.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })} />
     </Switch>
   );
 }

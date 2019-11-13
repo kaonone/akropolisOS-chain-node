@@ -9,11 +9,10 @@ import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
 
-import { ETH_NETWORK_CONFIG, DEFAULT_DECIMALS } from 'env';
+import { ETH_NETWORK_CONFIG } from 'env';
 import bridgeAbi from 'abis/bridge.json';
 import erc20Abi from 'abis/erc20.json';
-import { getContractData$ } from 'utils/ethereum/getContractData$';
-import { toBaseUnit } from 'utils/bn';
+import { getContractData$ } from 'utils/ethereum';
 import { delay } from 'utils/helpers';
 
 import { callPolkaApi } from './callPolkaApi';
@@ -50,9 +49,8 @@ export class Api {
   }
 
   public async sendToSubstrate(fromAddress: string, to: string, amount: string): Promise<void> {
-    const units = toBaseUnit(amount, DEFAULT_DECIMALS).toString();
-    await this.approveBridge(fromAddress, units);
-    await this.sendToBridge(fromAddress, to, units);
+    await this.approveBridge(fromAddress, amount);
+    await this.sendToBridge(fromAddress, to, amount);
   }
 
   private async approveBridge(fromAddress: string, amount: string): Promise<void> {
@@ -121,7 +119,7 @@ export class Api {
     defer(() =>
       from(
         (async () => {
-          const injected = await web3Enable('Akropolis Network Dapp');
+          const injected = await web3Enable('Substrate <-> Ethereum Bridge');
           if (!injected.length) {
             await delay(1000);
           }

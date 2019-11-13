@@ -1,7 +1,7 @@
 import React from 'react';
+import Typography from '@material-ui/core/Typography';
 
-import { Typography } from 'components';
-import { Balance } from 'components/Balance';
+import { Balance } from '../Balance';
 
 interface IProps {
   type: 'ethereum' | 'substrate';

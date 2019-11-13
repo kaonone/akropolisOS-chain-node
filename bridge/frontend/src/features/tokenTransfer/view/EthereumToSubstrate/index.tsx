@@ -1,10 +1,8 @@
 import * as React from 'react';
 
-import { Grid, Typography } from 'components';
+import { Grid, Typography, Address, EthereumValidators } from 'components';
 import { useSubscribable } from 'utils/hooks';
 import { useApi } from 'services/api';
-import { Address } from 'components/Address';
-import { EthereumValidators } from 'components/EthereumValidators';
 
 import { SendingForm } from './SendingForm';
 

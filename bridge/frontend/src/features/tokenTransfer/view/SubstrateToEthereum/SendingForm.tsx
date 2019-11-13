@@ -3,11 +3,10 @@ import { Form, FormSpy } from 'react-final-form';
 import { FORM_ERROR, FormState } from 'final-form';
 import { O } from 'ts-toolbelt';
 
-import { Button, Typography, MenuItem, Box } from 'components';
-import { DEFAULT_DECIMALS } from 'env';
+import { Button, Typography, MenuItem, Box, Balance } from 'components';
 import { TextInputField, DecimalsField } from 'components/form';
+import { DEFAULT_DECIMALS } from 'env';
 import { useApi } from 'services/api';
-import { Balance } from 'components/Balance';
 import { useSubscribable } from 'utils/hooks';
 import { getErrorMsg } from 'utils/getErrorMsg';
 import { validateRequired, validateEthereumAddress } from 'utils/validators';
@@ -127,7 +126,7 @@ function SendingForm({ onChange }: Props) {
             )}
           </FormSpy>
           <DecimalsField
-            baseDecimals={DEFAULT_DECIMALS}
+            baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
             name={fields.amount}
             label="Amount"
             margin="normal"

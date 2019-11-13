@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 
-import { Grid } from 'components';
-import { Address } from 'components/Address';
+import { Grid, Address } from 'components';
 
 import { SendingFormProps, SendingForm } from './SendingForm';
 

@@ -1,9 +1,8 @@
-import build from 'build-route-tree';
+import build, {getParam} from 'build-route-tree';
 
 const rawTree = {
   demo: null,
-  ethereum: null,
-  substrate: null,
+  sourceChain: getParam(null),
 };
 
 export const routes = build(rawTree);

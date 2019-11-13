@@ -16,7 +16,7 @@ function TextInputFieldComponent(props: IProps) {
     typeof rest.error === 'boolean'
       ? rest.error && meta.error && t(meta.error)
       : meta.touched && meta.error && t(meta.error);
-  return <TextInput {...rest} helperText={error} error={Boolean(error)} {...input} />;
+  return <TextInput {...rest} helperText={error || rest.helperText} error={Boolean(error)} {...input} />;
 }
 
 export const TextInputField = getFieldWithComponent(TextInputFieldComponent);
