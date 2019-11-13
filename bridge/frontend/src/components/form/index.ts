@@ -1,7 +1,7 @@
-import { TextFieldWrapper as TextField } from './TextField';
-import { CheckboxWrapper as Checkbox } from './Checkbox';
-import { RadioWrapper as Radio } from './Radio';
-import { FormHelperTextWrapper as Select } from './Select';
-import { InputWrapper as Input } from './Input';
-
-export { TextField, Checkbox, Radio, Select, Input };
+export { CheckboxField } from './CheckboxInputField';
+export { MaskedInputField } from './MaskedInputField';
+export { NumberInputField } from './NumberInputField';
+export { RadioGroupInputField } from './RadioGroupInputField';
+export { TextInputField } from './TextInputField';
+export { DecimalsField } from './DecimalsField';
+export { SpyField } from './SpyField';
