@@ -16,7 +16,7 @@
     "test:coverage": "jest --coverage --watch",
     "types": "tsc --noEmit --watch",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d build"
   },
   "dependencies": {
     "@material-ui/core": "^4.6.0",
