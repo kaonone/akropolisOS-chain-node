@@ -2,7 +2,7 @@ import BN from 'bn.js';
 
 import { bnToBn } from 'utils/bn/bnToBn';
 
-import { SI, calcSi } from './si';
+import { SI, calcSi, getSiMidIndex } from './si';
 import { formatDecimal } from './formatDecimal';
 
 interface IFormatBalanceOptions {
@@ -43,6 +43,10 @@ export function formatBalance({
   return `${isNegative ? '-' : ''}${formatDecimal(prefix || '0')}.${postfix}${units}`;
 }
 
-formatBalance.getOptions = (baseDecimals: number) => {
-  return SI.filter(({ power }): boolean => (power < 0 ? baseDecimals + power >= 0 : true));
+formatBalance.getOptions = (baseDecimals: number, baseUnitName?: string) => {
+  const mid = getSiMidIndex();
+
+  return SI.map((siItem, index) =>
+    baseUnitName && index === mid ? { ...siItem, text: baseUnitName } : siItem,
+  ).filter(({ power }): boolean => (power < 0 ? baseDecimals + power >= 0 : true));
 };

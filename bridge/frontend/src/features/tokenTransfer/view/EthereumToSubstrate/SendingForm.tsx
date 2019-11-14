@@ -9,7 +9,7 @@ import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
 import { getErrorMsg } from 'utils/getErrorMsg';
 import { validateRequired, validateSubstrateAddress } from 'utils/validators';
-import { DEFAULT_DECIMALS } from 'env';
+import { DEFAULT_DECIMALS, ETHEREUM_UNIT_NAME } from 'env';
 
 interface FormData {
   address: string;
@@ -88,6 +88,7 @@ function SendingForm() {
           </Grid>
           <DecimalsField
             baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
+            baseUnitName={ETHEREUM_UNIT_NAME}
             name={fields.amount}
             label="Amount"
             margin="normal"

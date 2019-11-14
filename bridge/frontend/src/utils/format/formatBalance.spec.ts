@@ -118,4 +118,18 @@ describe('formatBalance', (): void => {
       { power: 24, value: 'Y', text: 'Yotta' },
     ]);
   });
+
+  it('returns options with custom name of base unit', (): void => {
+    expect(formatBalance.getOptions(0, 'CustomName')).toEqual([
+      { power: 0, value: '-', text: 'CustomName' },
+      { power: 3, value: 'k', text: 'Kilo' },
+      { power: 6, value: 'M', text: 'Mega' },
+      { power: 9, value: 'G', text: 'Giga' },
+      { power: 12, value: 'T', text: 'Tera' },
+      { power: 15, value: 'P', text: 'Peta' },
+      { power: 18, value: 'E', text: 'Exa' },
+      { power: 21, value: 'Z', text: 'Zeta' },
+      { power: 24, value: 'Y', text: 'Yotta' },
+    ]);
+  });
 });

@@ -12,7 +12,8 @@ import { ErrorBoundary, CssBaseline } from 'components';
 
 export function Root(): React.ReactElement<{}> {
   // Detect if Web3 is found, if not, ask the user to install Metamask
-  if (window.web3) { // TODO need to change Web3 instantiating, window.web3 will become deprecated in December 2019
+  if (window.web3) {
+    // TODO need to change Web3 instantiating, window.web3 will become deprecated in December 2019
     const web3 = new Web3(window.web3.currentProvider);
     const substrateApi = ApiRx.create({
       provider: new WsProvider(SUBSTRATE_NODE_URL),
