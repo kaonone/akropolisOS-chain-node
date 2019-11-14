@@ -39,6 +39,9 @@ export const NETWORK_ID = 42;
 export const ETH_NETWORK_CONFIG = ethNetworkConfigs[NETWORK_ID];
 export const DEFAULT_DECIMALS = 18;
 
+export const ETHEREUM_UNIT_NAME = 'DAI';
+export const SUBSTRATE_UNIT_NAME = 'sDAI';
+
 export const SUBSTRATE_DEFAULT_ADDRESS_PREFIX = 42;
 export const SUBSTRATE_NODE_URL = 'wss://node1-polkadai.akropolis.io';
 export const SUBSTRATE_NODE_CUSTOM_TYPES: RegistryTypes = {

@@ -1,4 +1,4 @@
-import build, {getParam} from 'build-route-tree';
+import build, { getParam } from 'build-route-tree';
 
 const rawTree = {
   demo: null,

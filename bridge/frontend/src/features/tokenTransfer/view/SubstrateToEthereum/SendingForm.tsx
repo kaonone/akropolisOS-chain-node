@@ -5,7 +5,7 @@ import { O } from 'ts-toolbelt';
 
 import { Button, Typography, MenuItem, Box, Balance } from 'components';
 import { TextInputField, DecimalsField } from 'components/form';
-import { DEFAULT_DECIMALS } from 'env';
+import { DEFAULT_DECIMALS, SUBSTRATE_UNIT_NAME } from 'env';
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
 import { getErrorMsg } from 'utils/getErrorMsg';
@@ -127,6 +127,7 @@ function SendingForm({ onChange }: Props) {
           </FormSpy>
           <DecimalsField
             baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
+            baseUnitName={SUBSTRATE_UNIT_NAME}
             name={fields.amount}
             label="Amount"
             margin="normal"
