@@ -2,6 +2,7 @@ export { Address } from './Address';
 export { Balance } from './Balance';
 export { EthereumValidators } from './EthereumValidators';
 export { ErrorBoundary } from './ErrorBoundary';
+export { Loading } from './Loading';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';
