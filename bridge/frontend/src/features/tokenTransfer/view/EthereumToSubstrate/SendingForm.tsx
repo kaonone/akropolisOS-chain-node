@@ -5,6 +5,7 @@ import { O } from 'ts-toolbelt';
 
 import { Button, Typography, Grid, Box, Balance } from 'components';
 import { TextInputField, DecimalsField } from 'components/form';
+import { IPhraseWithOptions } from 'services/i18n/types';
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
 import { getErrorMsg } from 'utils/getErrorMsg';
@@ -21,7 +22,7 @@ const fields: { [key in keyof FormData]: key } = {
   amount: 'amount',
 };
 
-type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
+type Errors = Partial<O.Update<FormData, keyof FormData, string | IPhraseWithOptions>>;
 
 function validate(values: FormData): Errors {
   return {
