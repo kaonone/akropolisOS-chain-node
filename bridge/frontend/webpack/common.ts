@@ -5,6 +5,7 @@ import FileManagerWebpackPlugin from 'filemanager-webpack-plugin';
 import webpack from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CircularDependencyPlugin from 'circular-dependency-plugin';
+import FaviconsWebpackPlugin from 'favicons-webpack-plugin';
 
 const forGhPages = true;
 const pageTitle = 'Ethereum starter kit';
@@ -68,6 +69,7 @@ const config: webpack.Configuration = {
       chunksSortMode: sortChunks,
       title: pageTitle,
     }),
+    new FaviconsWebpackPlugin(path.resolve(__dirname, '..', 'src', 'assets', 'favicon.png')),
     // new webpack.ContextReplacementPlugin(/moment[/\\]locale$/, new RegExp(LANGUAGES.join('|'))),
     new CircularDependencyPlugin({
       exclude: /node_modules/,
