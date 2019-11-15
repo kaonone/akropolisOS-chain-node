@@ -7,6 +7,7 @@ import { ApiRx, WsProvider } from '@polkadot/api';
 import { theme } from 'utils/styles';
 import { App } from 'app/App';
 import { Api, ApiContext } from 'services/api';
+import { ApolloProvider } from 'services/apollo';
 import { SUBSTRATE_NODE_URL, SUBSTRATE_NODE_CUSTOM_TYPES } from 'env';
 import { ErrorBoundary, CssBaseline } from 'components';
 
@@ -24,12 +25,14 @@ export function Root(): React.ReactElement<{}> {
     return (
       <ErrorBoundary>
         <BrowserRouter>
-          <MuiThemeProvider theme={theme}>
-            <ApiContext.Provider value={api}>
-              <CssBaseline />
-              <App />
-            </ApiContext.Provider>
-          </MuiThemeProvider>
+          <ApolloProvider>
+            <MuiThemeProvider theme={theme}>
+              <ApiContext.Provider value={api}>
+                <CssBaseline />
+                <App />
+              </ApiContext.Provider>
+            </MuiThemeProvider>
+          </ApolloProvider>
         </BrowserRouter>
       </ErrorBoundary>
     );
