@@ -6,6 +6,7 @@ import { O } from 'ts-toolbelt';
 import { Button, Typography, MenuItem, Box, Balance } from 'components';
 import { TextInputField, DecimalsField } from 'components/form';
 import { DEFAULT_DECIMALS, SUBSTRATE_UNIT_NAME } from 'env';
+import { ITranslateKey } from 'services/i18n';
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
 import { getErrorMsg } from 'utils/getErrorMsg';
@@ -23,7 +24,7 @@ const fields: { [key in keyof FormData]: key } = {
   from: 'from',
 };
 
-type Errors = Partial<O.Update<FormData, keyof FormData, string>>;
+type Errors = Partial<O.Update<FormData, keyof FormData, ITranslateKey>>;
 
 interface Props {
   onChange?(values: FormData, errors: Errors): void;

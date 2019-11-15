@@ -1,7 +1,9 @@
 import Web3 from 'web3';
 
-export function validateEthereumAddress(value: string): string | undefined {
+import { tKeys, ITranslateKey } from 'services/i18n';
+
+export function validateEthereumAddress(value: string): ITranslateKey | undefined {
   return value && Web3.utils.isAddress(value.toLowerCase())
     ? undefined
-    : 'Enter a valid Ethereum address';
+    : tKeys.utils.validation.isValidEthereumAddress.getKey();
 }
