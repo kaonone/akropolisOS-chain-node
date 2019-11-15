@@ -3,7 +3,7 @@ import Polyglot from 'node-polyglot';
 import { tKeys } from './constants';
 
 type CustomTranslateFunction = (phrase: ITranslateKey) => string;
-export interface IPhraseWithOptions {
+interface IPhraseWithOptions {
   key: string;
   params: Record<string, string | number>;
 }
