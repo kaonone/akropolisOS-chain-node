@@ -1,6 +1,14 @@
 import Web3 from 'web3';
 import Contract from 'web3/eth/contract';
-import { Observable, interval, from, fromEventPattern, ReplaySubject, defer } from 'rxjs';
+import {
+  Observable,
+  interval,
+  from,
+  fromEventPattern,
+  ReplaySubject,
+  defer,
+  BehaviorSubject,
+} from 'rxjs';
 import { switchMap, skipWhile, retry } from 'rxjs/operators';
 import BN from 'bn.js';
 import { ApiRx } from '@polkadot/api';
@@ -14,12 +22,15 @@ import bridgeAbi from 'abis/bridge.json';
 import erc20Abi from 'abis/erc20.json';
 import { getContractData$ } from 'utils/ethereum';
 import { delay } from 'utils/helpers';
+import { LocalStorage } from 'services/storage';
 
 import { callPolkaApi } from './callPolkaApi';
 
 export class Api {
   private daiContract: Contract;
   private bridgeContract: Contract;
+  private transactionsStorage = new LocalStorage('v1');
+  private submittedTransactions = new BehaviorSubject<string[]>([]);
 
   constructor(private web3: Web3, private substrateApi: Observable<ApiRx>) {
     this.daiContract = new this.web3.eth.Contract(erc20Abi, ETH_NETWORK_CONFIG.contracts.dai);
@@ -27,6 +38,7 @@ export class Api {
       bridgeAbi,
       ETH_NETWORK_CONFIG.contracts.bridge,
     );
+    this.initTransactions();
   }
 
   public async sendToEthereum(fromAddress: string, to: string, amount: string): Promise<void> {
@@ -40,9 +52,26 @@ export class Api {
       transfer.signAndSend(fromAddress).subscribe({
         complete: resolve,
         error: reject,
-        next: ({ isCompleted, isError }) => {
-          isError && reject(new Error('tx.bridge.setTransfer extrinsic is failed'));
-          isCompleted && resolve();
+        next: ({ isCompleted, isError, events }) => {
+          const failedEvent = events.find(
+            event => event.event.meta.name.toString() === 'ExtrinsicFailed',
+          );
+          const messageHashEvent = events.find(
+            event => event.event.meta.name.toString() === 'RelayMessage',
+          );
+
+          const messageId = messageHashEvent && messageHashEvent.event.data[0].toHex();
+
+          if (messageId) {
+            // eslint-disable-next-line no-console
+            console.log(messageId);
+            this.pushToSubmittedTransactions$(messageId);
+          }
+
+          (isError || failedEvent) &&
+            reject(new Error('tx.bridge.setTransfer extrinsic is failed'));
+          isCompleted && messageId && resolve(messageId);
+          isCompleted && !messageId && reject(new Error('Message id is not found'));
         },
       });
     });
@@ -70,7 +99,38 @@ export class Api {
   private async sendToBridge(fromAddress: string, to: string, amount: string): Promise<void> {
     const formatedToAddress = u8aToHex(decodeAddress(to));
     const bytesAddress = this.web3.utils.hexToBytes(formatedToAddress);
-    await this.bridgeContract.methods.setTransfer(amount, bytesAddress).send({ from: fromAddress });
+
+    await this.bridgeContract.methods
+      .setTransfer(amount, bytesAddress)
+      .send({ from: fromAddress })
+      .then(value => {
+        this.pushToSubmittedTransactions$(value.events.RelayMessage.returnValues.messageID);
+      });
+  }
+
+  private initTransactions() {
+    const prevMessages: string | null = this.transactionsStorage.get('transactions');
+    const initialMessages = prevMessages ? [...JSON.parse(prevMessages)] : [];
+    this.submittedTransactions.next(initialMessages);
+  }
+
+  private pushToSubmittedTransactions$(messageId: string) {
+    const prevMessages: string | null = this.transactionsStorage.get('transactions');
+
+    const uniqueMessages =
+      prevMessages &&
+      ([...JSON.parse(prevMessages)].includes(messageId)
+        ? [...JSON.parse(prevMessages)]
+        : [...JSON.parse(prevMessages), messageId]);
+
+    const newMessages = uniqueMessages || [messageId];
+
+    this.transactionsStorage.set('transactions', JSON.stringify(newMessages));
+    this.submittedTransactions.next(newMessages);
+  }
+
+  public getTransactions$() {
+    return this.submittedTransactions;
   }
 
   // eslint-disable-next-line class-methods-use-this

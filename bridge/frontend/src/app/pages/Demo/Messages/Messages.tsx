@@ -1,4 +1,5 @@
 import * as React from 'react';
+
 import { useMessagesByIdsQuery } from 'generated/bridge-graphql';
 import { Loading } from 'components';
 
@@ -16,4 +17,4 @@ function Messages({ ids }: IProps) {
   );
 }
 
-export default Messages;
+export { Messages };

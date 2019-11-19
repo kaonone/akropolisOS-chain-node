@@ -34,7 +34,7 @@ const link = new ApolloLink(operation => {
 
   const foundedDirective =
     'operation' in definition &&
-    definition.directives?.find(item =>
+    definition.directives!.find(item =>
       allowedDirectives.includes(item.name.value as DirectiveName),
     );
   const directive: DirectiveName | 'default' = foundedDirective

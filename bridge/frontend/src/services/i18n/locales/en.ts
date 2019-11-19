@@ -9,6 +9,17 @@ const en = {
       decimalsMoreThen: 'Enter a valid number with decimals less than %{decimals} digits',
     },
   },
+  components: {
+    transfersList: {
+      title: 'Transfers',
+      direction: 'Direction',
+      ethAddress: 'Ethereum address',
+      subAddress: 'Substrate address',
+      amount: 'Amount',
+      status: 'Status',
+      blockNumber: 'Block number',
+    },
+  },
 };
 
 export { en };
