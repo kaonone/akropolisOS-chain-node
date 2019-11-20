@@ -4,11 +4,9 @@ import { makeStyles } from '@material-ui/core/styles';
 import { RouteComponentProps } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { Grid, Typography, Paper, Tabs, Tab, Box, TransfersList, Loading } from 'components';
+import { Grid, Typography, Paper, Tabs, Tab, Box } from 'components';
 import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
-import { useApi } from 'services/api';
-import { useSubscribable } from 'utils/hooks';
-import { useMessagesByIdsQuery } from 'generated/bridge-graphql';
+import { Messages } from 'features/transfersHistory';
 
 import { routes } from '../../routes';
 
@@ -27,23 +25,13 @@ const viewIndexBySourceChain: Record<SourceChain, number> = {
   substrate: 1,
 };
 
-// subgraph throws an error if the identifiers are empty
-const mockIds = ['0x0000000000000000000000000000000000000000000000000000000000000000'];
-
 function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
   const classes = useStyles();
 
-  const { sourceChain } = props.match.params;
+  const { match } = props;
+  const { sourceChain } = match.params;
 
   const currentTabIndex = viewIndexBySourceChain[sourceChain] || 0;
-
-  const api = useApi();
-  const [ids, idsMeta] = useSubscribable(() => api.getTransactions$(), [], []);
-
-  const { loading, data, error } = useMessagesByIdsQuery({
-    variables: { ids: ids && ids.length ? ids : mockIds },
-  });
-  const messages = (ids.length && data?.messages) || null;
 
   return (
     <Grid container spacing={3} className={classes.root}>
@@ -82,9 +70,7 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
         </SwipeableViews>
       </Grid>
       <Grid item xs={12}>
-        <Loading meta={[idsMeta, { loaded: !loading, error: error && error.message }]}>
-          {messages && <TransfersList messages={messages} />}
-        </Loading>
+        <Messages />
       </Grid>
     </Grid>
   );

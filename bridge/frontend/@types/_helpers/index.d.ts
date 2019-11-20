@@ -52,11 +52,11 @@ declare module '_helpers' {
   };
 
   type CheckExtends<T, R> = T extends R ? true : unknown;
-  export type CheckIdentity<T, R> = (
+  export type CheckIdentity<T, R> =
     | CheckExtends<T, R>
     | CheckExtends<R, T>
     | CheckExtends<keyof T, keyof R>
-    | CheckExtends<keyof R, keyof T>) extends true
+    | CheckExtends<keyof R, keyof T> extends true
     ? T
     : unknown;
 
@@ -108,9 +108,9 @@ declare module '_helpers' {
     readonly [P in NonFunctionPropertyNames<T>]?: DeepPartial<T[P]>;
   };
 
-  type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((
-    k: infer I,
-  ) => void)
+  type UnionToIntersection<U> = (U extends any
+  ? (k: U) => void
+  : never) extends (k: infer I) => void
     ? I
     : never;
 

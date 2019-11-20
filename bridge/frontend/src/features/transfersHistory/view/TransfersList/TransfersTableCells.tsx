@@ -5,9 +5,8 @@ import Avatar from '@material-ui/core/Avatar';
 import BaseIdentityIcon from '@polkadot/react-identicon';
 import Jazzicon, { jsNumberForAddress } from 'react-jazzicon';
 
-import { ShortAddress } from 'components/ShortAddress/ShortAddress';
+import { ShortAddress, TransactionStatus } from 'components';
 import { BalanceValue } from 'components/BalanceValue';
-import { TransactionStatus } from 'components/TransactionStatus/TransactionStatus';
 import { makeStyles } from 'utils/styles';
 import { Status, Direction } from 'generated/bridge-graphql';
 

@@ -20,7 +20,7 @@ const bridgeLink = makeEndpointLink(
 );
 
 const allowedDirectives = ['bridge'] as const;
-type DirectiveName = (typeof allowedDirectives)[number];
+type DirectiveName = typeof allowedDirectives[number];
 
 const linkByDirective: Record<DirectiveName | 'default', ApolloLink> = {
   bridge: bridgeLink,

@@ -20,7 +20,7 @@ interface IProps {
   messages: Message[];
 }
 
-const tKeys = tKeysAll.components.transfersList;
+const tKeys = tKeysAll.features.transfersList;
 
 function TransfersList(props: IProps) {
   const { messages } = props;
@@ -48,24 +48,18 @@ function TransfersList(props: IProps) {
           <Table.Column>
             <Table.Head align="center">{t(tKeys.ethAddress.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }) => (
-                <AddressCell isSubstrate={false} address={data.ethAddress} />
-              )}
+              {({ data }) => <AddressCell isSubstrate={false} address={data.ethAddress} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head align="center">{t(tKeys.subAddress.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }) => (
-                <AddressCell isSubstrate address={data.subAddress} />
-              )}
+              {({ data }) => <AddressCell isSubstrate address={data.subAddress} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head>{t(tKeys.amount.getKey())}</Table.Head>
-            <Table.Cell>
-              {({ data }) => <AmountCell amount={data.amount} />}
-            </Table.Cell>
+            <Table.Cell>{({ data }) => <AmountCell amount={data.amount} />}</Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head align="center">{t(tKeys.status.getKey())}</Table.Head>
@@ -76,9 +70,7 @@ function TransfersList(props: IProps) {
           <Table.Column>
             <Table.Head>{t(tKeys.blockNumber.getKey())}</Table.Head>
             <Table.Cell>
-              {({ data }) => (
-                <BlockNumberCell blockNumber={data.ethBlockNumber || ''} />
-              )}
+              {({ data }) => <BlockNumberCell blockNumber={data.ethBlockNumber || 'awaiting'} />}
             </Table.Cell>
           </Table.Column>
         </Table>

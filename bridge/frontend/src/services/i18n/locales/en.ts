@@ -10,6 +10,12 @@ const en = {
     },
   },
   components: {
+    pagination: {
+      itemsPerPage: 'Items per page',
+      currentPagination: '%{from} - %{to} of %{total}',
+    },
+  },
+  features: {
     transfersList: {
       title: 'Transfers',
       direction: 'Direction',
@@ -18,6 +24,7 @@ const en = {
       amount: 'Amount',
       status: 'Status',
       blockNumber: 'Block number',
+      notFound: 'Transfers not found',
     },
   },
 };

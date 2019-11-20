@@ -1,5 +1,7 @@
+import { Message } from 'generated/bridge-graphql';
+
 export interface PayloadByKey {
-  transactions: string[];
+  transactions: Message[];
   version: string;
 }
 
