@@ -5,7 +5,7 @@ import { RouteComponentProps } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import { Grid, Typography, Paper, Tabs, Tab, Box, TransfersList, Loading } from 'components';
-import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
+import { EthereumToSubstrate, SubstrateToEthereum, Settings } from 'features/tokenTransfer';
 import { IMessage } from 'components/TransfersList/TransfersList';
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
@@ -21,11 +21,12 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-type SourceChain = 'ethereum' | 'substrate';
+type SourceChain = 'ethereum' | 'substrate' | 'settings';
 
 const viewIndexBySourceChain: Record<SourceChain, number> = {
   ethereum: 0,
   substrate: 1,
+  settings: 2,
 };
 
 const mockIds = [
@@ -78,6 +79,11 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
               component={Link}
               to={routes.sourceChain.getRedirectPath({ sourceChain: 'substrate' })}
             />
+            <Tab
+              label="Settings"
+              component={Link}
+              to={routes.sourceChain.getRedirectPath({ sourceChain: 'settings' })}
+            />
           </Tabs>
         </Paper>
         <SwipeableViews index={currentTabIndex}>
@@ -86,6 +92,9 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
           </Box>
           <Box p={2}>
             <SubstrateToEthereum />
+          </Box>
+          <Box p={2}>
+            <Settings />
           </Box>
         </SwipeableViews>
       </Grid>

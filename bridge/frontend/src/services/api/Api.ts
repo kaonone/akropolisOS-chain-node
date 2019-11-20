@@ -29,10 +29,13 @@ import { callPolkaApi } from './callPolkaApi';
 export class Api {
   private daiContract: Contract;
   private bridgeContract: Contract;
-  private transactionsStorage = new LocalStorage('v1');
   private submittedTransactions = new BehaviorSubject<string[]>([]);
 
-  constructor(private web3: Web3, private substrateApi: Observable<ApiRx>) {
+  constructor(
+    private web3: Web3,
+    private substrateApi: Observable<ApiRx>,
+    private storage: LocalStorage,
+  ) {
     this.daiContract = new this.web3.eth.Contract(erc20Abi, ETH_NETWORK_CONFIG.contracts.dai);
     this.bridgeContract = new this.web3.eth.Contract(
       bridgeAbi,
@@ -109,13 +112,13 @@ export class Api {
   }
 
   private initTransactions() {
-    const prevMessages: string | null = this.transactionsStorage.get('transactions');
+    const prevMessages: string | null = this.storage.get('transactions');
     const initialMessages = prevMessages ? [...JSON.parse(prevMessages)] : [];
     this.submittedTransactions.next(initialMessages);
   }
 
   private pushToSubmittedTransactions$(messageId: string) {
-    const prevMessages: string | null = this.transactionsStorage.get('transactions');
+    const prevMessages: string | null = this.storage.get('transactions');
 
     const uniqueMessages =
       prevMessages &&
@@ -125,7 +128,7 @@ export class Api {
 
     const newMessages = uniqueMessages || [messageId];
 
-    this.transactionsStorage.set('transactions', JSON.stringify(newMessages));
+    this.storage.set('transactions', JSON.stringify(newMessages));
     this.submittedTransactions.next(newMessages);
   }
 
@@ -204,6 +207,10 @@ export class Api {
       .subscribe(accounts$);
 
     return accounts$;
+  }
+
+  public setNodeUrl(url: string) {
+    this.storage.set('nodeUrl', url);
   }
 }
 

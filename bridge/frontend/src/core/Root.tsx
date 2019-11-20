@@ -8,6 +8,7 @@ import { theme } from 'utils/styles';
 import { App } from 'app/App';
 import { Api, ApiContext } from 'services/api';
 import { ApolloProvider } from 'services/apollo';
+import { LocalStorage } from 'services/storage';
 import { SUBSTRATE_NODE_URL, SUBSTRATE_NODE_CUSTOM_TYPES } from 'env';
 import { ErrorBoundary, CssBaseline } from 'components';
 
@@ -16,11 +17,16 @@ export function Root(): React.ReactElement<{}> {
   if (window.web3) {
     // TODO need to change Web3 instantiating, window.web3 will become deprecated in December 2019
     const web3 = new Web3(window.web3.currentProvider);
+
+    const storage = new LocalStorage('v1');
+    const nodeUrl: string | null = storage.get('nodeUrl');
+
     const substrateApi = ApiRx.create({
-      provider: new WsProvider(SUBSTRATE_NODE_URL),
+      provider: new WsProvider(nodeUrl || SUBSTRATE_NODE_URL),
       types: SUBSTRATE_NODE_CUSTOM_TYPES,
     });
-    const api = new Api(web3, substrateApi);
+
+    const api = new Api(web3, substrateApi, storage);
 
     return (
       <ErrorBoundary>
