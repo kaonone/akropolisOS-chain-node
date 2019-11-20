@@ -1,3 +1,4 @@
+import * as R from 'ramda';
 import Web3 from 'web3';
 import Contract from 'web3/eth/contract';
 import {
@@ -29,7 +30,7 @@ import { callPolkaApi } from './callPolkaApi';
 export class Api {
   private daiContract: Contract;
   private bridgeContract: Contract;
-  private transactionsStorage = new LocalStorage('v1');
+  private storage = new LocalStorage('v1');
   private submittedTransactions = new BehaviorSubject<string[]>([]);
 
   constructor(private web3: Web3, private substrateApi: Observable<ApiRx>) {
@@ -60,18 +61,16 @@ export class Api {
             event => event.event.meta.name.toString() === 'RelayMessage',
           );
 
-          const messageId = messageHashEvent && messageHashEvent.event.data[0].toHex();
+          const messageId = messageHashEvent && messageHashEvent.event.data[0]?.toHex();
 
           if (messageId) {
-            // eslint-disable-next-line no-console
-            console.log(messageId);
             this.pushToSubmittedTransactions$(messageId);
           }
 
           (isError || failedEvent) &&
             reject(new Error('tx.bridge.setTransfer extrinsic is failed'));
           isCompleted && messageId && resolve(messageId);
-          isCompleted && !messageId && reject(new Error('Message id is not found'));
+          isCompleted && !messageId && reject(new Error('Message ID is not found'));
         },
       });
     });
@@ -100,33 +99,26 @@ export class Api {
     const formatedToAddress = u8aToHex(decodeAddress(to));
     const bytesAddress = this.web3.utils.hexToBytes(formatedToAddress);
 
-    await this.bridgeContract.methods
+    const result = await this.bridgeContract.methods
       .setTransfer(amount, bytesAddress)
-      .send({ from: fromAddress })
-      .then(value => {
-        this.pushToSubmittedTransactions$(value.events.RelayMessage.returnValues.messageID);
-      });
+      .send({ from: fromAddress });
+
+    const messageID = result?.events?.RelayMessage?.returnValues?.messageID;
+    messageID && this.pushToSubmittedTransactions$(messageID);
   }
 
   private initTransactions() {
-    const prevMessages: string | null = this.transactionsStorage.get('transactions');
-    const initialMessages = prevMessages ? [...JSON.parse(prevMessages)] : [];
-    this.submittedTransactions.next(initialMessages);
+    const prevMessages = this.storage.get('transactions', []);
+    this.submittedTransactions.next(prevMessages);
   }
 
   private pushToSubmittedTransactions$(messageId: string) {
-    const prevMessages: string | null = this.transactionsStorage.get('transactions');
+    const prevMessages = this.storage.get('transactions', []);
 
-    const uniqueMessages =
-      prevMessages &&
-      ([...JSON.parse(prevMessages)].includes(messageId)
-        ? [...JSON.parse(prevMessages)]
-        : [...JSON.parse(prevMessages), messageId]);
+    const messages = R.uniq([...prevMessages, messageId]);
 
-    const newMessages = uniqueMessages || [messageId];
-
-    this.transactionsStorage.set('transactions', JSON.stringify(newMessages));
-    this.submittedTransactions.next(newMessages);
+    this.storage.set('transactions', messages);
+    this.submittedTransactions.next(messages);
   }
 
   public getTransactions$() {

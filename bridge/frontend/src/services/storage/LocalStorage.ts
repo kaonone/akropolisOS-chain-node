@@ -29,21 +29,25 @@ class LocalStorage {
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  public get<T extends StorageKey>(key: T): PayloadByKey[T] | null {
+  public get<T extends StorageKey>(key: T): PayloadByKey[T] | null;
+  public get<T extends StorageKey>(key: T, fallback: PayloadByKey[T]): PayloadByKey[T];
+  public get<T extends StorageKey>(key: T, fallback?: PayloadByKey[T]): PayloadByKey[T] | null {
+    const _fallback = fallback || null;
+
     if (!this.isLocalStorageAvailable) {
-      return null;
+      return _fallback;
     }
 
     const data = localStorage.getItem(key);
 
     try {
-      return data ? JSON.parse(data) : null;
+      return data ? JSON.parse(data) : _fallback;
     } catch (e) {
       console.error(
         `Error while parsing data from localstorage for key: ${key}.
         Error is: ${e.message}, stack is: ${e.stack}`,
       );
-      return null;
+      return _fallback;
     }
   }
 

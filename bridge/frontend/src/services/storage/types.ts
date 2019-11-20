@@ -1,5 +1,5 @@
 export interface PayloadByKey {
-  transactions: string;
+  transactions: string[];
   version: string;
 }
 

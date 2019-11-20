@@ -7,10 +7,9 @@ import Jazzicon, { jsNumberForAddress } from 'react-jazzicon';
 
 import { ShortAddress } from 'components/ShortAddress/ShortAddress';
 import { BalanceValue } from 'components/BalanceValue';
-import { TransactionStatus, Status } from 'components/TransactionStatus/TransactionStatus';
+import { TransactionStatus } from 'components/TransactionStatus/TransactionStatus';
 import { makeStyles } from 'utils/styles';
-
-export type Direction = 'ETH2SUB' | 'SUB2ETH';
+import { Status, Direction } from 'generated/bridge-graphql';
 
 const useStyles = makeStyles(() => {
   return {
@@ -23,7 +22,7 @@ const useStyles = makeStyles(() => {
         height: '100%',
       },
     },
-  } as const;
+  };
 });
 
 export function AddressCell({ address, isSubstrate }: { address: string; isSubstrate: boolean }) {
