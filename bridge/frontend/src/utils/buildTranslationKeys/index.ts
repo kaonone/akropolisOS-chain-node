@@ -30,7 +30,7 @@ export function buildTranslationKeys<T extends ITree>(messagesTree: T): Translat
           concat: (_key: string) => xPath.concat(_key).join('.'),
         };
         if (typeof value === 'string') {
-          return { ...(acc as any), [key]: routeData };
+          return { ...acc, [key]: routeData };
         }
         return {
           ...acc,

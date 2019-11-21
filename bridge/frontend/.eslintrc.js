@@ -71,5 +71,6 @@ module.exports = {
     'no-console': ['error', { allow: ['info', 'warn', 'error'] }],
     'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: true }],
     'no-undef': 'off',
+    "no-dupe-class-members": "off",
   },
 };

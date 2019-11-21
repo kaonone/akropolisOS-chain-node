@@ -3,11 +3,13 @@ import ForwardIcon from '@material-ui/icons/Forward';
 import Grid from '@material-ui/core/Grid';
 import Avatar from '@material-ui/core/Avatar';
 import BaseIdentityIcon from '@polkadot/react-identicon';
+import { encodeAddress } from '@polkadot/util-crypto';
 import Jazzicon, { jsNumberForAddress } from 'react-jazzicon';
 
 import { ShortAddress, TransactionStatus } from 'components';
 import { BalanceValue } from 'components/BalanceValue';
 import { makeStyles } from 'utils/styles';
+import { isHex } from 'utils/hex/isHex';
 import { Status, Direction } from 'generated/bridge-graphql';
 
 const useStyles = makeStyles(() => {
@@ -39,7 +41,7 @@ export function AddressCell({ address, isSubstrate }: { address: string; isSubst
         </Avatar>
       </Grid>
       <Grid item>
-        <ShortAddress address={address} />
+        <ShortAddress address={isSubstrate && isHex(address) ? encodeAddress(address) : address} />
       </Grid>
     </Grid>
   );
@@ -55,21 +57,21 @@ export function StatusCell({ status }: { status: Status }) {
 
 export function DirectionCell({ direction }: { direction: Direction }) {
   return (
-    <>
+    <Grid container alignItems="center" justify="center" spacing={1}>
       {direction === 'ETH2SUB' ? (
-        <Grid container alignItems="center" justify="center" spacing={1}>
+        <>
           <Grid item>ETH</Grid>
           <ForwardIcon color="primary" />
           <Grid item>SUB</Grid>
-        </Grid>
+        </>
       ) : (
-        <Grid container alignItems="center" justify="center" spacing={1}>
+        <>
           <Grid item>SUB</Grid>
           <ForwardIcon color="primary" />
           <Grid item>ETH</Grid>
-        </Grid>
+        </>
       )}
-    </>
+    </Grid>
   );
 }
 

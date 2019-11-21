@@ -32,22 +32,22 @@ class LocalStorage {
   public get<T extends StorageKey>(key: T): PayloadByKey[T] | null;
   public get<T extends StorageKey>(key: T, fallback: PayloadByKey[T]): PayloadByKey[T];
   public get<T extends StorageKey>(key: T, fallback?: PayloadByKey[T]): PayloadByKey[T] | null {
-    const _fallback = fallback || null;
+    const defaultValue = fallback || null;
 
     if (!this.isLocalStorageAvailable) {
-      return _fallback;
+      return defaultValue;
     }
 
     const data = localStorage.getItem(key);
 
     try {
-      return data ? JSON.parse(data) : _fallback;
+      return data ? JSON.parse(data) : defaultValue;
     } catch (e) {
       console.error(
         `Error while parsing data from localstorage for key: ${key}.
         Error is: ${e.message}, stack is: ${e.stack}`,
       );
-      return _fallback;
+      return defaultValue;
     }
   }
 
