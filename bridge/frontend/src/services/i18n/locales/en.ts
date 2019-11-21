@@ -7,6 +7,7 @@ const en = {
       isValidEthereumAddress: 'Enter a valid Ethereum address',
       isNumber: 'Enter a valid number',
       decimalsMoreThen: 'Enter a valid number with decimals less than %{decimals} digits',
+      isValidNodeUrl: 'Node url should starts with "wss://"',
     },
   },
   components: {

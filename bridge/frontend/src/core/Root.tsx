@@ -21,8 +21,10 @@ export function Root(): React.ReactElement<{}> {
     const storage = new LocalStorage('v1');
     const nodeUrl: string | null = storage.get('nodeUrl');
 
+    const provider = new WsProvider(nodeUrl || SUBSTRATE_NODE_URL);
+
     const substrateApi = ApiRx.create({
-      provider: new WsProvider(nodeUrl || SUBSTRATE_NODE_URL),
+      provider,
       types: SUBSTRATE_NODE_CUSTOM_TYPES,
     });
 

@@ -34,7 +34,7 @@ const mockIds = [
   '0x021b75496294ad708a923e6b9554d3c5382b2127dffdd35f194d4f0ae42ed3c4',
 ];
 
-function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
+function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }> & IProps) {
   const classes = useStyles();
 
   const {

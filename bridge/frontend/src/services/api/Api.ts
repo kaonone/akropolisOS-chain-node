@@ -209,6 +209,10 @@ export class Api {
     return accounts$;
   }
 
+  public getNodeUrl() {
+    return this.storage.get('nodeUrl');
+  }
+
   public setNodeUrl(url: string) {
     this.storage.set('nodeUrl', url);
   }
