@@ -27,6 +27,15 @@ const en = {
       blockNumber: 'Block number',
       notFound: 'Transfers not found',
     },
+    tokenTransfer: {
+      settings: {
+        localSettigs: 'Local settings',
+        bridgeSettings: 'Bridge settings',
+        connectionStatus: 'Connection status:',
+        resetButton: 'reset',
+        saveButton: 'Save and reload',
+      },
+    },
   },
 };
 

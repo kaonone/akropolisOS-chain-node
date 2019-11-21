@@ -19,3 +19,4 @@ export { default as Box } from '@material-ui/core/Box';
 export { default as LinearProgress } from '@material-ui/core/LinearProgress';
 export { default as Button } from '@material-ui/core/Button';
 export { default as MenuItem } from '@material-ui/core/MenuItem';
+export { default as Chip } from '@material-ui/core/Chip';

@@ -3,11 +3,11 @@ import { WsProvider } from '@polkadot/api';
 
 import { LocalStorage } from 'services/storage';
 
-import { IConnectionInfo } from './types';
+import { IConnectionInfo, ConnectionStatus } from './types';
 
 export class ProviderApi {
   private connectionStatus = new BehaviorSubject<IConnectionInfo>({
-    status: 'CONNECTING',
+    status: ConnectionStatus.connecting,
     errors: 0,
   });
 
@@ -33,12 +33,12 @@ export class ProviderApi {
 
       if (errors >= 5) {
         this.connectionStatus.next({
-          status: 'ERROR',
+          status: ConnectionStatus.error,
           errors,
         });
       } else {
         this.connectionStatus.next({
-          status: 'CONNECTING',
+          status: ConnectionStatus.connecting,
           errors: errors + 1,
         });
       }
@@ -46,7 +46,7 @@ export class ProviderApi {
 
     this.wsProvider.on('connected', () => {
       this.connectionStatus.next({
-        status: 'READY',
+        status: ConnectionStatus.ready,
         errors: 0,
       });
     });

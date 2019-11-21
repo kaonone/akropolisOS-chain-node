@@ -1,9 +1,12 @@
 import React from 'react';
 import { Form } from 'react-final-form';
+import * as colors from '@material-ui/core/colors';
 
+import { ConnectionStatus } from 'services/api/types';
 import { useApi } from 'services/api';
+import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { TextInputField } from 'components/form';
-import { Grid, Button, Typography, Hint, Loading } from 'components';
+import { Grid, Button, Typography, Hint, Loading, Chip } from 'components';
 import { SUBSTRATE_NODE_URL } from 'env';
 import { validateNodeUrl } from 'utils/validators';
 import { useSubscribable } from 'utils/react';
@@ -16,7 +19,22 @@ const fieldNames: { [K in keyof IFormData]: K } = {
   nodeUrl: 'nodeUrl',
 };
 
+const backgrounds: Record<ConnectionStatus, string> = {
+  CONNECTING: colors.yellow[500],
+  READY: colors.lightGreen[500],
+  ERROR: colors.red[500],
+};
+
+const statuses: Record<ConnectionStatus, string> = {
+  CONNECTING: 'connecting',
+  READY: 'ready',
+  ERROR: 'error',
+};
+
+const tKeys = tKeysAll.features.tokenTransfer.settings;
+
 function Settings() {
+  const { t } = useTranslate();
   const api = useApi();
 
   const [connectionStatus, connectionStatusMeta] = useSubscribable(
@@ -58,13 +76,28 @@ function Settings() {
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Typography variant="h4" noWrap gutterBottom>
-                    Local settings
+                    {t(tKeys.localSettigs.getKey())}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
                   {connectionStatus && (
                     <Loading meta={connectionStatusMeta}>
-                      <Hint>{connectionStatus.status}</Hint>
+                      <Grid container spacing={2} alignItems="center" justify="center">
+                        <Grid item>
+                          <Typography variant="caption" color="primary">
+                            {t(tKeys.connectionStatus.getKey())}
+                          </Typography>
+                        </Grid>
+                        <Grid item>
+                          <Chip
+                            style={{
+                              background: backgrounds[connectionStatus.status],
+                              color: '#fff',
+                            }}
+                            label={statuses[connectionStatus.status].toUpperCase()}
+                          />
+                        </Grid>
+                      </Grid>
                     </Loading>
                   )}
                 </Grid>
@@ -80,7 +113,7 @@ function Settings() {
                     InputProps={{
                       endAdornment: (
                         <Button color="primary" onClick={handleResetButtonClick}>
-                          Reset
+                          {t(tKeys.resetButton.getKey())}
                         </Button>
                       ),
                     }}
@@ -102,7 +135,7 @@ function Settings() {
                     color="primary"
                     disabled={submitting}
                   >
-                    Save and reload
+                    {t(tKeys.saveButton.getKey())}
                   </Button>
                 </Grid>
               </Grid>
@@ -112,7 +145,7 @@ function Settings() {
       </Grid>
       <Grid item xs={6}>
         <Typography variant="h4" noWrap gutterBottom>
-          Bridge settings
+          {t(tKeys.bridgeSettings.getKey())}
         </Typography>
         <Hint>Coming soon</Hint>
       </Grid>

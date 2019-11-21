@@ -1,4 +1,8 @@
-export type ConnectionStatus = 'CONNECTING' | 'READY' | 'ERROR';
+export enum ConnectionStatus {
+  connecting = 'CONNECTING',
+  ready = 'READY',
+  error = 'ERROR',
+}
 
 export interface IConnectionInfo {
   status: ConnectionStatus;
