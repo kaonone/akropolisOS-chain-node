@@ -10,7 +10,10 @@ interface IOption {
 }
 
 export function LanguageSelector() {
-  const options: IOption[] = [{ value: 'en', label: 'en' }, { value: 'ru', label: 'ru' }];
+  const options: IOption[] = [
+    { value: 'en', label: 'en' },
+    { value: 'ru', label: 'ru' },
+  ];
   const { locale, changeLanguage } = React.useContext(TContext);
 
   const handleChange = ({ target: { value } }: React.ChangeEvent<HTMLSelectElement>) => {

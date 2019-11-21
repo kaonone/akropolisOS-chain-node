@@ -3,6 +3,11 @@ export { Balance } from './Balance';
 export { EthereumValidators } from './EthereumValidators';
 export { ErrorBoundary } from './ErrorBoundary';
 export { Loading } from './Loading';
+export { Table } from './Table/Table';
+export { ShortAddress } from './ShortAddress/ShortAddress';
+export { TransactionStatus } from './TransactionStatus/TransactionStatus';
+export { Pagination } from './Pagination/Pagination';
+export { Hint } from './Hint/Hint';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';

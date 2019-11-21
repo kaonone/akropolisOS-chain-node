@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 
 import { Grid, Typography, Paper, Tabs, Tab, Box } from 'components';
 import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
+import { Messages } from 'features/transfersHistory';
 
 import { routes } from '../../routes';
 
@@ -27,11 +28,8 @@ const viewIndexBySourceChain: Record<SourceChain, number> = {
 function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
   const classes = useStyles();
 
-  const {
-    match: {
-      params: { sourceChain },
-    },
-  } = props;
+  const { match } = props;
+  const { sourceChain } = match.params;
 
   const currentTabIndex = viewIndexBySourceChain[sourceChain] || 0;
 
@@ -70,6 +68,9 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
             <SubstrateToEthereum />
           </Box>
         </SwipeableViews>
+      </Grid>
+      <Grid item xs={12}>
+        <Messages />
       </Grid>
     </Grid>
   );
