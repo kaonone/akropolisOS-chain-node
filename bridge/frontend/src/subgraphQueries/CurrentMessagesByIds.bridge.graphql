@@ -1,0 +1,11 @@
+subscription CurrentMessagesByIds($ids: [ID!]!) {
+  messages(where: {id_in: $ids}, orderBy: ethBlockNumber, orderDirection: asc) {
+    id
+    ethAddress
+    subAddress
+    amount
+    status
+    direction
+    ethBlockNumber
+  }
+}

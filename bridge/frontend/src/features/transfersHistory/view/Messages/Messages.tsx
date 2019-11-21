@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
-import { useMessagesByIdsQuery, Message } from 'generated/bridge-graphql';
+import { Message, useCurrentMessagesByIdsSubscription } from 'generated/bridge-graphql';
 import { TransfersList } from 'features/transfersHistory/view/TransfersList/TransfersList';
 import { Loading, Typography, Hint } from 'components';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
@@ -21,7 +21,7 @@ function Messages() {
   const ids = transactions.map(transaction => transaction.id);
   const { items: paginatedIds, paginationView } = usePagination(ids);
 
-  const { loading, data, error } = useMessagesByIdsQuery({
+  const { loading, data, error } = useCurrentMessagesByIdsSubscription({
     variables: { ids: (paginatedIds.length && paginatedIds) || mockIds },
   });
 
