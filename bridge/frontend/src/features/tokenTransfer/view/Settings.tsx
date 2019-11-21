@@ -58,10 +58,10 @@ function Settings() {
     [api],
   );
 
-  const handleResetButtonClick = () => {
+  const handleResetButtonClick = React.useCallback(() => {
     api.setNodeUrl(SUBSTRATE_NODE_URL);
     document.location.reload();
-  };
+  }, [api]);
 
   return (
     <Grid container spacing={4}>
