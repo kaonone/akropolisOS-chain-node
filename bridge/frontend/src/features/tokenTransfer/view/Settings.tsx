@@ -3,9 +3,10 @@ import { Form } from 'react-final-form';
 
 import { useApi } from 'services/api';
 import { TextInputField } from 'components/form';
-import { Grid, Button, Typography, Hint } from 'components';
+import { Grid, Button, Typography, Hint, Loading } from 'components';
 import { SUBSTRATE_NODE_URL } from 'env';
 import { validateNodeUrl } from 'utils/validators';
+import { useSubscribable } from 'utils/react';
 
 interface IFormData {
   nodeUrl: string;
@@ -17,6 +18,11 @@ const fieldNames: { [K in keyof IFormData]: K } = {
 
 function Settings() {
   const api = useApi();
+
+  const [connectionStatus, connectionStatusMeta] = useSubscribable(
+    () => api.getConnectionStatus$(),
+    [],
+  );
 
   const initialValues = React.useMemo<IFormData>(
     () => ({
@@ -56,6 +62,13 @@ function Settings() {
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
+                  {connectionStatus && (
+                    <Loading meta={connectionStatusMeta}>
+                      <Hint>{connectionStatus.status}</Hint>
+                    </Loading>
+                  )}
+                </Grid>
+                <Grid item xs={12}>
                   <TextInputField
                     validate={validateNodeUrl}
                     label="Enter node url"
@@ -92,9 +105,6 @@ function Settings() {
                     Save and reload
                   </Button>
                 </Grid>
-                {/* <Grid item xs={12}>
-                  {nodeError && <Hint>{nodeError}</Hint>}
-                </Grid> */}
               </Grid>
             </form>
           )}

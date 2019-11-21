@@ -28,7 +28,7 @@ export function Root(): React.ReactElement<{}> {
       types: SUBSTRATE_NODE_CUSTOM_TYPES,
     });
 
-    const api = new Api(web3, substrateApi, storage);
+    const api = new Api(web3, substrateApi, storage, provider);
 
     return (
       <ErrorBoundary>

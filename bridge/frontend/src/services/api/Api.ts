@@ -11,7 +11,7 @@ import {
 } from 'rxjs';
 import { switchMap, skipWhile, retry } from 'rxjs/operators';
 import BN from 'bn.js';
-import { ApiRx } from '@polkadot/api';
+import { ApiRx, WsProvider } from '@polkadot/api';
 import { web3Enable, web3AccountsSubscribe, web3FromAddress } from '@polkadot/extension-dapp';
 import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { decodeAddress } from '@polkadot/util-crypto';
@@ -25,16 +25,25 @@ import { delay } from 'utils/helpers';
 import { LocalStorage } from 'services/storage';
 
 import { callPolkaApi } from './callPolkaApi';
+import { IConnectionInfo } from './types';
+import { ProviderApi } from './ProviderApi';
 
 export class Api {
   private daiContract: Contract;
   private bridgeContract: Contract;
   private submittedTransactions = new BehaviorSubject<string[]>([]);
+  private connectionStatus = new BehaviorSubject<IConnectionInfo>({
+    status: 'CONNECTING',
+    errors: 0,
+  });
+
+  private providerApi: ProviderApi;
 
   constructor(
     private web3: Web3,
     private substrateApi: Observable<ApiRx>,
     private storage: LocalStorage,
+    private wsProvider: WsProvider,
   ) {
     this.daiContract = new this.web3.eth.Contract(erc20Abi, ETH_NETWORK_CONFIG.contracts.dai);
     this.bridgeContract = new this.web3.eth.Contract(
@@ -42,6 +51,8 @@ export class Api {
       ETH_NETWORK_CONFIG.contracts.bridge,
     );
     this.initTransactions();
+
+    this.providerApi = new ProviderApi(this.storage, this.wsProvider);
   }
 
   public async sendToEthereum(fromAddress: string, to: string, amount: string): Promise<void> {
@@ -210,11 +221,15 @@ export class Api {
   }
 
   public getNodeUrl() {
-    return this.storage.get('nodeUrl');
+    return this.providerApi.getNodeUrl();
   }
 
   public setNodeUrl(url: string) {
-    this.storage.set('nodeUrl', url);
+    this.providerApi.setNodeUrl(url);
+  }
+
+  public getConnectionStatus$(): Observable<IConnectionInfo> {
+    return this.providerApi.getConnectionStatus$();
   }
 }
 
