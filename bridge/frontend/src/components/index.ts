@@ -7,6 +7,7 @@ export { Table } from './Table/Table';
 export { ShortAddress } from './ShortAddress/ShortAddress';
 export { TransactionStatus } from './TransactionStatus/TransactionStatus';
 export { Hint } from './Hint/Hint';
+export { Pagination } from './Pagination/Pagination';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';

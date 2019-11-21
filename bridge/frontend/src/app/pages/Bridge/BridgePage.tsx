@@ -5,7 +5,7 @@ import { RouteComponentProps } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import { Grid, Typography, Paper, Tabs, Tab, Box } from 'components';
-import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
+import { EthereumToSubstrate, SubstrateToEthereum, Settings } from 'features/tokenTransfer';
 import { Messages } from 'features/transfersHistory';
 
 import { routes } from '../../routes';
