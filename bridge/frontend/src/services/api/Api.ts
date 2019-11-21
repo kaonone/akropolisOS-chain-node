@@ -1,3 +1,4 @@
+import * as R from 'ramda';
 import Web3 from 'web3';
 import Contract from 'web3/eth/contract';
 import {
@@ -23,6 +24,7 @@ import erc20Abi from 'abis/erc20.json';
 import { getContractData$ } from 'utils/ethereum';
 import { delay } from 'utils/helpers';
 import { LocalStorage } from 'services/storage';
+import { Direction, Message, Status } from 'generated/bridge-graphql';
 
 import { callPolkaApi } from './callPolkaApi';
 import { IConnectionInfo } from './types';
@@ -31,7 +33,7 @@ import { ProviderApi } from './ProviderApi';
 export class Api {
   private daiContract: Contract;
   private bridgeContract: Contract;
-  private submittedTransactions = new BehaviorSubject<string[]>([]);
+  private submittedTransactions = new BehaviorSubject<Message[]>([]);
   private connectionStatus = new BehaviorSubject<IConnectionInfo>({
     status: 'CONNECTING',
     errors: 0,
@@ -74,18 +76,23 @@ export class Api {
             event => event.event.meta.name.toString() === 'RelayMessage',
           );
 
-          const messageId = messageHashEvent && messageHashEvent.event.data[0].toHex();
+          const id = messageHashEvent && messageHashEvent.event.data[0]?.toHex();
 
-          if (messageId) {
-            // eslint-disable-next-line no-console
-            console.log(messageId);
-            this.pushToSubmittedTransactions$(messageId);
+          if (id) {
+            this.pushToSubmittedTransactions$({
+              id,
+              amount,
+              direction: Direction.Sub2Eth,
+              ethAddress: to,
+              subAddress: fromAddress,
+              status: Status.Pending,
+            });
           }
 
           (isError || failedEvent) &&
             reject(new Error('tx.bridge.setTransfer extrinsic is failed'));
-          isCompleted && messageId && resolve(messageId);
-          isCompleted && !messageId && reject(new Error('Message id is not found'));
+          isCompleted && id && resolve(id);
+          isCompleted && !id && reject(new Error('Message ID is not found'));
         },
       });
     });
@@ -114,33 +121,35 @@ export class Api {
     const formatedToAddress = u8aToHex(decodeAddress(to));
     const bytesAddress = this.web3.utils.hexToBytes(formatedToAddress);
 
-    await this.bridgeContract.methods
+    const result = await this.bridgeContract.methods
       .setTransfer(amount, bytesAddress)
-      .send({ from: fromAddress })
-      .then(value => {
-        this.pushToSubmittedTransactions$(value.events.RelayMessage.returnValues.messageID);
+      .send({ from: fromAddress });
+
+    const id = result?.events?.RelayMessage?.returnValues?.messageID;
+
+    id &&
+      this.pushToSubmittedTransactions$({
+        id,
+        amount,
+        direction: Direction.Eth2Sub,
+        ethAddress: fromAddress,
+        subAddress: to,
+        status: Status.Pending,
       });
   }
 
   private initTransactions() {
-    const prevMessages: string | null = this.storage.get('transactions');
-    const initialMessages = prevMessages ? [...JSON.parse(prevMessages)] : [];
-    this.submittedTransactions.next(initialMessages);
+    const prevMessages = this.storage.get('transactions', []);
+    this.submittedTransactions.next(prevMessages);
   }
 
-  private pushToSubmittedTransactions$(messageId: string) {
-    const prevMessages: string | null = this.storage.get('transactions');
+  private pushToSubmittedTransactions$(transactionInfo: Message) {
+    const prevTransactions = this.storage.get('transactions', []);
 
-    const uniqueMessages =
-      prevMessages &&
-      ([...JSON.parse(prevMessages)].includes(messageId)
-        ? [...JSON.parse(prevMessages)]
-        : [...JSON.parse(prevMessages), messageId]);
+    const transactions = R.uniq([...prevTransactions, transactionInfo]);
 
-    const newMessages = uniqueMessages || [messageId];
-
-    this.storage.set('transactions', JSON.stringify(newMessages));
-    this.submittedTransactions.next(newMessages);
+    this.storage.set('transactions', transactions);
+    this.submittedTransactions.next(transactions);
   }
 
   public getTransactions$() {

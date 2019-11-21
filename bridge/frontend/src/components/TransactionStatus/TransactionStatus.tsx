@@ -2,13 +2,7 @@ import React from 'react';
 import * as colors from '@material-ui/core/colors';
 import Chip from '@material-ui/core/Chip';
 
-export type Status =
-  | 'PENDING'
-  | 'WITHDRAW'
-  | 'APPROVED'
-  | 'CANCELED'
-  | 'CONFIRMED'
-  | 'CONFIRMED_WITHDRAW';
+import { Status } from 'generated/bridge-graphql';
 
 interface IProps {
   status: Status;
@@ -17,7 +11,7 @@ interface IProps {
 function TransactionStatus(props: IProps) {
   const { status } = props;
 
-  const backgrounds = {
+  const backgrounds: Record<Status, string> = {
     PENDING: colors.blue[500],
     WITHDRAW: colors.purple[500],
     APPROVED: colors.teal[500],
@@ -26,7 +20,7 @@ function TransactionStatus(props: IProps) {
     CONFIRMED_WITHDRAW: colors.indigo[500],
   };
 
-  const statuses = {
+  const statuses: Record<Status, string> = {
     PENDING: 'pending',
     WITHDRAW: 'withdraw',
     APPROVED: 'approved',

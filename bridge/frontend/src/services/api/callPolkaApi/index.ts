@@ -65,7 +65,7 @@ function callPolkaApi<E extends Endpoint>(
 }
 
 const availableAreas = ['consts', 'rpc', 'query', 'derive'] as const;
-type Area = (typeof availableAreas)[number];
+type Area = typeof availableAreas[number];
 
 function isArea(value: string): value is Area {
   return (availableAreas as readonly string[]).includes(value);

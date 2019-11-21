@@ -2,9 +2,9 @@ import * as React from 'react';
 import Typography from '@material-ui/core/Typography';
 import Grid from '@material-ui/core/Grid';
 
-import { Status } from 'components/TransactionStatus/TransactionStatus';
-import { Table } from 'components/Table/Table';
+import { Table as GeneralTable, MakeTableType } from 'components/Table/Table';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { Message } from 'generated/bridge-graphql';
 
 import {
   AddressCell,
@@ -12,25 +12,15 @@ import {
   StatusCell,
   DirectionCell,
   BlockNumberCell,
-  Direction,
 } from './TransfersTableCells';
 
-export interface IMessage {
-  id: string;
-  ethAddress: string;
-  subAddress: string;
-  amount: string;
-  status: Status;
-  direction: Direction;
-  ethBlockNumber?: string | null;
-  __typename?: 'Message';
-}
+const Table = GeneralTable as MakeTableType<Message>;
 
 interface IProps {
-  messages: IMessage[];
+  messages: Message[];
 }
 
-const tKeys = tKeysAll.components.transfersList;
+const tKeys = tKeysAll.features.transfersList;
 
 function TransfersList(props: IProps) {
   const { messages } = props;
@@ -52,43 +42,35 @@ function TransfersList(props: IProps) {
           <Table.Column>
             <Table.Head align="center">{t(tKeys.direction.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }: { data: IMessage }) => <DirectionCell direction={data.direction} />}
+              {({ data }) => <DirectionCell direction={data.direction} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head align="center">{t(tKeys.ethAddress.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }: { data: IMessage }) => (
-                <AddressCell isSubstrate={false} address={data.ethAddress} />
-              )}
+              {({ data }) => <AddressCell isSubstrate={false} address={data.ethAddress} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head align="center">{t(tKeys.subAddress.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }: { data: IMessage }) => (
-                <AddressCell isSubstrate address={data.subAddress} />
-              )}
+              {({ data }) => <AddressCell isSubstrate address={data.subAddress} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head>{t(tKeys.amount.getKey())}</Table.Head>
-            <Table.Cell>
-              {({ data }: { data: IMessage }) => <AmountCell amount={data.amount} />}
-            </Table.Cell>
+            <Table.Cell>{({ data }) => <AmountCell amount={data.amount} />}</Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head align="center">{t(tKeys.status.getKey())}</Table.Head>
             <Table.Cell align="center">
-              {({ data }: { data: IMessage }) => <StatusCell status={data.status} />}
+              {({ data }) => <StatusCell status={data.status} />}
             </Table.Cell>
           </Table.Column>
           <Table.Column>
             <Table.Head>{t(tKeys.blockNumber.getKey())}</Table.Head>
             <Table.Cell>
-              {({ data }: { data: IMessage }) => (
-                <BlockNumberCell blockNumber={data.ethBlockNumber || ''} />
-              )}
+              {({ data }) => <BlockNumberCell blockNumber={data.ethBlockNumber || 'awaiting'} />}
             </Table.Cell>
           </Table.Column>
         </Table>
