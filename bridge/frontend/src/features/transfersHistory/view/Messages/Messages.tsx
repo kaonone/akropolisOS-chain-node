@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useApi } from 'services/api';
 import { useSubscribable } from 'utils/hooks';
-import { useMessagesByIdsQuery, Message } from 'generated/bridge-graphql';
+import { Message, useCurrentMessagesByIdsSubscription } from 'generated/bridge-graphql';
 import { TransfersList } from 'features/transfersHistory/view/TransfersList/TransfersList';
 import { Loading, Typography, Hint } from 'components';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
@@ -16,12 +16,12 @@ function Messages() {
   const tKeys = tKeysAll.features.transfersList;
 
   const api = useApi();
-  const [transactions, transactionsMeta] = useSubscribable(() => api.getTransactions$(), [], []);
+  const [transfers, transfersMeta] = useSubscribable(() => api.getTransfers$(), [], []);
 
-  const ids = transactions.map(transaction => transaction.id);
+  const ids = transfers.map(transaction => transaction.id);
   const { items: paginatedIds, paginationView } = usePagination(ids);
 
-  const { loading, data, error } = useMessagesByIdsQuery({
+  const { loading, data, error } = useCurrentMessagesByIdsSubscription({
     variables: { ids: (paginatedIds.length && paginatedIds) || mockIds },
   });
 
@@ -30,15 +30,14 @@ function Messages() {
       paginatedIds
         .map(
           id =>
-            data?.messages?.find(item => item.id === id) ||
-            transactions.find(item => item.id === id),
+            data?.messages?.find(item => item.id === id) || transfers.find(item => item.id === id),
         )
         .filter((item): item is Message => !!item),
-    [paginatedIds, data?.messages, transactions],
+    [paginatedIds, data?.messages, transfers],
   );
 
   return (
-    <Loading meta={[transactionsMeta, { loaded: !loading, error: error && error.message }]}>
+    <Loading meta={[transfersMeta, { loaded: !loading, error: error && error.message }]}>
       {!messages.length ? (
         <Hint>
           <Typography>{t(tKeys.notFound.getKey())}</Typography>
