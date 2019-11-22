@@ -5,6 +5,7 @@ import { switchMap, skipWhile } from 'rxjs/operators';
 import BN from 'bn.js';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
+import { autobind } from 'core-decorators';
 
 import { ETH_NETWORK_CONFIG } from 'env';
 import bridgeAbi from 'abis/bridge.json';
@@ -12,13 +13,13 @@ import erc20Abi from 'abis/erc20.json';
 import { getContractData$ } from 'utils/ethereum';
 import { Direction, Status } from 'generated/bridge-graphql';
 
-import { TransactionsApi } from './TransactionsApi';
+import { TransfersApi } from './TransfersApi';
 
 export class EthereumApi {
   private daiContract: Contract;
   private bridgeContract: Contract;
 
-  constructor(private web3: Web3, private transactionsApi: TransactionsApi) {
+  constructor(private web3: Web3, private transfersApi: TransfersApi) {
     this.daiContract = new this.web3.eth.Contract(erc20Abi, ETH_NETWORK_CONFIG.contracts.dai);
     this.bridgeContract = new this.web3.eth.Contract(
       bridgeAbi,
@@ -26,11 +27,13 @@ export class EthereumApi {
     );
   }
 
+  @autobind
   public async sendToSubstrate(fromAddress: string, to: string, amount: string): Promise<void> {
     await this.approveBridge(fromAddress, amount);
     await this.sendToBridge(fromAddress, to, amount);
   }
 
+  @autobind
   // eslint-disable-next-line class-methods-use-this
   public getEthValidators$(): Observable<string[]> {
     return from([
@@ -46,7 +49,8 @@ export class EthereumApi {
     }); */
   }
 
-  public getEthBalance$(address: string): Observable<BN> {
+  @autobind
+  public getTokenBalance$(address: string): Observable<BN> {
     const formattedAddress = address.toLowerCase();
 
     return getContractData$<string, BN>(this.daiContract, 'balanceOf', {
@@ -59,7 +63,8 @@ export class EthereumApi {
     });
   }
 
-  public getEthAccount$(): Observable<string | null> {
+  @autobind
+  public getAccount$(): Observable<string | null> {
     return from(getEthAccount(this.web3)).pipe(
       skipWhile(account => !account),
       switchMap(() => interval(1000).pipe(switchMap(() => getEthAccount(this.web3)))),
@@ -91,7 +96,7 @@ export class EthereumApi {
     const id = result?.events?.RelayMessage?.returnValues?.messageID;
 
     id &&
-      this.transactionsApi.pushToSubmittedTransactions$({
+      this.transfersApi.pushToSubmittedTransfers$({
         id,
         amount,
         direction: Direction.Eth2Sub,

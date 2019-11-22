@@ -11,6 +11,8 @@ import { SUBSTRATE_NODE_URL } from 'env';
 import { validateNodeUrl } from 'utils/validators';
 import { useSubscribable } from 'utils/react';
 
+import { useStyles } from './Settings.style';
+
 interface IFormData {
   nodeUrl: string;
 }
@@ -35,6 +37,7 @@ const tKeys = tKeysAll.features.tokenTransfer.settings;
 
 function Settings() {
   const { t } = useTranslate();
+  const classes = useStyles();
   const api = useApi();
 
   const [connectionStatus, connectionStatusMeta] = useSubscribable(
@@ -82,11 +85,9 @@ function Settings() {
                 <Grid item xs={12}>
                   {connectionStatus && (
                     <Loading meta={connectionStatusMeta}>
-                      <Grid container spacing={2} alignItems="center" justify="center">
+                      <Grid container spacing={2} alignItems="center">
                         <Grid item>
-                          <Typography variant="caption" color="primary">
-                            {t(tKeys.connectionStatus.getKey())}
-                          </Typography>
+                          <Typography>{t(tKeys.connectionStatus.getKey())}</Typography>
                         </Grid>
                         <Grid item>
                           <Chip
@@ -116,6 +117,9 @@ function Settings() {
                           {t(tKeys.resetButton.getKey())}
                         </Button>
                       ),
+                      classes: {
+                        input: classes.input,
+                      },
                     }}
                     fullWidth
                   />

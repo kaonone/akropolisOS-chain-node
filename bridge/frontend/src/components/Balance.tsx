@@ -18,8 +18,8 @@ export function Balance({ address, type }: IProps) {
   const api = useApi();
   const [balance, { error, loaded }] = useSubscribable(
     type === 'ethereum'
-      ? () => api.getEthBalance$(address)
-      : () => api.getSubstrateBalance$(address),
+      ? () => api.getEthTokenBalance$(address)
+      : () => api.getSubstrateTokenBalance$(address),
     [address],
     new BN(0),
   );

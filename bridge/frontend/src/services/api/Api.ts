@@ -1,23 +1,19 @@
 import Web3 from 'web3';
 import { Observable } from 'rxjs';
-import BN from 'bn.js';
 import { ApiRx, WsProvider } from '@polkadot/api';
-import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 
-import { Message } from 'generated/bridge-graphql';
 import { LocalStorage } from 'services/storage';
 
-import { IConnectionInfo } from './types';
-import { ProviderApi } from './ProviderApi';
+import { SubstrateProviderApi } from './SubstrateProviderApi';
 import { EthereumApi } from './EthereumApi';
 import { SubstrateApi } from './SubstrateApi';
-import { TransactionsApi } from './TransactionsApi';
+import { TransfersApi } from './TransfersApi';
 
 export class Api {
-  private providerApi: ProviderApi;
+  private substrateProviderApi: SubstrateProviderApi;
   private ethereumApi: EthereumApi;
   private substrateApi: SubstrateApi;
-  private transactionsApi: TransactionsApi;
+  private transfersApi: TransfersApi;
 
   constructor(
     private web3: Web3,
@@ -25,53 +21,53 @@ export class Api {
     private storage: LocalStorage,
     private wsProvider: WsProvider,
   ) {
-    this.transactionsApi = new TransactionsApi(this.storage);
-    this.providerApi = new ProviderApi(this.storage, this.wsProvider);
-    this.ethereumApi = new EthereumApi(this.web3, this.transactionsApi);
-    this.substrateApi = new SubstrateApi(this.apiRx, this.transactionsApi);
+    this.transfersApi = new TransfersApi(this.storage);
+    this.substrateProviderApi = new SubstrateProviderApi(this.storage, this.wsProvider);
+    this.ethereumApi = new EthereumApi(this.web3, this.transfersApi);
+    this.substrateApi = new SubstrateApi(this.apiRx, this.transfersApi);
   }
 
-  public async sendToEthereum(fromAddress: string, to: string, amount: string): Promise<void> {
-    return this.substrateApi.sendToEthereum(fromAddress, to, amount);
+  get sendToEthereum() {
+    return this.substrateApi.sendToEthereum;
   }
 
-  public async sendToSubstrate(fromAddress: string, to: string, amount: string): Promise<void> {
-    return this.ethereumApi.sendToSubstrate(fromAddress, to, amount);
+  get sendToSubstrate() {
+    return this.ethereumApi.sendToSubstrate;
   }
 
-  public getTransactions$(): Observable<Message[]> {
-    return this.transactionsApi.getTransactions$();
+  get getTransfers$() {
+    return this.transfersApi.getTransfers$;
   }
 
-  public getEthValidators$(): Observable<string[]> {
-    return this.ethereumApi.getEthValidators$();
+  get getEthValidators$() {
+    return this.ethereumApi.getEthValidators$;
   }
 
-  public getEthBalance$(address: string): Observable<BN> {
-    return this.ethereumApi.getEthBalance$(address);
+  get getEthTokenBalance$() {
+    return this.ethereumApi.getTokenBalance$;
   }
 
-  public getSubstrateBalance$(address: string): Observable<BN> {
-    return this.substrateApi.getSubstrateBalance$(address);
+  get getSubstrateTokenBalance$() {
+    return this.substrateApi.getTokenBalance$;
   }
 
-  public getEthAccount$(): Observable<string | null> {
-    return this.ethereumApi.getEthAccount$();
+  get getEthAccount$() {
+    return this.ethereumApi.getAccount$;
   }
 
-  public getSubstrateAccounts$(): Observable<InjectedAccountWithMeta[]> {
-    return this.substrateApi.getSubstrateAccounts$();
+  get getSubstrateAccounts$() {
+    return this.substrateApi.getAccounts$;
   }
 
-  public getNodeUrl() {
-    return this.providerApi.getNodeUrl();
+  get getNodeUrl() {
+    return this.substrateProviderApi.getNodeUrl;
   }
 
-  public setNodeUrl(url: string) {
-    this.providerApi.setNodeUrl(url);
+  get setNodeUrl() {
+    return this.substrateProviderApi.setNodeUrl;
   }
 
-  public getConnectionStatus$(): Observable<IConnectionInfo> {
-    return this.providerApi.getConnectionStatus$();
+  get getConnectionStatus$() {
+    return this.substrateProviderApi.getConnectionStatus$;
   }
 }

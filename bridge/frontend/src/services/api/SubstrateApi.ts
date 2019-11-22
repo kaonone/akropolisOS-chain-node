@@ -4,16 +4,18 @@ import BN from 'bn.js';
 import { ApiRx } from '@polkadot/api';
 import { web3Enable, web3AccountsSubscribe, web3FromAddress } from '@polkadot/extension-dapp';
 import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
+import { autobind } from 'core-decorators';
 
 import { delay } from 'utils/helpers';
 import { Direction, Status } from 'generated/bridge-graphql';
 
 import { callPolkaApi } from './callPolkaApi';
-import { TransactionsApi } from './TransactionsApi';
+import { TransfersApi } from './TransfersApi';
 
 export class SubstrateApi {
-  constructor(private apiRx: Observable<ApiRx>, private transactionsApi: TransactionsApi) {}
+  constructor(private apiRx: Observable<ApiRx>, private transfersApi: TransfersApi) {}
 
+  @autobind
   public async sendToEthereum(fromAddress: string, to: string, amount: string): Promise<void> {
     const substrateApi = await this.apiRx.toPromise();
     const substrateWeb3 = await web3FromAddress(fromAddress);
@@ -36,7 +38,7 @@ export class SubstrateApi {
           const id = messageHashEvent && messageHashEvent.event.data[0]?.toHex();
 
           if (id) {
-            this.transactionsApi.pushToSubmittedTransactions$({
+            this.transfersApi.pushToSubmittedTransfers$({
               id,
               amount,
               direction: Direction.Sub2Eth,
@@ -55,8 +57,9 @@ export class SubstrateApi {
     });
   }
 
+  @autobind
   // eslint-disable-next-line class-methods-use-this
-  public getSubstrateAccounts$(): Observable<InjectedAccountWithMeta[]> {
+  public getAccounts$(): Observable<InjectedAccountWithMeta[]> {
     const accounts$ = new ReplaySubject<InjectedAccountWithMeta[]>();
 
     defer(() =>
@@ -89,7 +92,8 @@ export class SubstrateApi {
     return accounts$;
   }
 
-  public getSubstrateBalance$(address: string): Observable<BN> {
+  @autobind
+  public getTokenBalance$(address: string): Observable<BN> {
     return callPolkaApi(this.apiRx, 'query.token.balance', address);
   }
 }
