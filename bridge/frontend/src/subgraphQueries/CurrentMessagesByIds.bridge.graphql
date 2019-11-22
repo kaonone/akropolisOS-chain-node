@@ -1,4 +1,4 @@
-query MessagesByIds($ids: [ID!]!) {
+subscription CurrentMessagesByIds($ids: [ID!]!) {
   messages(where: {id_in: $ids}, orderBy: ethBlockNumber, orderDirection: asc) {
     id
     ethAddress
