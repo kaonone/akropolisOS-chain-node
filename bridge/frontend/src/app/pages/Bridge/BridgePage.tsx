@@ -4,7 +4,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import { RouteComponentProps } from 'react-router';
 
 import { Grid, Box } from 'components';
-import { EthereumToSubstrate, SubstrateToEthereum } from 'features/tokenTransfer';
+import { EthereumToSubstrate, SubstrateToEthereum, Settings } from 'features/tokenTransfer';
 import { Messages } from 'features/transfersHistory';
 
 const useStyles = makeStyles(theme => ({
@@ -15,11 +15,12 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-type SourceChain = 'ethereum' | 'substrate';
+type SourceChain = 'ethereum' | 'substrate' | 'settings';
 
 const viewIndexBySourceChain: Record<SourceChain, number> = {
   ethereum: 0,
   substrate: 1,
+  settings: 2,
 };
 
 function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
@@ -39,6 +40,9 @@ function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
           </Box>
           <Box p={2}>
             <SubstrateToEthereum />
+          </Box>
+          <Box p={2}>
+            <Settings />
           </Box>
         </SwipeableViews>
       </Grid>

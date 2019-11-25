@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Form, FormSpy } from 'react-final-form';
-import { FORM_ERROR, FormState } from 'final-form';
+import { FORM_ERROR, FormState, FormApi } from 'final-form';
 import { O } from 'ts-toolbelt';
 
 import { Button, Typography, MenuItem, Box, Balance } from 'components';
@@ -50,13 +50,16 @@ function SendingForm({ onChange }: Props) {
     [onChange],
   );
 
-  const onSubmit = useCallback(async ({ from, address, amount }: FormData) => {
-    try {
-      return await api.sendToEthereum(from, address, amount);
-    } catch (error) {
-      return { [FORM_ERROR]: getErrorMsg(error) };
-    }
-  }, []);
+  const onSubmit = useCallback(
+    async ({ from, address, amount }: FormData, form: FormApi<FormData>) => {
+      try {
+        return await api.sendToEthereum(from, address, amount).then(() => setTimeout(form.reset));
+      } catch (error) {
+        return { [FORM_ERROR]: getErrorMsg(error) };
+      }
+    },
+    [],
+  );
 
   if (!accountsLoaded) {
     return null;

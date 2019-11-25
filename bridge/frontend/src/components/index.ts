@@ -6,9 +6,9 @@ export { Loading } from './Loading';
 export { Table } from './Table/Table';
 export { ShortAddress } from './ShortAddress/ShortAddress';
 export { TransactionStatus } from './TransactionStatus/TransactionStatus';
-export { Pagination } from './Pagination/Pagination';
 export { Hint } from './Hint/Hint';
 export { RowsLayout } from './RowsLayout/RowsLayout';
+export { Pagination } from './Pagination/Pagination';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';
@@ -21,3 +21,4 @@ export { default as LinearProgress } from '@material-ui/core/LinearProgress';
 export { default as Button } from '@material-ui/core/Button';
 export { default as MenuItem } from '@material-ui/core/MenuItem';
 export { default as IconButton } from '@material-ui/core/IconButton';
+export { default as Chip } from '@material-ui/core/Chip';
