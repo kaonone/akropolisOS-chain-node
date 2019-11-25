@@ -1,11 +1,8 @@
 import * as React from 'react';
 import { withRouter, RouteComponentProps, Link } from 'react-router-dom';
-// import { Grid, IconButton, Typography } from 'components';
-import Grid from '@material-ui/core/Grid';
-import IconButton from '@material-ui/core/IconButton';
-import Typography from '@material-ui/core/Typography';
 
 import { Back } from 'components/icons';
+import { Grid, IconButton, Typography } from 'components';
 import { withComponent } from 'utils/react';
 
 import { useStyles } from './Header.style';

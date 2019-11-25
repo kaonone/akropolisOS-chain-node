@@ -1,5 +1,8 @@
 // tslint:disable:max-line-length
 const en = {
+  app: {
+    mainTitle: 'Ethereum DAI <--> AkropolisOS Bridge',
+  },
   utils: {
     validation: {
       isRequired: 'Field is required',

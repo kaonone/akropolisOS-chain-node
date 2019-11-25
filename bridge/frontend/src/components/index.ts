@@ -8,6 +8,7 @@ export { ShortAddress } from './ShortAddress/ShortAddress';
 export { TransactionStatus } from './TransactionStatus/TransactionStatus';
 export { Pagination } from './Pagination/Pagination';
 export { Hint } from './Hint/Hint';
+export { RowsLayout } from './RowsLayout/RowsLayout';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';
