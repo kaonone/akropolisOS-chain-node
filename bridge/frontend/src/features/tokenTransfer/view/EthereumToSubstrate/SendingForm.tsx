@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Form, FormSpy } from 'react-final-form';
-import { FORM_ERROR } from 'final-form';
+import { FORM_ERROR, FormApi } from 'final-form';
 import { O } from 'ts-toolbelt';
 
 import { Button, Typography, Grid, Box, Balance } from 'components';
@@ -36,12 +36,14 @@ function SendingForm() {
   const [account] = useSubscribable(() => api.getEthAccount$(), []);
 
   const onSubmit = useCallback(
-    async ({ address, amount }: FormData) => {
+    async ({ address, amount }: FormData, form: FormApi<FormData>) => {
       try {
         if (!account) {
           throw new Error('Source account for token transfer not found');
         }
-        return await api.sendToSubstrate(account, address, amount);
+        return await api
+          .sendToSubstrate(account, address, amount)
+          .then(() => setTimeout(form.reset));
       } catch (error) {
         return { [FORM_ERROR]: getErrorMsg(error) };
       }
