@@ -15,7 +15,7 @@ export class TransfersApi {
   public pushToSubmittedTransfers$(transferInfo: Message) {
     const prevTransfer = this.storage.get('transfers', []);
 
-    const transfers = R.uniq([...prevTransfer, transferInfo]);
+    const transfers = R.uniq([transferInfo, ...prevTransfer]);
 
     this.storage.set('transfers', transfers);
     this.submittedTransfers.next(transfers);
