@@ -5,41 +5,38 @@ import { Link } from 'react-router-dom';
 import { routes } from 'app/routes';
 import { Tabs, Tab } from 'components';
 
-type SourceChain = 'ethereum' | 'substrate' | 'settings';
-
-const viewIndexBySourceChain: Record<SourceChain, number> = {
-  ethereum: 0,
-  substrate: 1,
-  settings: 2,
-};
-
 function PageNavigation() {
   return (
-    <Route path={routes.sourceChain.getRoutePath()}>
+    <Route path="/:page">
       {({ match }) => (
         <Tabs
-          value={
-            (match?.params.sourceChain &&
-              viewIndexBySourceChain[match.params.sourceChain as SourceChain]) ||
-            0
-          }
+          value={(match && match.params.page) || 'ethereum'}
           indicatorColor="primary"
           textColor="primary"
         >
           <Tab
-            label="Ethereum to Substrate"
+            label="Bridge"
             component={Link}
-            to={routes.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })}
+            value={routes.bridge.getElementKey()}
+            to={routes.bridge.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })}
           />
           <Tab
-            label="Substrate to Ethereum"
+            label="Limits"
             component={Link}
-            to={routes.sourceChain.getRedirectPath({ sourceChain: 'substrate' })}
+            value={routes.limits.getElementKey()}
+            to={routes.limits.getRedirectPath()}
+          />
+          <Tab
+            label="Validators"
+            component={Link}
+            value={routes.validators.getElementKey()}
+            to={routes.validators.getRedirectPath()}
           />
           <Tab
             label="Settings"
             component={Link}
-            to={routes.sourceChain.getRedirectPath({ sourceChain: 'settings' })}
+            value={routes.settings.getElementKey()}
+            to={routes.settings.getRedirectPath()}
           />
         </Tabs>
       )}

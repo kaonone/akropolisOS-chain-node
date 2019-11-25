@@ -4,8 +4,7 @@ import { Switch, Route, Redirect } from 'react-router';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 
 import { BaseLayout } from './components/BaseLayout/BaseLayout';
-import { DemoPage } from './pages/Demo/DemoPage';
-import { BridgePage } from './pages/Bridge/BridgePage';
+import { DemoPage, BridgePage, SettingsPage, LimitsPage, ValidatorsPage } from './pages';
 import { routes } from './routes';
 
 const tKeys = tKeysAll.app;
@@ -19,8 +18,11 @@ export function App() {
         {process.env.NODE_ENV !== 'production' && (
           <Route exact path={routes.demo.getRoutePath()} component={DemoPage} />
         )}
-        <Route exact path={routes.sourceChain.getRoutePath()} component={BridgePage} />
-        <Redirect to={routes.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })} />
+        <Route exact path={routes.bridge.sourceChain.getRoutePath()} component={BridgePage} />
+        <Route exact path={routes.limits.getRoutePath()} component={LimitsPage} />
+        <Route exact path={routes.validators.getRoutePath()} component={ValidatorsPage} />
+        <Route exact path={routes.settings.getRoutePath()} component={SettingsPage} />
+        <Redirect to={routes.bridge.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })} />
       </BaseLayout>
     </Switch>
   );
