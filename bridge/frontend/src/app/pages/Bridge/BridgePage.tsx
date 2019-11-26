@@ -1,6 +1,5 @@
 import React from 'react';
 import SwipeableViews from 'react-swipeable-views';
-import { makeStyles } from '@material-ui/core/styles';
 import { RouteComponentProps } from 'react-router';
 import { Link } from 'react-router-dom';
 
@@ -10,14 +9,6 @@ import { Messages } from 'features/transfersHistory';
 
 import { routes } from '../../routes';
 
-const useStyles = makeStyles(theme => ({
-  root: {
-    padding: theme.spacing(3),
-    maxWidth: 1200,
-    margin: '0 auto',
-  },
-}));
-
 type SourceChain = 'ethereum' | 'substrate';
 
 const viewIndexBySourceChain: Record<SourceChain, number> = {
@@ -26,15 +17,13 @@ const viewIndexBySourceChain: Record<SourceChain, number> = {
 };
 
 function BridgePage(props: RouteComponentProps<{ sourceChain: SourceChain }>) {
-  const classes = useStyles();
-
   const { match } = props;
   const { sourceChain } = match.params;
 
   const currentTabIndex = viewIndexBySourceChain[sourceChain] || 0;
 
   return (
-    <Grid container spacing={3} className={classes.root}>
+    <Grid container spacing={3}>
       <Grid item xs={12}>
         <Paper>
           <Tabs

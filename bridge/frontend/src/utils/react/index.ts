@@ -4,4 +4,3 @@ export * from './useOnChangeState';
 export * from './withProps';
 export * from './useSubscribable';
 export * from './useCommunication';
-export * from './withComponent';

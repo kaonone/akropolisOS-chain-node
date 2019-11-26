@@ -10,8 +10,8 @@ export function SettingsPage() {
   const { t } = useTranslate();
 
   return (
-    <Grid container spacing={4} justify="center">
-      <Grid item xs={6}>
+    <Grid container spacing={3} justify="flex-start">
+      <Grid item xs={8}>
         <Typography variant="h4" noWrap gutterBottom>
           {t(tKeys.title.getKey())}
         </Typography>

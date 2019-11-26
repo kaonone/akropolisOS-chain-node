@@ -15,7 +15,6 @@ function EthereumValidators() {
 
   return (
     <div>
-      <Typography variant="h4">Ethereum Validators</Typography>
       {!loaded && !error && <LinearProgress />}
       {!!error && <Typography color="error">{error}</Typography>}
       {loaded &&
