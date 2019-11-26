@@ -59,6 +59,7 @@ export function LimitsList() {
           )}
         </Loading>
       </Grid>
+      <Grid item xs={8} />
     </Grid>
   );
 }

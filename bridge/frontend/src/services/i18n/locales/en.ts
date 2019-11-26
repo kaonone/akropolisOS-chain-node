@@ -43,10 +43,12 @@ const en = {
     },
     tokenTransfer: {},
     settings: {
-      bridgeSettings: 'Bridge settings',
-      connectionStatus: 'Connection status:',
-      resetButton: 'Reset & Reload',
-      saveButton: 'Save & reload',
+      localSettings: {
+        bridgeSettings: 'Bridge settings',
+        connectionStatus: 'Connection status:',
+        resetButton: 'Reset & Reload',
+        saveButton: 'Save & reload',
+      },
       limits: {
         notFound: 'Limits not found',
         kind: 'Limit',

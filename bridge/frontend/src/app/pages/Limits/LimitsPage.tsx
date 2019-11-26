@@ -1,8 +1,8 @@
 import * as React from 'react';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { LimitsList } from 'features/settings';
 import { Typography } from 'components';
-import { LimitsList } from 'features/settings/LimitsList/LimitsList';
 
 const tKeys = tKeysAll.app.pages.limits;
 
