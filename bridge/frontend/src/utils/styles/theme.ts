@@ -18,3 +18,7 @@ export const theme: Theme = createMuiTheme({
     },
   },
 });
+
+export const gradients = {
+  purple: 'linear-gradient(360deg, #7357D2 0%, #8E41DC 100%)',
+};

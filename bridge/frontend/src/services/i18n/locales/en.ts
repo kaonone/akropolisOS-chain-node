@@ -1,5 +1,19 @@
 // tslint:disable:max-line-length
 const en = {
+  app: {
+    mainTitle: 'Ethereum DAI <--> AkropolisOS Bridge',
+    pages: {
+      limits: {
+        title: 'Limits',
+      },
+      validators: {
+        title: 'Validators',
+      },
+      settings: {
+        title: 'Local settings',
+      },
+    },
+  },
   utils: {
     validation: {
       isRequired: 'Field is required',
@@ -27,14 +41,12 @@ const en = {
       blockNumber: 'Block number',
       notFound: 'Transfers not found',
     },
-    tokenTransfer: {
-      settings: {
-        localSettigs: 'Local settings',
-        bridgeSettings: 'Bridge settings',
-        connectionStatus: 'Connection status:',
-        resetButton: 'Reset & Reload',
-        saveButton: 'Save & reload',
-      },
+    tokenTransfer: {},
+    settings: {
+      bridgeSettings: 'Bridge settings',
+      connectionStatus: 'Connection status:',
+      resetButton: 'Reset & Reload',
+      saveButton: 'Save & reload',
     },
   },
 };
