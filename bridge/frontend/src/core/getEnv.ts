@@ -6,6 +6,7 @@ export function getEnv() {
   const forGhPages = true;
   const appVersion = packageJson.version;
   const withHot = !!module.hot && isDevelopment;
+  const isMockServer = isDevelopment;
 
   return {
     isProduction,
@@ -13,5 +14,6 @@ export function getEnv() {
     forGhPages,
     withHot,
     appVersion,
+    isMockServer,
   };
 }

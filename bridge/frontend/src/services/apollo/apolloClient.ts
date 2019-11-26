@@ -1,5 +1,5 @@
 import { ApolloClient } from 'apollo-client';
-import { InMemoryCache } from 'apollo-cache-inmemory';
+import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory';
 import { ApolloLink, split } from 'apollo-link';
 import { WebSocketLink } from 'apollo-link-ws';
 import { HttpLink } from 'apollo-link-http';
@@ -27,7 +27,7 @@ const linkByDirective: Record<DirectiveName | 'default', ApolloLink> = {
   default: bridgeLink,
 };
 
-const link = new ApolloLink(operation => {
+export const apolloLink = new ApolloLink(operation => {
   const { query } = operation;
 
   const definition = getMainDefinition(query);
@@ -44,24 +44,26 @@ const link = new ApolloLink(operation => {
   return linkByDirective[directive].request(operation);
 });
 
-export const apolloClient = new ApolloClient({
-  link: ApolloLink.from([
-    onError(({ graphQLErrors, networkError }) => {
-      if (graphQLErrors) {
-        graphQLErrors.map(({ message, locations, path }) =>
-          console.error(
-            `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`,
-          ),
-        );
-      }
-      if (networkError) {
-        console.error(`[Network error]: ${networkError}`);
-      }
-    }),
-    link,
-  ]),
-  cache: new InMemoryCache(),
-});
+export function createApolloClient(link: ApolloLink): ApolloClient<NormalizedCacheObject> {
+  return new ApolloClient({
+    link: ApolloLink.from([
+      onError(({ graphQLErrors, networkError }) => {
+        if (graphQLErrors) {
+          graphQLErrors.map(({ message, locations, path }) =>
+            console.error(
+              `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`,
+            ),
+          );
+        }
+        if (networkError) {
+          console.error(`[Network error]: ${networkError}`);
+        }
+      }),
+      link,
+    ]),
+    cache: new InMemoryCache(),
+  });
+}
 
 function makeEndpointLink(httpLink: HttpLink, wsLink: WebSocketLink) {
   return split(
@@ -74,3 +76,5 @@ function makeEndpointLink(httpLink: HttpLink, wsLink: WebSocketLink) {
     httpLink,
   );
 }
+
+export const defaultApolloClient = createApolloClient(apolloLink);

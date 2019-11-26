@@ -1,0 +1,9 @@
+query Limits {
+  limits {
+    id
+    kind
+    value
+    messageID
+    ethBlockNumber
+  }
+}

@@ -47,6 +47,12 @@ const en = {
       connectionStatus: 'Connection status:',
       resetButton: 'Reset & Reload',
       saveButton: 'Save & reload',
+      limits: {
+        notFound: 'Limits not found',
+        kind: 'Limit',
+        value: 'Value',
+        ethBlockNumber: 'Block number',
+      },
     },
   },
 };
