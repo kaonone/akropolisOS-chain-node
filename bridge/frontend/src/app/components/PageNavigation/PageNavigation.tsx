@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Route } from 'react-router';
+import { Route, RouteComponentProps } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import { routes } from 'app/routes';
@@ -8,7 +8,7 @@ import { Tabs, Tab } from 'components';
 function PageNavigation() {
   return (
     <Route path="/:page">
-      {({ match }) => (
+      {({ match }: RouteComponentProps<{ page: string }>) => (
         <Tabs
           value={(match && match.params.page) || 'ethereum'}
           indicatorColor="primary"

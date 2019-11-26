@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Grid, Typography, Address, EthereumValidators } from 'components';
+import { Grid, Typography, Address } from 'components';
 import { useSubscribable } from 'utils/hooks';
 import { useApi } from 'services/api';
 
@@ -18,9 +18,6 @@ function EthereumToSubstrate() {
       </Grid>
       <Grid item xs={12}>
         <SendingForm />
-      </Grid>
-      <Grid item xs={12}>
-        <EthereumValidators />
       </Grid>
     </Grid>
   );

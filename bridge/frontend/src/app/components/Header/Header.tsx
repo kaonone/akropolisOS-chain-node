@@ -3,11 +3,8 @@ import { withRouter, RouteComponentProps, Link } from 'react-router-dom';
 
 import { Back } from 'components/icons';
 import { Grid, IconButton, Typography } from 'components';
-import { withComponent } from 'utils/react';
 
 import { useStyles } from './Header.style';
-
-const LinkIconButton = withComponent(Link)(IconButton);
 
 interface IOwnProps {
   backRoutePath?: string;
@@ -26,9 +23,9 @@ function HeaderComponent(props: IProps) {
       <Grid container alignItems="center" spacing={2}>
         {backRoutePath && (
           <Grid item>
-            <LinkIconButton to={backRoutePath} className={classes.backButton}>
+            <IconButton component={Link} to={backRoutePath} className={classes.backButton}>
               <Back />
-            </LinkIconButton>
+            </IconButton>
           </Grid>
         )}
         <Grid item xs zeroMinWidth>
