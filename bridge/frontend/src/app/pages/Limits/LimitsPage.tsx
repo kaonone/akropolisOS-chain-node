@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
-import { LimitsList } from 'features/settings';
+import { LimitsList, LimitsProposalsList } from 'features/settings';
 import { Typography } from 'components';
 
 const tKeys = tKeysAll.app.pages.limits;
@@ -15,6 +15,7 @@ export function LimitsPage() {
         {t(tKeys.title.getKey())}
       </Typography>
       <LimitsList />
+      <LimitsProposalsList />
     </>
   );
 }

@@ -29,6 +29,18 @@ const en = {
       itemsPerPage: 'Items per page',
       currentPagination: '%{from} - %{to} of %{total}',
     },
+    votingCard: {
+      timeEnded: 'Time ended',
+      timeLeft: 'Time left',
+      voted: 'Voted',
+      needed: 'Needed',
+      limits: 'Limits',
+      yes: 'Yes',
+      no: 'No',
+      approved: 'approved',
+      declined: 'declined',
+      showLimits: 'Show limits',
+    },
   },
   features: {
     transfersList: {
@@ -54,6 +66,9 @@ const en = {
         kind: 'Limit',
         value: 'Value',
         ethBlockNumber: 'Block number',
+      },
+      limitsProposalsList: {
+        title: 'Limits proposals',
       },
     },
   },
