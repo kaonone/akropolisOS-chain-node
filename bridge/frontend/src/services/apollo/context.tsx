@@ -7,6 +7,7 @@ import {
   MockList,
 } from 'graphql-tools';
 import { SchemaLink } from 'apollo-link-schema';
+import ApolloClient from 'apollo-client';
 
 import { getEnv } from 'core/getEnv';
 
@@ -16,38 +17,39 @@ interface Props {
   children: React.ReactNode;
 }
 
-export function ApolloProvider({ children }: Props) {
-  const { isMockServer } = getEnv();
-  const [apolloClient, setApolloClient] = useState(null as any);
+async function createMockApolloClient() {
+  const schema = await introspectSchema(apolloLink);
+  const executableSchema = makeRemoteExecutableSchema({ schema });
 
-  const createMockApolloClient = async () => {
-    const schema = await introspectSchema(apolloLink);
-    const executableSchema = makeRemoteExecutableSchema({ schema });
-
-    const mocks = {
-      Query: () => ({
-        limits: () => new MockList([10, 10]),
-      }),
-      BigInt: () => '123456',
-    };
-
-    addMockFunctionsToSchema({
-      schema: executableSchema,
-      mocks,
-    });
-
-    const mockLink = new SchemaLink({ schema: executableSchema });
-    setApolloClient(createApolloClient(mockLink));
+  const mocks = {
+    Query: () => ({
+      limits: () => new MockList(10),
+    }),
+    BigInt: () => '123456',
   };
 
-  if (isMockServer && apolloClient) {
-    return <ApolloHooksProvider client={apolloClient}>{children}</ApolloHooksProvider>;
-  }
+  addMockFunctionsToSchema({
+    schema: executableSchema,
+    mocks,
+  });
 
-  if (isMockServer) {
-    createMockApolloClient();
+  const mockLink = new SchemaLink({ schema: executableSchema });
+  return createApolloClient(mockLink);
+}
+
+export function ApolloProvider({ children }: Props) {
+  const { isMockServer } = getEnv();
+  const [apolloClient, setApolloClient] = useState<ApolloClient<any> | null>(() =>
+    isMockServer ? null : defaultApolloClient,
+  );
+
+  React.useEffect(() => {
+    isMockServer && createMockApolloClient().then(setApolloClient);
+  }, []);
+
+  if (apolloClient) {
+    return <ApolloHooksProvider client={apolloClient}>{children}</ApolloHooksProvider>;
+  } else {
     return <>Mock server is loading...</>;
   }
-
-  return <ApolloHooksProvider client={defaultApolloClient}>{children}</ApolloHooksProvider>;
 }

@@ -22,7 +22,8 @@ interface ICellProps<T> {
   className?: string;
   align?: 'left' | 'center' | 'right';
   colSpan?: number;
-  children: ({ index, data }: { index: number; data: T }) => React.ReactNode;
+  prop?: keyof T;
+  children?: ({ index, data }: { index: number; data: T }) => React.ReactNode;
 }
 
 interface ITableProps<T> {
@@ -79,7 +80,9 @@ function TableComponent<T>(props: ITableProps<T>) {
             {columns.map(({ cellProps }, cellIndex) =>
               cellProps ? (
                 <td key={cellIndex} align={cellProps.align}>
-                  {cellProps.children({ index, data: dataRow })}
+                  {cellProps.prop
+                    ? dataRow[cellProps.prop]
+                    : cellProps.children && cellProps.children({ index, data: dataRow })}
                 </td>
               ) : (
                 <td key={cellIndex} />
