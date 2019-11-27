@@ -32,7 +32,7 @@ const config: webpack.Configuration = {
   },
   resolve: {
     modules: ['node_modules', 'src'],
-    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
+    extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json'],
   },
   module: {
     rules: [
