@@ -4,8 +4,8 @@ import Typography from '@material-ui/core/Typography';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { useApi } from 'services/api';
-import { Loading, Hint } from 'components';
 import { VotingCard } from 'components/VotingCard/VotingCard';
+import { Loading, Hint } from 'components';
 import { useLimitProposalsQuery } from 'generated/bridge-graphql';
 import { useSubscribable } from 'utils/react';
 

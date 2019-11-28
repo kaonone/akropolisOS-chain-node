@@ -30,6 +30,8 @@ const en = {
       currentPagination: '%{from} - %{to} of %{total}',
     },
     votingCard: {
+      blockNumber: 'Block number',
+      from: 'From',
       needed: 'Needed votes',
       limits: 'Limits',
       approved: 'approved',

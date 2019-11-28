@@ -41,10 +41,10 @@ function VotingCard(props: IOwnProps) {
     <Grid className={classes.root} container wrap="nowrap">
       <Grid item xs={9} className={classes.mainInformation}>
         <Grid container spacing={3}>
-          <Column xs={4} title="Block number" value={ethBlockNumber} />
+          <Column xs={4} title={t(tKeys.blockNumber.getKey())} value={ethBlockNumber} />
           <Column
             xs={4}
-            title="from"
+            title={t(tKeys.from.getKey())}
             value={<ShortAddress className={classes.address} address={ethAddress} />}
           />
           <Column xs={4} title={t(tKeys.needed.getKey())} value={neddedVotes} />
