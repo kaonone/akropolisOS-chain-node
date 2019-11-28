@@ -11,20 +11,14 @@ export const useStyles = makeStyles((theme: Theme) => ({
     padding: theme.spacing(2),
   },
 
-  metrics: {
-    marginBottom: theme.spacing(2.5),
-    marginRight: '1.5rem',
-  },
-
-  purple: {},
-  grey: {},
-
   address: {
-    fontSize: '1.25rem',
+    fontSize: '1.5rem',
     lineHeight: '1.6',
   },
 
   voting: {
+    display: 'flex',
+    alignItems: 'center',
     borderLeft: `solid ${colors.athensGray} 1px`,
     padding: theme.spacing(2),
   },
@@ -47,12 +41,6 @@ export const useStyles = makeStyles((theme: Theme) => ({
     color: colors.royalPurple,
   },
 
-  votingDecision: {
-    padding: theme.spacing(1),
-    borderRadius: '0.25rem',
-    backgroundColor: colors.ghostWhite,
-  },
-
   votingIcon: {
     width: '1.25rem',
     marginRight: theme.spacing(0.5),
@@ -71,16 +59,10 @@ export const useStyles = makeStyles((theme: Theme) => ({
   },
 
   votingResult: {
+    display: 'flex',
+    alignItems: 'center',
     marginLeft: 'auto',
     padding: theme.spacing(2),
     borderLeft: `solid ${colors.athensGray} 1px`,
-  },
-
-  votingFor: {
-    color: colors.shamrock,
-  },
-
-  votingAgainst: {
-    color: colors.geraldine,
   },
 }));

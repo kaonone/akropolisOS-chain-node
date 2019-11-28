@@ -1,0 +1,18 @@
+query LimitProposal($id: ID!) {
+  limitProposal(id: $id) {
+    id
+    ethAddress
+    status
+    minHostTransactionValue
+    maxHostTransactionValue
+    dayHostMaxLimit
+    dayHostMaxLimitForOneAddress
+    maxHostPendingTransactionLimit
+    minGuestTransactionValue
+    maxGuestTransactionValue
+    dayGuestMaxLimit
+    dayGuestMaxLimitForOneAddress
+    maxGuestPendingTransactionLimit
+    ethBlockNumber
+  }
+}

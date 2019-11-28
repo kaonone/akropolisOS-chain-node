@@ -12,12 +12,10 @@ const tKeys = tKeysAll.components.votingCard;
 
 interface IProps {
   votingStatus: VotingStatus;
-  approveAmount: number;
-  declineAmount: number;
 }
 
 function VotingResult(props: IProps) {
-  const { approveAmount, declineAmount, votingStatus } = props;
+  const { votingStatus } = props;
   const classes = useStyles();
   const { t } = useTranslate();
 
@@ -39,26 +37,6 @@ function VotingResult(props: IProps) {
             </Grid>
           </Grid>
         )}
-        <Grid item>
-          <Grid container wrap="nowrap" spacing={3} justify="center">
-            <Grid item>
-              <Typography component="span" variant="subtitle1">
-                {t(tKeys.yes.getKey())}
-              </Typography>{' '}
-              <Typography component="span" variant="subtitle1" className={classes.votingFor}>
-                {approveAmount}
-              </Typography>
-            </Grid>
-            <Grid item>
-              <Typography component="span" variant="subtitle1">
-                {t(tKeys.no.getKey())}
-              </Typography>{' '}
-              <Typography component="span" variant="subtitle1" className={classes.votingAgainst}>
-                {declineAmount}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Grid>
       </Grid>
     </>
   );

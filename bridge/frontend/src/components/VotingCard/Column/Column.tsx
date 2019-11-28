@@ -32,7 +32,7 @@ function Column(props: IProps) {
       </Grid>
       <Grid container alignItems="baseline">
         <Typography
-          variant="h6"
+          variant="h5"
           className={cn(classes.value, { [classes.isHighlighted]: isHighlighted })}
         >
           {value}

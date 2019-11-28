@@ -15,6 +15,24 @@ export const useStyles = makeStyles((theme: Theme) => {
         marginTop: '-0.5rem',
       },
 
+      '&$compact': {
+        '& td, & th': {
+          padding: theme.spacing(1),
+
+          '&:first-child': {
+            borderBottomLeftRadius: '0',
+          },
+
+          '&:last-child': {
+            borderBottomRightRadius: '0',
+          },
+        },
+
+        '& tr': {
+          borderRadius: '0',
+        },
+      },
+
       '& tr': {
         borderRadius,
         background: colors.white,
@@ -55,5 +73,7 @@ export const useStyles = makeStyles((theme: Theme) => {
     },
 
     separated: {},
+
+    compact: {},
   } as const;
 });

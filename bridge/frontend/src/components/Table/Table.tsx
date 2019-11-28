@@ -29,13 +29,13 @@ interface ITableProps<T> {
   className?: string;
   children?: React.ReactNode;
   data: T[];
-  separated?: boolean;
+  isCompactStyle?: boolean;
   onClick?(): void;
 }
 
 function TableComponent<T>(props: ITableProps<T>) {
   const classes = useStyles();
-  const { children, className, separated, data } = props;
+  const { children, className, data, isCompactStyle } = props;
 
   interface IAggregatedColumn {
     headProps?: IHeadProps;
@@ -55,7 +55,8 @@ function TableComponent<T>(props: ITableProps<T>) {
   return (
     <table
       className={cn(classes.root, className, {
-        [classes.separated]: separated,
+        [classes.separated]: !isCompactStyle,
+        [classes.compact]: isCompactStyle,
       })}
     >
       {needToRenderHead && (

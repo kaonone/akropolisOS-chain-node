@@ -27,6 +27,9 @@ export function ApolloProvider({ children }: Props) {
     const mocks = {
       Query: () => ({
         limits: () => new MockList([10, 10]),
+        limitProposal: () => ({
+          ethAddress: () => '0x0000000000000000000000000000000000000000000000000000000000000000',
+        }),
       }),
       BigInt: () => '123456',
     };

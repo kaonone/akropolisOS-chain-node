@@ -10,27 +10,21 @@ const tKeys = tKeysAll.features.settings.limitsProposalsList;
 function LimitsProposalsList() {
   const { t } = useTranslate();
 
+  const mockIds = ['123', '456', '789', '1231', '124124'];
+
   return (
-    <Grid container>
-      <Grid item xs={8}>
-        <Typography variant="h4" noWrap gutterBottom>
-          {t(tKeys.title.getKey())}
-        </Typography>
+    <>
+      <Typography variant="h4" noWrap gutterBottom>
+        {t(tKeys.title.getKey())}
+      </Typography>
+      <Grid container spacing={3}>
+        {mockIds.map(id => (
+          <Grid key={id} item xs={12}>
+            <VotingCard id={id} needVoted={200} showLimitsList />
+          </Grid>
+        ))}
       </Grid>
-      <Grid item xs={8}>
-        <VotingCard
-          ethBlockNumber="123456"
-          fromAddress="123456"
-          votingStatus="APPROVED"
-          approveAmount={60}
-          declineAmount={70}
-          voted={150}
-          needVoted={200}
-          timeLeft="15 min"
-          showLimitsList
-        />
-      </Grid>
-    </Grid>
+    </>
   );
 }
 

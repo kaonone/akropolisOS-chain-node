@@ -24,7 +24,12 @@ const limitsNames: Record<LimitKind, string> = {
   MAX_GUEST_PENDING_TRANSACTION_LIMIT: 'Max guest pending transaction limit',
 };
 
-export function LimitsList() {
+interface IProps {
+  isCompactStyle?: boolean;
+}
+
+export function LimitsList(props: IProps) {
+  const { isCompactStyle } = props;
   const { t } = useTranslate();
 
   const { loading, data: limitsData, error } = useLimitsQuery();
@@ -32,34 +37,29 @@ export function LimitsList() {
   const limits = limitsData?.limits;
 
   return (
-    <Grid container spacing={3}>
-      <Grid item xs={8}>
-        <Loading meta={{ loaded: !loading, error: error && error.message }}>
-          {!limits || !limits.length ? (
-            <Hint>
-              <Typography>{t(tKeys.notFound.getKey())}</Typography>
-            </Hint>
-          ) : (
-            <Table data={limits} separated>
-              <Table.Column>
-                <Table.Head>{t(tKeys.kind.getKey())}</Table.Head>
-                <Table.Cell>{({ data }) => <KindCell kind={limitsNames[data.kind]} />}</Table.Cell>
-              </Table.Column>
-              <Table.Column>
-                <Table.Head>{t(tKeys.value.getKey())}</Table.Head>
-                <Table.Cell>{({ data }) => <ValueCell value={data.value} />}</Table.Cell>
-              </Table.Column>
-              <Table.Column>
-                <Table.Head>{t(tKeys.ethBlockNumber.getKey())}</Table.Head>
-                <Table.Cell>
-                  {({ data }) => <EthBlockNumberCell blockNumber={data.ethBlockNumber} />}
-                </Table.Cell>
-              </Table.Column>
-            </Table>
-          )}
-        </Loading>
-      </Grid>
-      <Grid item xs={8} />
-    </Grid>
+    <Loading meta={{ loaded: !loading, error: error && error.message }}>
+      {!limits || !limits.length ? (
+        <Hint>
+          <Typography>{t(tKeys.notFound.getKey())}</Typography>
+        </Hint>
+      ) : (
+        <Table data={limits} isCompactStyle={isCompactStyle}>
+          <Table.Column>
+            <Table.Head>{t(tKeys.kind.getKey())}</Table.Head>
+            <Table.Cell>{({ data }) => <KindCell kind={limitsNames[data.kind]} />}</Table.Cell>
+          </Table.Column>
+          <Table.Column>
+            <Table.Head align="center">{t(tKeys.value.getKey())}</Table.Head>
+            <Table.Cell align="center">{({ data }) => <ValueCell value={data.value} />}</Table.Cell>
+          </Table.Column>
+          <Table.Column>
+            <Table.Head align="center">{t(tKeys.ethBlockNumber.getKey())}</Table.Head>
+            <Table.Cell align="center">
+              {({ data }) => <EthBlockNumberCell blockNumber={data.ethBlockNumber} />}
+            </Table.Cell>
+          </Table.Column>
+        </Table>
+      )}
+    </Loading>
   );
 }
