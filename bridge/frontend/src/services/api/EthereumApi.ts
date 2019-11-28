@@ -50,6 +50,13 @@ export class EthereumApi {
   }
 
   @autobind
+  public getNeededLimitsVotes$(): Observable<number> {
+    return getContractData$<number, number>(this.bridgeContract, 'howManyValidatorsDecide', {
+      eventsForReload: [['ValidatorShipTransferred']],
+    });
+  }
+
+  @autobind
   public getTokenBalance$(address: string): Observable<BN> {
     const formattedAddress = address.toLowerCase();
 

@@ -34,12 +34,12 @@ export function LimitsList(props: IProps) {
             <Table.Cell>{({ data }) => t(tKeys.items[data.kind].getKey())}</Table.Cell>
           </Table.Column>
           <Table.Column>
-            <Table.Head>{t(tKeys.value.getKey())}</Table.Head>
-            <Table.Cell prop="value" />
+            <Table.Head align="center">{t(tKeys.value.getKey())}</Table.Head>
+            <Table.Cell prop="value" align="center" />
           </Table.Column>
           <Table.Column>
-            <Table.Head>{t(tKeys.ethBlockNumber.getKey())}</Table.Head>
-            <Table.Cell prop="ethBlockNumber" />
+            <Table.Head align="center">{t(tKeys.ethBlockNumber.getKey())}</Table.Head>
+            <Table.Cell prop="ethBlockNumber" align="center" />
           </Table.Column>
         </Table>
       )}

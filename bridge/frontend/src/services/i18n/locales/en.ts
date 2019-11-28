@@ -30,13 +30,8 @@ const en = {
       currentPagination: '%{from} - %{to} of %{total}',
     },
     votingCard: {
-      timeEnded: 'Time ended',
-      timeLeft: 'Time left',
-      voted: 'Voted',
-      needed: 'Needed',
+      needed: 'Needed votes',
       limits: 'Limits',
-      yes: 'Yes',
-      no: 'No',
       approved: 'approved',
       declined: 'declined',
       showLimits: 'Show limits',
@@ -81,6 +76,7 @@ const en = {
       },
       limitsProposalsList: {
         title: 'Limits proposals',
+        notFound: 'Limits proposals not found',
       },
     },
   },

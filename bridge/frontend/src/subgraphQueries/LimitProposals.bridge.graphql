@@ -1,5 +1,5 @@
-query LimitProposal($id: ID!) {
-  limitProposal(id: $id) {
+query LimitProposals {
+  limitProposals {
     id
     ethAddress
     status

@@ -24,9 +24,10 @@ async function createMockApolloClient() {
   const mocks = {
     Query: () => ({
       limits: () => new MockList(10),
-      limitProposal: () => ({
-        ethAddress: () => '0x0000000000000000000000000000000000000000000000000000000000000000',
-      }),
+      limitProposals: () =>
+        new MockList(10, () => ({
+          ethAddress: () => '0x0000000000000000000000000000000000000000000000000000000000000000',
+        })),
     }),
     BigInt: () => '123456',
   };

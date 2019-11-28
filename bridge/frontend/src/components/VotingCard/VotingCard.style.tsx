@@ -17,8 +17,6 @@ export const useStyles = makeStyles((theme: Theme) => ({
   },
 
   voting: {
-    display: 'flex',
-    alignItems: 'center',
     borderLeft: `solid ${colors.athensGray} 1px`,
     padding: theme.spacing(2),
   },
@@ -59,9 +57,6 @@ export const useStyles = makeStyles((theme: Theme) => ({
   },
 
   votingResult: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: 'auto',
     padding: theme.spacing(2),
     borderLeft: `solid ${colors.athensGray} 1px`,
   },

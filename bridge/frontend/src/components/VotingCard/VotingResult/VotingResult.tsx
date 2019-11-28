@@ -4,14 +4,14 @@ import Grid from '@material-ui/core/Grid';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { Checked, ContainedCross } from 'components/icons';
+import { ProposalStatus } from 'generated/bridge-graphql';
 
-import { VotingStatus } from '../VotingCard';
 import { useStyles } from '../VotingCard.style';
 
 const tKeys = tKeysAll.components.votingCard;
 
 interface IProps {
-  votingStatus: VotingStatus;
+  votingStatus: ProposalStatus;
 }
 
 function VotingResult(props: IProps) {

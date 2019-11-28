@@ -43,6 +43,10 @@ export class Api {
     return this.ethereumApi.getEthValidators$;
   }
 
+  get getNeededLimitsVotes$() {
+    return this.ethereumApi.getNeededLimitsVotes$;
+  }
+
   get getEthTokenBalance$() {
     return this.ethereumApi.getTokenBalance$;
   }

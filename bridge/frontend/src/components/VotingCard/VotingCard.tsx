@@ -9,8 +9,8 @@ import Button from '@material-ui/core/Button';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { ShortAddress } from 'components/ShortAddress/ShortAddress';
 import { ContainedCircleArrow, OutlinedCircleArrow } from 'components/icons';
-import { LimitsList } from 'features/settings';
-import { useLimitProposalQuery } from 'generated/bridge-graphql';
+import { LimitsList } from 'features/settings/view/LimitsList/LimitsList';
+import { LimitProposal } from 'generated/bridge-graphql';
 
 import { VotingResult } from './VotingResult/VotingResult';
 import { useStyles } from './VotingCard.style';
@@ -18,29 +18,20 @@ import { Column } from './Column/Column';
 
 const tKeys = tKeysAll.components.votingCard;
 
-export type VotingStatus = 'PENDING' | 'APPROVED' | 'DECLINED';
-
 interface IOwnProps {
-  id: string;
-  needVoted: number;
-  showLimitsList: boolean;
+  limitProposal: LimitProposal;
+  neddedVotes: number;
 }
 
 function VotingCard(props: IOwnProps) {
-  const { id, needVoted, showLimitsList } = props;
+  const { limitProposal, neddedVotes } = props;
 
   const classes = useStyles();
   const { t } = useTranslate();
   const [expanded, setExpanded] = React.useState(false);
 
-  const { loading, data, error } = useLimitProposalQuery({ variables: { id } });
-
-  const limitProposal = data?.limitProposal;
-  const ethBlockNumber = limitProposal?.ethBlockNumber || '';
-  const fromAddress = limitProposal?.ethAddress || '';
-  const votingStatus = limitProposal?.status || 'PENDING';
-
-  const isOver = votingStatus !== 'PENDING';
+  const { ethBlockNumber, ethAddress, status } = limitProposal;
+  const isOver = status !== 'PENDING';
 
   const handleExpansionPanelChange = (_event: React.ChangeEvent<{}>, isExpanded: boolean) => {
     setExpanded(isExpanded);
@@ -54,32 +45,30 @@ function VotingCard(props: IOwnProps) {
           <Column
             xs={4}
             title="from"
-            value={<ShortAddress className={classes.address} address={fromAddress} />}
+            value={<ShortAddress className={classes.address} address={ethAddress} />}
           />
-          <Column xs={4} title={t(tKeys.needed.getKey())} value={needVoted} />
-          {showLimitsList && (
-            <Grid item xs={12} zeroMinWidth container wrap="nowrap">
-              <ExpansionPanel
-                onChange={handleExpansionPanelChange}
-                className={classes.expansionPanel}
+          <Column xs={4} title={t(tKeys.needed.getKey())} value={neddedVotes} />
+          <Grid item xs={12} zeroMinWidth container wrap="nowrap">
+            <ExpansionPanel
+              onChange={handleExpansionPanelChange}
+              className={classes.expansionPanel}
+            >
+              <ExpansionPanelSummary
+                className={classes.expansionPanelSummary}
+                aria-controls="panel1a-content"
+                id="panel1a-header"
               >
-                <ExpansionPanelSummary
-                  className={classes.expansionPanelSummary}
-                  aria-controls="panel1a-content"
-                  id="panel1a-header"
-                >
-                  {expanded && <ContainedCircleArrow className={classes.toggleExpandIcon} />}
-                  {!expanded && <OutlinedCircleArrow className={classes.toggleExpandIcon} />}
-                  <Typography className={classes.showLimits}>
-                    {t(tKeys.showLimits.getKey())}
-                  </Typography>
-                </ExpansionPanelSummary>
-                <ExpansionPanelDetails>
-                  <LimitsList isCompactStyle />
-                </ExpansionPanelDetails>
-              </ExpansionPanel>
-            </Grid>
-          )}
+                {expanded && <ContainedCircleArrow className={classes.toggleExpandIcon} />}
+                {!expanded && <OutlinedCircleArrow className={classes.toggleExpandIcon} />}
+                <Typography className={classes.showLimits}>
+                  {t(tKeys.showLimits.getKey())}
+                </Typography>
+              </ExpansionPanelSummary>
+              <ExpansionPanelDetails>
+                <LimitsList isCompactStyle />
+              </ExpansionPanelDetails>
+            </ExpansionPanel>
+          </Grid>
         </Grid>
       </Grid>
       {!isOver && (
@@ -91,7 +80,7 @@ function VotingCard(props: IOwnProps) {
       )}
       {isOver && (
         <Grid item xs={3} className={classes.votingResult}>
-          <VotingResult votingStatus={votingStatus} />
+          <VotingResult votingStatus={status} />
         </Grid>
       )}
     </Grid>
