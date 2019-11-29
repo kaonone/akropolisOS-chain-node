@@ -32,7 +32,7 @@ function TransfersList(props: IProps) {
         <Typography variant="h4">{t(tKeys.title.getKey())}</Typography>
       </Grid>
       <Grid item xs={12}>
-        <Table data={messages} separated>
+        <Table data={messages}>
           <Table.Column>
             <Table.Head align="center">#</Table.Head>
             <Table.Cell align="center">

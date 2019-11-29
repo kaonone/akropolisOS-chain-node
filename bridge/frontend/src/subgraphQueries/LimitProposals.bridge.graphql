@@ -1,0 +1,18 @@
+query LimitProposals {
+  limitProposals {
+    id
+    ethAddress
+    status
+    minHostTransactionValue
+    maxHostTransactionValue
+    dayHostMaxLimit
+    dayHostMaxLimitForOneAddress
+    maxHostPendingTransactionLimit
+    minGuestTransactionValue
+    maxGuestTransactionValue
+    dayGuestMaxLimit
+    dayGuestMaxLimitForOneAddress
+    maxGuestPendingTransactionLimit
+    ethBlockNumber
+  }
+}

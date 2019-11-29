@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Typography from '@material-ui/core/Typography';
 import Tooltip from '@material-ui/core/Tooltip';
 import CopyToClipboard from 'react-copy-to-clipboard';
 
@@ -28,7 +27,7 @@ function ShortAddress({ address }: { address: string }) {
       placement="bottom"
     >
       <CopyToClipboard text={address} onCopy={handleCopy}>
-        <Typography>{shortAddress}</Typography>
+        <span>{shortAddress}</span>
       </CopyToClipboard>
     </Tooltip>
   );

@@ -3,6 +3,7 @@ import LinearProgress, { LinearProgressProps } from '@material-ui/core/LinearPro
 import CircularProgress, { CircularProgressProps } from '@material-ui/core/CircularProgress';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { QueryResult } from '@apollo/react-common';
 
 import { CommunicationState } from 'utils/react';

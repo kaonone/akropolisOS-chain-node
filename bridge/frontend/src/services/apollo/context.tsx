@@ -24,6 +24,10 @@ async function createMockApolloClient() {
   const mocks = {
     Query: () => ({
       limits: () => new MockList(10),
+      limitProposals: () =>
+        new MockList(10, () => ({
+          ethAddress: () => '0x0000000000000000000000000000000000000000000000000000000000000000',
+        })),
     }),
     BigInt: () => '123456',
   };
@@ -49,7 +53,6 @@ export function ApolloProvider({ children }: Props) {
 
   if (apolloClient) {
     return <ApolloHooksProvider client={apolloClient}>{children}</ApolloHooksProvider>;
-  } else {
-    return <>Mock server is loading...</>;
   }
+  return <>Mock server is loading...</>;
 }

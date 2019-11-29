@@ -5,6 +5,7 @@ const en = {
     pages: {
       limits: {
         title: 'Limits',
+        proposalsTitle: 'Limits proposals',
       },
       validators: {
         title: 'Validators',
@@ -28,6 +29,17 @@ const en = {
     pagination: {
       itemsPerPage: 'Items per page',
       currentPagination: '%{from} - %{to} of %{total}',
+    },
+    votingCard: {
+      blockNumber: 'Block number',
+      from: 'From',
+      needed: 'Needed votes',
+      limits: 'Limits',
+      status: {
+        APPROVED: 'approved',
+        DECLINED: 'declined',
+      },
+      showLimits: 'Show proposed limits',
     },
   },
   features: {
@@ -66,6 +78,9 @@ const en = {
         kind: 'Limit',
         value: 'Value',
         ethBlockNumber: 'Block number',
+      },
+      limitsProposalsList: {
+        notFound: 'Limits proposals not found',
       },
     },
   },
