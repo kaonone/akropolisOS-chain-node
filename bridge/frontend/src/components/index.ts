@@ -22,3 +22,4 @@ export { default as Button } from '@material-ui/core/Button';
 export { default as MenuItem } from '@material-ui/core/MenuItem';
 export { default as IconButton } from '@material-ui/core/IconButton';
 export { default as Chip } from '@material-ui/core/Chip';
+export { default as CircularProgress } from '@material-ui/core/CircularProgress';
