@@ -25,6 +25,7 @@ function Column(props: IProps) {
         {icon}
         <Typography
           variant="overline"
+          component="h5"
           className={cn(classes.title, { [classes.isHighlighted]: isHighlighted })}
         >
           {title}
@@ -33,12 +34,13 @@ function Column(props: IProps) {
       <Grid container alignItems="baseline">
         <Typography
           variant="h5"
+          component="div"
           className={cn(classes.value, { [classes.isHighlighted]: isHighlighted })}
         >
           {value}
         </Typography>
         {subValue && (
-          <Typography variant="subtitle1" className={classes.subValue}>
+          <Typography variant="subtitle1" component="div" className={classes.subValue}>
             {subValue}
           </Typography>
         )}

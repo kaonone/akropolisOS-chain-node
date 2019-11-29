@@ -3,11 +3,12 @@ import Grid from '@material-ui/core/Grid';
 import Typography from '@material-ui/core/Typography';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
-import { useApi } from 'services/api';
 import { VotingCard } from 'components/VotingCard/VotingCard';
 import { Loading, Hint } from 'components';
-import { useLimitProposalsQuery } from 'generated/bridge-graphql';
-import { useSubscribable } from 'utils/react';
+import {
+  useLimitProposalsQuery,
+  useLastValidatorsListMessageQuery,
+} from 'generated/bridge-graphql';
 
 const tKeys = tKeysAll.features.settings.limitsProposalsList;
 
@@ -17,32 +18,29 @@ function LimitsProposalsList() {
   const limitsProposalsResult = useLimitProposalsQuery();
   const limitProposals = limitsProposalsResult.data?.limitProposals;
 
-  const api = useApi();
-  const [neddedVotes, neddedVotesMeta] = useSubscribable(() => api.getNeededLimitsVotes$(), [], 0);
+  const lastValidatorsListMessage = useLastValidatorsListMessageQuery();
+  const neededVotes: number = Number(
+    lastValidatorsListMessage.data?.validatorsListMessages[0]?.newHowManyValidatorsDecide || 0,
+  );
 
   return (
-    <>
-      <Typography variant="h4" noWrap gutterBottom>
-        {t(tKeys.title.getKey())}
-      </Typography>
-      <Grid container spacing={3}>
-        <Loading gqlResults={limitsProposalsResult} meta={neddedVotesMeta}>
-          {!limitProposals || !limitProposals.length ? (
-            <Grid item xs={12}>
-              <Hint>
-                <Typography>{t(tKeys.notFound.getKey())}</Typography>
-              </Hint>
+    <Grid container spacing={3}>
+      <Loading gqlResults={[limitsProposalsResult, lastValidatorsListMessage]}>
+        {!limitProposals?.length ? (
+          <Grid item xs={12}>
+            <Hint>
+              <Typography>{t(tKeys.notFound.getKey())}</Typography>
+            </Hint>
+          </Grid>
+        ) : (
+          limitProposals.map((limitProposal, index) => (
+            <Grid key={index} item xs={6}>
+              <VotingCard limitProposal={limitProposal} neededVotes={neededVotes} />
             </Grid>
-          ) : (
-            limitProposals.map((limitProposal, index) => (
-              <Grid key={index} item xs={12}>
-                <VotingCard limitProposal={limitProposal} neddedVotes={neddedVotes} />
-              </Grid>
-            ))
-          )}
-        </Loading>
-      </Grid>
-    </>
+          ))
+        )}
+      </Loading>
+    </Grid>
   );
 }
 

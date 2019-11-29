@@ -10,20 +10,23 @@ export function LimitsPage() {
   const { t } = useTranslate();
 
   return (
-    <>
-      <Typography variant="h4" noWrap gutterBottom>
-        {t(tKeys.title.getKey())}
-      </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={8}>
-          <LimitsList />
-        </Grid>
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h4" noWrap gutterBottom>
+          {t(tKeys.title.getKey())}
+        </Typography>
       </Grid>
-      <Grid container spacing={3}>
-        <Grid item xs={8}>
-          <LimitsProposalsList />
-        </Grid>
+      <Grid item xs={12}>
+        <LimitsList />
       </Grid>
-    </>
+      <Grid item xs={12}>
+        <Typography variant="h4" noWrap gutterBottom>
+          {t(tKeys.proposalsTitle.getKey())}
+        </Typography>
+      </Grid>
+      <Grid item xs={12}>
+        <LimitsProposalsList />
+      </Grid>
+    </Grid>
   );
 }

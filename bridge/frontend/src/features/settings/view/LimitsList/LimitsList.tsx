@@ -10,11 +10,11 @@ const Table = GeneralTable as MakeTableType<Limit>;
 const tKeys = tKeysAll.features.settings.limits;
 
 interface IProps {
-  isCompactStyle?: boolean;
+  variant?: React.ComponentProps<typeof Table>['variant'];
 }
 
 export function LimitsList(props: IProps) {
-  const { isCompactStyle } = props;
+  const { variant } = props;
   const { t } = useTranslate();
 
   const limitsResult = useLimitsQuery();
@@ -28,7 +28,7 @@ export function LimitsList(props: IProps) {
           <Typography>{t(tKeys.notFound.getKey())}</Typography>
         </Hint>
       ) : (
-        <Table data={list} isCompactStyle={isCompactStyle}>
+        <Table data={list} variant={variant}>
           <Table.Column>
             <Table.Head>{t(tKeys.kind.getKey())}</Table.Head>
             <Table.Cell>{({ data }) => t(tKeys.items[data.kind].getKey())}</Table.Cell>

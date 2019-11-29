@@ -20,11 +20,11 @@ const tKeys = tKeysAll.components.votingCard;
 
 interface IOwnProps {
   limitProposal: LimitProposal;
-  neddedVotes: number;
+  neededVotes: number;
 }
 
 function VotingCard(props: IOwnProps) {
-  const { limitProposal, neddedVotes } = props;
+  const { limitProposal, neededVotes } = props;
 
   const classes = useStyles();
   const { t } = useTranslate();
@@ -45,9 +45,9 @@ function VotingCard(props: IOwnProps) {
           <Column
             xs={4}
             title={t(tKeys.from.getKey())}
-            value={<ShortAddress className={classes.address} address={ethAddress} />}
+            value={<ShortAddress address={ethAddress} />}
           />
-          <Column xs={4} title={t(tKeys.needed.getKey())} value={neddedVotes} />
+          <Column xs={4} title={t(tKeys.needed.getKey())} value={neededVotes} />
           <Grid item xs={12} zeroMinWidth container wrap="nowrap">
             <ExpansionPanel
               onChange={handleExpansionPanelChange}
@@ -65,7 +65,7 @@ function VotingCard(props: IOwnProps) {
                 </Typography>
               </ExpansionPanelSummary>
               <ExpansionPanelDetails>
-                <LimitsList isCompactStyle />
+                <LimitsList variant="compact" />
               </ExpansionPanelDetails>
             </ExpansionPanel>
           </Grid>
