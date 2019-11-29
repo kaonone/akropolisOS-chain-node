@@ -19,27 +19,19 @@ function VotingResult(props: IProps) {
   const classes = useStyles();
   const { t } = useTranslate();
 
-  return (
-    <>
-      <Grid container spacing={3} justify="center" direction="column">
-        {(votingStatus === 'APPROVED' || votingStatus === 'DECLINED') && (
-          <Grid item>
-            <Grid container wrap="nowrap" alignItems="center" justify="center">
-              {votingStatus === 'APPROVED' && <Checked className={classes.votingForIcon} />}
-              {votingStatus === 'DECLINED' && (
-                <ContainedCross className={classes.votingAgainstIcon} />
-              )}
-              <Typography variant="h6">
-                {votingStatus === 'APPROVED'
-                  ? t(tKeys.approved.getKey())
-                  : t(tKeys.declined.getKey())}
-              </Typography>
-            </Grid>
-          </Grid>
-        )}
+  return votingStatus === 'APPROVED' || votingStatus === 'DECLINED' ? (
+    <Grid container spacing={3} justify="center" direction="column">
+      <Grid item>
+        <Grid container wrap="nowrap" alignItems="center" justify="center">
+          {votingStatus === 'APPROVED' && <Checked className={classes.votingForIcon} />}
+          {votingStatus === 'DECLINED' && <ContainedCross className={classes.votingAgainstIcon} />}
+          <Typography variant="h6">
+            {t(tKeys.status[votingStatus].getKey())}
+          </Typography>
+        </Grid>
       </Grid>
-    </>
-  );
+    </Grid>
+  ) : null;
 }
 
 export { VotingResult };

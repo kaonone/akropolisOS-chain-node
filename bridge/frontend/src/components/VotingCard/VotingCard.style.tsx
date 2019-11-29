@@ -11,11 +11,6 @@ export const useStyles = makeStyles((theme: Theme) => ({
     padding: theme.spacing(2),
   },
 
-  address: {
-    fontSize: '1.5rem',
-    lineHeight: '1.6',
-  },
-
   voting: {
     borderLeft: `solid ${colors.athensGray} 1px`,
     padding: theme.spacing(2),

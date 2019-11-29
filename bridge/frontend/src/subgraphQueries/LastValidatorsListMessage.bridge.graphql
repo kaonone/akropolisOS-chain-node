@@ -1,0 +1,8 @@
+query LastValidatorsListMessage {
+  validatorsListMessages(first: 1, orderBy: ethBlockNumber, orderDirection: desc) {
+    id
+    newValidators
+    newHowManyValidatorsDecide
+    ethBlockNumber
+  }
+}

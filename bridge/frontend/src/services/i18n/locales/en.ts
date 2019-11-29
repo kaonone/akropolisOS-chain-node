@@ -5,6 +5,8 @@ const en = {
     pages: {
       limits: {
         title: 'Limits',
+        proposalsTitle: 'Limits proposals',
+        limitsChangingFormTitle: 'Change limits',
       },
       validators: {
         title: 'Validators',
@@ -36,9 +38,11 @@ const en = {
       from: 'From',
       needed: 'Needed votes',
       limits: 'Limits',
-      approved: 'approved',
-      declined: 'declined',
-      showLimits: 'Show limits',
+      status: {
+        APPROVED: 'approved',
+        DECLINED: 'declined',
+      },
+      showLimits: 'Show proposed limits',
     },
   },
   features: {
@@ -79,11 +83,9 @@ const en = {
         ethBlockNumber: 'Block number',
       },
       limitsChangingForm: {
-        title: 'Change limits',
         cancelButtonText: 'Cancel',
       },
       limitsProposalsList: {
-        title: 'Limits proposals',
         notFound: 'Limits proposals not found',
       },
     },

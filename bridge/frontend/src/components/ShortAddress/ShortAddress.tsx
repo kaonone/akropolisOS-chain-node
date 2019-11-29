@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import cn from 'classnames';
-import Typography from '@material-ui/core/Typography';
 import Tooltip from '@material-ui/core/Tooltip';
 import CopyToClipboard from 'react-copy-to-clipboard';
 
 import { useStyles } from './ShortAddress.style';
 
-function ShortAddress({ address, className }: { address: string; className?: string }) {
+function ShortAddress({ address }: { address: string }) {
   const classes = useStyles();
 
   const [tooltipTitle, setTooltipTitle] = useState('copy');
@@ -23,13 +21,13 @@ function ShortAddress({ address, className }: { address: string; className?: str
 
   return (
     <Tooltip
-      className={cn(classes.tooltip, className)}
+      className={classes.tooltip}
       title={tooltipTitle}
       onClose={handleTooltipClose}
       placement="bottom"
     >
       <CopyToClipboard text={address} onCopy={handleCopy}>
-        <Typography>{shortAddress}</Typography>
+        <span>{shortAddress}</span>
       </CopyToClipboard>
     </Tooltip>
   );
