@@ -6,6 +6,7 @@ const en = {
       limits: {
         title: 'Limits',
         proposalsTitle: 'Limits proposals',
+        limitsChangingFormTitle: 'Change limits',
       },
       validators: {
         title: 'Validators',
@@ -23,6 +24,8 @@ const en = {
       isNumber: 'Enter a valid number',
       decimalsMoreThen: 'Enter a valid number with decimals less than %{decimals} digits',
       isValidNodeUrl: 'Node url should starts with "wss://"',
+      mustBeAnInteger: 'Enter an integer',
+      isPositiveNumber: 'Must be positive number',
     },
   },
   components: {
@@ -78,6 +81,9 @@ const en = {
         kind: 'Limit',
         value: 'Value',
         ethBlockNumber: 'Block number',
+      },
+      limitsChangingForm: {
+        cancelButtonText: 'Cancel',
       },
       limitsProposalsList: {
         notFound: 'Limits proposals not found',

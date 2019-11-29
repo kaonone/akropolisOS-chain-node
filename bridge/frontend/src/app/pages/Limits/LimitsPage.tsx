@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
-import { LimitsList, LimitsProposalsList } from 'features/settings';
+import { LimitsList, LimitsProposalsList, LimitsChangingForm } from 'features/settings';
 import { Typography, Grid } from 'components';
 
 const tKeys = tKeysAll.app.pages.limits;
@@ -26,6 +26,14 @@ export function LimitsPage() {
       </Grid>
       <Grid item xs={12}>
         <LimitsProposalsList />
+      </Grid>
+      <Grid item xs={12}>
+        <Typography variant="h4" noWrap gutterBottom>
+          {t(tKeys.limitsChangingFormTitle.getKey())}
+        </Typography>
+      </Grid>
+      <Grid item xs={12}>
+        <LimitsChangingForm />
       </Grid>
     </Grid>
   );
