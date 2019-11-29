@@ -3,7 +3,7 @@ import { Form, FormSpy } from 'react-final-form';
 import { FORM_ERROR, FormApi } from 'final-form';
 import { O } from 'ts-toolbelt';
 
-import { Button, Typography, Grid, Box, Balance } from 'components';
+import { Button, Typography, Grid, Box, Balance, Hint } from 'components';
 import { TextInputField, DecimalsField } from 'components/form';
 import { ITranslateKey } from 'services/i18n';
 import { useApi } from 'services/api';
@@ -61,7 +61,7 @@ function SendingForm() {
       {({ handleSubmit, submitting, submitError }): React.ReactElement<{}> => (
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
-            <Grid item xs>
+            <Grid item xs={12}>
               <FormSpy<FormData> subscription={{ errors: true, values: true }}>
                 {({ errors, values }: { values: FormData; errors: Errors }) => (
                   <TextInputField
@@ -69,7 +69,6 @@ function SendingForm() {
                     fullWidth
                     variant="outlined"
                     label="Address"
-                    margin="normal"
                     InputLabelProps={{
                       shrink: true,
                     }}
@@ -88,25 +87,38 @@ function SendingForm() {
                 )}
               </FormSpy>
             </Grid>
+            <Grid item xs={12}>
+              <DecimalsField
+                baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
+                baseUnitName={ETHEREUM_UNIT_NAME}
+                name={fields.amount}
+                label="Amount"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Grid>
+            {!!submitError && (
+              <Grid item xs={12}>
+                <Hint>
+                  <Typography variant="body1" color="error">
+                    {submitError}
+                  </Typography>
+                </Hint>
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={submitting}
+              >
+                Send{submitting && 'ing'}
+              </Button>
+            </Grid>
           </Grid>
-          <DecimalsField
-            baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
-            baseUnitName={ETHEREUM_UNIT_NAME}
-            name={fields.amount}
-            label="Amount"
-            margin="normal"
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-          {!!submitError && (
-            <Typography variant="body1" color="error">
-              {submitError}
-            </Typography>
-          )}
-          <Button fullWidth type="submit" variant="contained" color="primary" disabled={submitting}>
-            Send{submitting && 'ing'}
-          </Button>
         </form>
       )}
     </Form>

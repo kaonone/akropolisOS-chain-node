@@ -2,24 +2,19 @@ import React from 'react';
 import { Form } from 'react-final-form';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
-import { MakeTableType } from 'components/Table/Table';
-import { TextInputField } from 'components/form';
-import {
-  Typography,
-  Hint,
-  Table as GeneralTable,
-  Loading,
-  Button,
-  Grid,
-  CircularProgress,
-} from 'components';
-import { useLimitsQuery, Limit } from 'generated/bridge-graphql';
+import { TextInputField, DecimalsField } from 'components/form';
+import { Typography, Hint, Loading, Button, Grid, CircularProgress } from 'components';
+import { useLimitsQuery, LimitKind } from 'generated/bridge-graphql';
 import { composeValidators, validateInteger, validatePositiveNumber } from 'utils/validators';
-
-const Table = GeneralTable as MakeTableType<Limit>;
+import { DEFAULT_DECIMALS, ETHEREUM_UNIT_NAME } from 'env';
 
 const tKeys = tKeysAll.features.settings.limitsChangingForm;
 const tLimitsKeys = tKeysAll.features.settings.limits;
+
+const textFields: LimitKind[] = [
+  LimitKind.MaxHostPendingTransactionLimit,
+  LimitKind.MaxGuestPendingTransactionLimit,
+];
 
 function LimitsChangingForm() {
   const { t } = useTranslate();
@@ -70,33 +65,37 @@ function LimitsChangingForm() {
         >
           {({ handleSubmit, submitError, submitting }) => (
             <form onSubmit={handleSubmit}>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Table data={list}>
-                    <Table.Column>
-                      <Table.Head>{t(tLimitsKeys.kind.getKey())}</Table.Head>
-                      <Table.Cell>
-                        {({ data }) => t(tLimitsKeys.items[data.kind].getKey())}
-                      </Table.Cell>
-                    </Table.Column>
-                    <Table.Column>
-                      <Table.Head>{t(tLimitsKeys.value.getKey())}</Table.Head>
-                      <Table.Cell>
-                        {({ data }) => (
-                          <TextInputField
-                            validate={validate}
-                            name={data.kind}
-                            placeholder={`Enter ${t(
-                              tLimitsKeys.items[data.kind].getKey(),
-                            ).toLowerCase()}`}
-                            variant="outlined"
-                            fullWidth
-                          />
-                        )}
-                      </Table.Cell>
-                    </Table.Column>
-                  </Table>
-                </Grid>
+              <Grid container spacing={2}>
+                {list.map(item => (
+                  <Grid item xs={12} key={item.kind}>
+                    {textFields.includes(item.kind) ? (
+                      <TextInputField
+                        validate={validate}
+                        name={item.kind}
+                        label={t(tLimitsKeys.items[item.kind].getKey())}
+                        placeholder={`Enter ${t(
+                          tLimitsKeys.items[item.kind].getKey(),
+                        ).toLowerCase()}`}
+                        variant="outlined"
+                        fullWidth
+                      />
+                    ) : (
+                      <DecimalsField
+                        validate={validate}
+                        baseDecimals={DEFAULT_DECIMALS} // TODO get decimals from the ERC20 Contract
+                        baseUnitName={ETHEREUM_UNIT_NAME}
+                        name={item.kind}
+                        label={t(tLimitsKeys.items[item.kind].getKey())}
+                        placeholder={`Enter ${t(
+                          tLimitsKeys.items[item.kind].getKey(),
+                        ).toLowerCase()}`}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
+                      />
+                    )}
+                  </Grid>
+                ))}
                 {!!submitError && (
                   <Grid item xs={12}>
                     <Hint>
