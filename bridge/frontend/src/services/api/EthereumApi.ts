@@ -71,6 +71,18 @@ export class EthereumApi {
     );
   }
 
+  @autobind
+  public async approveNewLimit(
+    amount: string,
+    proposalId: string,
+    fromAddress: string,
+  ): Promise<void> {
+    const result = await this.bridgeContract.methods
+      .approvedNewProposal(amount, proposalId)
+      .send({ from: fromAddress });
+    return result;
+  }
+
   private async approveBridge(fromAddress: string, amount: string): Promise<void> {
     const allowance: string = await this.daiContract.methods
       .allowance(fromAddress, ETH_NETWORK_CONFIG.contracts.bridge)

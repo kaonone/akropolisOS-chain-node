@@ -33,26 +33,4 @@ export const useStyles = makeStyles((theme: Theme) => ({
   showLimits: {
     color: colors.royalPurple,
   },
-
-  votingIcon: {
-    width: '1.25rem',
-    marginRight: theme.spacing(0.5),
-  },
-
-  votingForIcon: {
-    marginRight: theme.spacing(1),
-    composes: '$votingIcon',
-    color: colors.shamrock,
-  },
-
-  votingAgainstIcon: {
-    marginRight: theme.spacing(1),
-    composes: '$votingIcon',
-    color: colors.geraldine,
-  },
-
-  votingResult: {
-    padding: theme.spacing(2),
-    borderLeft: `solid ${colors.athensGray} 1px`,
-  },
 }));

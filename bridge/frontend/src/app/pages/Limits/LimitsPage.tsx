@@ -1,7 +1,7 @@
 import * as React from 'react';
 
+import { LimitsList, LimitsProposalsList, LimitsChangingForm } from 'features/limits';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
-import { LimitsList, LimitsProposalsList, LimitsChangingForm } from 'features/settings';
 import { Typography, Grid } from 'components';
 
 const tKeys = tKeysAll.app.pages.limits;

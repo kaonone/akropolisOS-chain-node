@@ -55,6 +55,10 @@ export class Api {
     return this.ethereumApi.getAccount$;
   }
 
+  get approveNewLimit() {
+    return this.ethereumApi.approveNewLimit;
+  }
+
   get getSubstrateAccounts$() {
     return this.substrateApi.getAccounts$;
   }

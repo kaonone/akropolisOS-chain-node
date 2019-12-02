@@ -38,11 +38,6 @@ const en = {
       from: 'From',
       needed: 'Needed votes',
       limits: 'Limits',
-      status: {
-        APPROVED: 'approved',
-        DECLINED: 'declined',
-      },
-      showLimits: 'Show proposed limits',
     },
   },
   features: {
@@ -87,6 +82,11 @@ const en = {
       },
       limitsProposalsList: {
         notFound: 'Limits proposals not found',
+        status: {
+          APPROVED: 'approved',
+          DECLINED: 'declined',
+        },
+        showLimits: 'Show proposed limits',
       },
     },
   },
