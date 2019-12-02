@@ -9,7 +9,7 @@ interface IProps {
   fromAddress: string;
 }
 
-const tKeys = tKeysAll.features.limitsProposalsList;
+const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
 function VoteButton(props: IProps) {
   const { proposalId, fromAddress } = props;

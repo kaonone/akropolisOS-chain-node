@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { LimitsList, LimitsProposalsList, LimitsChangingForm } from 'features/limits';
+import { LimitsList, LimitsProposalsList, CreateProposalButton } from 'features/limits';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { Typography, Grid } from 'components';
 
@@ -20,20 +20,15 @@ export function LimitsPage() {
         <LimitsList />
       </Grid>
       <Grid item xs={12}>
+        <CreateProposalButton canVote />
+      </Grid>
+      <Grid item xs={12}>
         <Typography variant="h4" noWrap gutterBottom>
           {t(tKeys.proposalsTitle.getKey())}
         </Typography>
       </Grid>
       <Grid item xs={12}>
         <LimitsProposalsList />
-      </Grid>
-      <Grid item xs={12}>
-        <Typography variant="h4" noWrap gutterBottom>
-          {t(tKeys.limitsChangingFormTitle.getKey())}
-        </Typography>
-      </Grid>
-      <Grid item xs={12}>
-        <LimitsChangingForm />
       </Grid>
     </Grid>
   );

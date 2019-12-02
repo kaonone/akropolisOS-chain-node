@@ -14,6 +14,7 @@ import { getContractData$ } from 'utils/ethereum';
 import { Direction, Status } from 'generated/bridge-graphql';
 
 import { TransfersApi } from './TransfersApi';
+import { ICreateProposalOptions } from './types';
 
 export class EthereumApi {
   private daiContract: Contract;
@@ -74,6 +75,38 @@ export class EthereumApi {
   @autobind
   public async approveNewLimit(proposalId: string, fromAddress: string): Promise<void> {
     await this.daiContract.methods.approvedNewProposal(proposalId).send({ from: fromAddress }); // TODO need to test
+  }
+
+  @autobind
+  public async createLimitProposal(options: ICreateProposalOptions): Promise<void> {
+    const {
+      fromAddress,
+      minHostTransactionValue,
+      maxHostTransactionValue,
+      dayHostMaxLimit,
+      dayHostMaxLimitForOneAddress,
+      maxHostPendingTransactionLimit,
+      minGuestTransactionValue,
+      maxGuestTransactionValue,
+      dayGuestMaxLimit,
+      dayGuestMaxLimitForOneAddress,
+      maxGuestPendingTransactionLimit,
+    } = options;
+
+    await this.daiContract.methods
+      .createProposal(
+        minHostTransactionValue,
+        maxHostTransactionValue,
+        dayHostMaxLimit,
+        dayHostMaxLimitForOneAddress,
+        maxHostPendingTransactionLimit,
+        minGuestTransactionValue,
+        maxGuestTransactionValue,
+        dayGuestMaxLimit,
+        dayGuestMaxLimitForOneAddress,
+        maxGuestPendingTransactionLimit,
+      )
+      .send({ from: fromAddress }); // TODO need to test
   }
 
   private async approveBridge(fromAddress: string, amount: string): Promise<void> {

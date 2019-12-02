@@ -14,7 +14,7 @@ import { useStyles } from './LimitsProposalsList.style';
 import { LimitsList } from '../LimitsList/LimitsList';
 import { VoteButton } from '../VoteButton/VoteButton';
 
-const tKeys = tKeysAll.features.limitsProposalsList;
+const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
 function LimitsProposalsList() {
   const api = useApi();

@@ -1,23 +1,32 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Form } from 'react-final-form';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { useApi } from 'services/api';
 import { TextInputField, DecimalsField } from 'components/form';
 import { Typography, Hint, Loading, Button, Grid, CircularProgress } from 'components';
 import { useLimitsQuery, LimitKind } from 'generated/bridge-graphql';
 import { composeValidators, validateInteger, validatePositiveNumber } from 'utils/validators';
+import { useSubscribable } from 'utils/react';
 import { DEFAULT_DECIMALS, ETHEREUM_UNIT_NAME } from 'env';
 
-const tKeys = tKeysAll.features.limitsChangingForm;
-const tLimitsKeys = tKeysAll.features.limitsList;
+const tKeys = tKeysAll.features.limits.limitsChangingForm;
+const tLimitsKeys = tKeysAll.features.limits.limitsList;
 
 const textFields: LimitKind[] = [
   LimitKind.MaxHostPendingTransactionLimit,
   LimitKind.MaxGuestPendingTransactionLimit,
 ];
 
-function LimitsChangingForm() {
+interface IProps {
+  onCancel: () => void;
+}
+
+function LimitsChangingForm(props: IProps) {
+  const { onCancel } = props;
   const { t } = useTranslate();
+  const api = useApi();
+  const [account, accountMeta] = useSubscribable(() => api.getEthAccount$(), []);
 
   const limitsResult = useLimitsQuery();
 
@@ -41,18 +50,20 @@ function LimitsChangingForm() {
     return composeValidators(validateInteger, validatePositiveNumber);
   }, []);
 
-  const handleCancelButtonClick = React.useCallback(() => {
-    // eslint-disable-next-line no-console
-    console.log('cancel');
-  }, []);
-
-  const onSubmit = React.useCallback(values => {
-    // eslint-disable-next-line no-console
-    console.log(values);
-  }, []);
+  const onSubmit = useCallback(
+    async values => {
+      try {
+        await api.createLimitProposal({ fromAddress: account, ...values });
+        onCancel();
+      } catch (error) {
+        throw new Error(error);
+      }
+    },
+    [account],
+  );
 
   return (
-    <Loading gqlResults={limitsResult}>
+    <Loading gqlResults={limitsResult} meta={accountMeta}>
       {!list || !list.length ? (
         <Hint>
           <Typography>{t(tLimitsKeys.notFound.getKey())}</Typography>
@@ -66,6 +77,11 @@ function LimitsChangingForm() {
           {({ handleSubmit, submitError, submitting }) => (
             <form onSubmit={handleSubmit}>
               <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="h4" noWrap gutterBottom>
+                    {t(tKeys.title.getKey())}
+                  </Typography>
+                </Grid>
                 {list.map(item => (
                   <Grid item xs={12} key={item.kind}>
                     {textFields.includes(item.kind) ? (
@@ -104,12 +120,7 @@ function LimitsChangingForm() {
                   </Grid>
                 )}
                 <Grid item xs={6}>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    fullWidth
-                    onClick={handleCancelButtonClick}
-                  >
+                  <Button variant="outlined" color="primary" fullWidth onClick={onCancel}>
                     {t(tKeys.cancelButtonText.getKey())}
                   </Button>
                 </Grid>
