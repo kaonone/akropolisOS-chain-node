@@ -2,17 +2,31 @@ import React, { useCallback } from 'react';
 
 import { Button } from 'components';
 import { useApi } from 'services/api';
+import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 
-function VoteButton() {
+interface IProps {
+  proposalId: string;
+  fromAddress: string;
+}
+
+const tKeys = tKeysAll.features.limitsProposalsList;
+
+function VoteButton(props: IProps) {
+  const { proposalId, fromAddress } = props;
   const api = useApi();
+  const { t } = useTranslate();
 
-  const promise = useCallback(() => api.approveNewLimit(), []);
-
-  const handleButtonClick = useCallback(() => {}, []);
+  const handleButtonClick = useCallback(async () => {
+    try {
+      await api.approveNewLimit(proposalId, fromAddress);
+    } catch (error) {
+      throw new Error(error);
+    }
+  }, [proposalId, fromAddress]);
 
   return (
     <Button onClick={handleButtonClick} variant="contained" color="primary" fullWidth>
-      Approve
+      {t(tKeys.approve.getKey())}
     </Button>
   );
 }

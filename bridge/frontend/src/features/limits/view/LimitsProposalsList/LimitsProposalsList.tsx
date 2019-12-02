@@ -3,18 +3,23 @@ import Grid from '@material-ui/core/Grid';
 import Typography from '@material-ui/core/Typography';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { useApi } from 'services/api';
 import { VotingCard } from 'components/VotingCard/VotingCard';
 import { Checked, ContainedCross } from 'components/icons';
 import { Loading, Hint } from 'components';
-import { useLimitProposalsQuery } from 'generated/bridge-graphql';
+import { useLimitProposalsQuery, ProposalStatus } from 'generated/bridge-graphql';
+import { useSubscribable } from 'utils/react';
 
 import { useStyles } from './LimitsProposalsList.style';
 import { LimitsList } from '../LimitsList/LimitsList';
 import { VoteButton } from '../VoteButton/VoteButton';
 
-const tKeys = tKeysAll.features.settings.limitsProposalsList;
+const tKeys = tKeysAll.features.limitsProposalsList;
 
 function LimitsProposalsList() {
+  const api = useApi();
+  const [account, accountMeta] = useSubscribable(() => api.getEthAccount$(), []);
+
   const { t } = useTranslate();
   const classes = useStyles();
 
@@ -23,7 +28,7 @@ function LimitsProposalsList() {
 
   return (
     <Grid container spacing={3}>
-      <Loading gqlResults={limitsProposalsResult}>
+      <Loading gqlResults={limitsProposalsResult} meta={accountMeta}>
         {!limitProposals?.length ? (
           <Grid item xs={12}>
             <Hint>
@@ -31,7 +36,8 @@ function LimitsProposalsList() {
             </Hint>
           </Grid>
         ) : (
-          limitProposals.map(({ ethBlockNumber, ethAddress, status }, index) => (
+          account &&
+          limitProposals.map(({ id, ethBlockNumber, ethAddress, status }, index) => (
             <Grid key={index} item xs={6}>
               <VotingCard
                 ethBlockNumber={ethBlockNumber}
@@ -40,14 +46,16 @@ function LimitsProposalsList() {
                 expansionPanelTitle={t(tKeys.showLimits.getKey())}
                 expansionPanelDetails={<LimitsList variant="compact" />}
               >
-                {status === 'PENDING' ? (
+                {status === ProposalStatus.Pending ? (
                   <VotingCard.Voting>
-                    <VoteButton />
+                    <VoteButton proposalId={id} fromAddress={account} />
                   </VotingCard.Voting>
                 ) : (
                   <VotingCard.Result>
-                    {status === 'APPROVED' && <Checked className={classes.votingForIcon} />}
-                    {status === 'DECLINED' && (
+                    {status === ProposalStatus.Approved && (
+                      <Checked className={classes.votingForIcon} />
+                    )}
+                    {status === ProposalStatus.Declined && (
                       <ContainedCross className={classes.votingAgainstIcon} />
                     )}
                     <Typography variant="h6">{t(tKeys.status[status].getKey())}</Typography>

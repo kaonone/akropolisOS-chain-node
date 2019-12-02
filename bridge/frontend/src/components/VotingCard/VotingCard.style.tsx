@@ -30,7 +30,7 @@ export const useStyles = makeStyles((theme: Theme) => ({
     padding: 0,
   },
 
-  showLimits: {
+  showButton: {
     color: colors.royalPurple,
   },
 }));

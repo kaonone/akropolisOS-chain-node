@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as React from 'react';
 import Grid from '@material-ui/core/Grid';
 import Typography from '@material-ui/core/Typography';
@@ -90,7 +91,7 @@ function VotingCardComponent(props: IOwnProps) {
               >
                 {expanded && <ContainedCircleArrow className={classes.toggleExpandIcon} />}
                 {!expanded && <OutlinedCircleArrow className={classes.toggleExpandIcon} />}
-                <Typography className={classes.showLimits}>{expansionPanelTitle}</Typography>
+                <Typography className={classes.showButton}>{expansionPanelTitle}</Typography>
               </ExpansionPanelSummary>
               <ExpansionPanelDetails>{expansionPanelDetails}</ExpansionPanelDetails>
             </ExpansionPanel>

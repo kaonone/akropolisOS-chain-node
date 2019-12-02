@@ -52,42 +52,41 @@ const en = {
       notFound: 'Transfers not found',
     },
     tokenTransfer: {},
-    settings: {
-      localSettings: {
-        bridgeSettings: 'Bridge settings',
-        connectionStatus: 'Connection status:',
-        resetButton: 'Reset & Reload',
-        saveButton: 'Save & reload',
+    localSettings: {
+      bridgeSettings: 'Bridge settings',
+      connectionStatus: 'Connection status:',
+      resetButton: 'Reset & Reload',
+      saveButton: 'Save & reload',
+    },
+    limitsList: {
+      items: {
+        MIN_HOST_TRANSACTION_VALUE: 'Min host transaction value',
+        MAX_HOST_TRANSACTION_VALUE: 'Max host transaction value',
+        DAY_HOST_MAX_LIMIT: 'Day host max limit',
+        DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS: 'Day host max limit for one address',
+        MAX_HOST_PENDING_TRANSACTION_LIMIT: 'Max host pending transaction limit',
+        MIN_GUEST_TRANSACTION_VALUE: 'Min guest transaction value',
+        MAX_GUEST_TRANSACTION_VALUE: 'Max guest transaction value',
+        DAY_GUEST_MAX_LIMIT: 'Day guest max limit',
+        DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS: 'Day guest max limit for one address',
+        MAX_GUEST_PENDING_TRANSACTION_LIMIT: 'Max guest pending transaction limit',
       },
-      limits: {
-        items: {
-          MIN_HOST_TRANSACTION_VALUE: 'Min host transaction value',
-          MAX_HOST_TRANSACTION_VALUE: 'Max host transaction value',
-          DAY_HOST_MAX_LIMIT: 'Day host max limit',
-          DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS: 'Day host max limit for one address',
-          MAX_HOST_PENDING_TRANSACTION_LIMIT: 'Max host pending transaction limit',
-          MIN_GUEST_TRANSACTION_VALUE: 'Min guest transaction value',
-          MAX_GUEST_TRANSACTION_VALUE: 'Max guest transaction value',
-          DAY_GUEST_MAX_LIMIT: 'Day guest max limit',
-          DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS: 'Day guest max limit for one address',
-          MAX_GUEST_PENDING_TRANSACTION_LIMIT: 'Max guest pending transaction limit',
-        },
-        notFound: 'Limits not found',
-        kind: 'Limit',
-        value: 'Value',
-        ethBlockNumber: 'Block number',
+      notFound: 'Limits not found',
+      kind: 'Limit',
+      value: 'Value',
+      ethBlockNumber: 'Block number',
+    },
+    limitsChangingForm: {
+      cancelButtonText: 'Cancel',
+    },
+    limitsProposalsList: {
+      notFound: 'Limits proposals not found',
+      status: {
+        APPROVED: 'approved',
+        DECLINED: 'declined',
       },
-      limitsChangingForm: {
-        cancelButtonText: 'Cancel',
-      },
-      limitsProposalsList: {
-        notFound: 'Limits proposals not found',
-        status: {
-          APPROVED: 'approved',
-          DECLINED: 'declined',
-        },
-        showLimits: 'Show proposed limits',
-      },
+      showLimits: 'Show proposed limits',
+      approve: 'Approve',
     },
   },
 };

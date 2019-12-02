@@ -8,8 +8,8 @@ import { useLimitsQuery, LimitKind } from 'generated/bridge-graphql';
 import { composeValidators, validateInteger, validatePositiveNumber } from 'utils/validators';
 import { DEFAULT_DECIMALS, ETHEREUM_UNIT_NAME } from 'env';
 
-const tKeys = tKeysAll.features.settings.limitsChangingForm;
-const tLimitsKeys = tKeysAll.features.settings.limits;
+const tKeys = tKeysAll.features.limitsChangingForm;
+const tLimitsKeys = tKeysAll.features.limitsList;
 
 const textFields: LimitKind[] = [
   LimitKind.MaxHostPendingTransactionLimit,

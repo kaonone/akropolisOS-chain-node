@@ -7,7 +7,7 @@ import { useLimitsQuery, Limit } from 'generated/bridge-graphql';
 
 const Table = GeneralTable as MakeTableType<Limit>;
 
-const tKeys = tKeysAll.features.settings.limits;
+const tKeys = tKeysAll.features.limitsList;
 
 interface IProps {
   variant?: React.ComponentProps<typeof Table>['variant'];

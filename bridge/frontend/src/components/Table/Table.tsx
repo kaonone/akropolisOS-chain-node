@@ -55,8 +55,7 @@ function TableComponent<T>(props: ITableProps<T>) {
   const needToRenderHead = columns.some(column => column.headProps);
 
   return (
-    <table
-      className={cn(classes.root, classes[variant], className)}>
+    <table className={cn(classes.root, classes[variant], className)}>
       {needToRenderHead && (
         <thead>
           <tr>
