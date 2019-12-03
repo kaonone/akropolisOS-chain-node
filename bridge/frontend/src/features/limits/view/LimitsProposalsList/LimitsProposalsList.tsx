@@ -37,28 +37,32 @@ function LimitsProposalsList() {
           </Grid>
         ) : (
           account &&
-          limitProposals.map(({ id, ethBlockNumber, ethAddress, status }, index) => (
+          limitProposals.map((limitProposal, index) => (
             <Grid key={index} item xs={6}>
               <VotingCard
-                ethBlockNumber={ethBlockNumber}
-                ethAddress={ethAddress}
-                status={status}
+                ethBlockNumber={limitProposal.ethBlockNumber}
+                ethAddress={limitProposal.ethAddress}
+                status={limitProposal.status}
                 expansionPanelTitle={t(tKeys.showLimits.getKey())}
-                expansionPanelDetails={<LimitsList variant="compact" />}
+                expansionPanelDetails={
+                  <LimitsList limitProposal={limitProposal} variant="compact" />
+                }
               >
-                {status === ProposalStatus.Pending ? (
+                {limitProposal.status === ProposalStatus.Pending ? (
                   <VotingCard.Voting>
-                    <VoteButton proposalId={id} fromAddress={account} />
+                    <VoteButton proposalId={limitProposal.id} fromAddress={account} />
                   </VotingCard.Voting>
                 ) : (
                   <VotingCard.Result>
-                    {status === ProposalStatus.Approved && (
+                    {limitProposal.status === ProposalStatus.Approved && (
                       <Checked className={classes.votingForIcon} />
                     )}
-                    {status === ProposalStatus.Declined && (
+                    {limitProposal.status === ProposalStatus.Declined && (
                       <ContainedCross className={classes.votingAgainstIcon} />
                     )}
-                    <Typography variant="h6">{t(tKeys.status[status].getKey())}</Typography>
+                    <Typography variant="h6">
+                      {t(tKeys.status[limitProposal.status].getKey())}
+                    </Typography>
                   </VotingCard.Result>
                 )}
               </VotingCard>

@@ -70,6 +70,7 @@
     "rxjs": "^6.5.2",
     "store": "^2.0.12",
     "subscriptions-transport-ws": "^0.9.16",
+    "to-camel-case": "^1.0.0",
     "ts-toolbelt": "^4.10.20",
     "web3": "^1.2.1"
   },
@@ -94,6 +95,7 @@
     "@types/react-router": "^5.1.2",
     "@types/react-router-dom": "^5.1.2",
     "@types/react-text-mask": "^5.4.6",
+    "@types/to-camel-case": "^1.0.0",
     "@types/web3": "^1.0.19",
     "@types/webpack": "^4.39.8",
     "@types/webpack-dev-server": "^3.4.0",
