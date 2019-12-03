@@ -81,30 +81,30 @@ export class EthereumApi {
   public async createLimitProposal(options: ICreateProposalOptions): Promise<void> {
     const {
       fromAddress,
-      minHostTransactionValue,
-      maxHostTransactionValue,
-      dayHostMaxLimit,
-      dayHostMaxLimitForOneAddress,
-      maxHostPendingTransactionLimit,
-      minGuestTransactionValue,
-      maxGuestTransactionValue,
-      dayGuestMaxLimit,
-      dayGuestMaxLimitForOneAddress,
-      maxGuestPendingTransactionLimit,
+      MIN_HOST_TRANSACTION_VALUE,
+      MAX_HOST_TRANSACTION_VALUE,
+      DAY_HOST_MAX_LIMIT,
+      DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS,
+      MAX_HOST_PENDING_TRANSACTION_LIMIT,
+      MIN_GUEST_TRANSACTION_VALUE,
+      MAX_GUEST_TRANSACTION_VALUE,
+      DAY_GUEST_MAX_LIMIT,
+      DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS,
+      MAX_GUEST_PENDING_TRANSACTION_LIMIT,
     } = options;
 
     await this.daiContract.methods
       .createProposal(
-        minHostTransactionValue,
-        maxHostTransactionValue,
-        dayHostMaxLimit,
-        dayHostMaxLimitForOneAddress,
-        maxHostPendingTransactionLimit,
-        minGuestTransactionValue,
-        maxGuestTransactionValue,
-        dayGuestMaxLimit,
-        dayGuestMaxLimitForOneAddress,
-        maxGuestPendingTransactionLimit,
+        MIN_HOST_TRANSACTION_VALUE,
+        MAX_HOST_TRANSACTION_VALUE,
+        DAY_HOST_MAX_LIMIT,
+        DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS,
+        MAX_HOST_PENDING_TRANSACTION_LIMIT,
+        MIN_GUEST_TRANSACTION_VALUE,
+        MAX_GUEST_TRANSACTION_VALUE,
+        DAY_GUEST_MAX_LIMIT,
+        DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS,
+        MAX_GUEST_PENDING_TRANSACTION_LIMIT,
       )
       .send({ from: fromAddress }); // TODO need to test
   }

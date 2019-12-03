@@ -9,7 +9,7 @@ import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
 import { useTranslate, tKeys as tKeysAll, ITranslateKey } from 'services/i18n';
 import { ShortAddress } from 'components/ShortAddress/ShortAddress';
 import { Loading } from 'components/Loading';
-import { ContainedCircleArrow, OutlinedCircleArrow } from 'components/icons';
+import { ContainedCircleArrow, OutlinedCircleArrow, Checked, ContainedCross } from 'components/icons';
 import { ProposalStatus, useLastValidatorsListMessageQuery } from 'generated/bridge-graphql';
 import { attachStaticFields } from 'utils/object';
 import { filterChildrenByComponent } from 'utils/react';
@@ -26,10 +26,6 @@ interface IOwnProps {
   status: ProposalStatus;
   expansionPanelTitle: ITranslateKey;
   expansionPanelDetails: React.ReactNode;
-}
-
-interface IResultProps {
-  children?: React.ReactNode;
 }
 
 interface IVotingProps {
@@ -50,7 +46,6 @@ function VotingCardComponent(props: IOwnProps) {
   const { t } = useTranslate();
   const [expanded, setExpanded] = React.useState(false);
 
-  const [votingResult] = filterChildrenByComponent<IResultProps>(children, Result);
   const [votingContent] = filterChildrenByComponent<IVotingProps>(children, Voting);
 
   const isOver = status !== 'PENDING';
@@ -103,24 +98,26 @@ function VotingCardComponent(props: IOwnProps) {
           <Grid container spacing={3} justify="center" direction="column">
             <Grid item>
               <Grid container wrap="nowrap" alignItems="center" justify="center">
-                {votingResult.props.children}
+                {status === ProposalStatus.Approved && (
+                  <Checked className={classes.votingForIcon} />
+                )}
+                {status === ProposalStatus.Declined && (
+                  <ContainedCross className={classes.votingAgainstIcon} />
+                )}
+                <Typography variant="h6">{t(tKeys.status[status].getKey())}</Typography>
               </Grid>
             </Grid>
           </Grid>
         ) : (
-          <>{votingContent.props.children}</>
+          <>{votingContent?.props.children}</>
         )}
       </Grid>
     </Grid>
   );
 }
 
-function Result(_props: IResultProps) {
-  return <noscript />;
-}
-
 function Voting(_props: IVotingProps) {
   return <noscript />;
 }
 
-export const VotingCard = attachStaticFields(VotingCardComponent, { Result, Voting });
+export const VotingCard = attachStaticFields(VotingCardComponent, { Voting });
