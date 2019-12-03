@@ -33,4 +33,16 @@ export const useStyles = makeStyles((theme: Theme) => ({
   showButton: {
     color: colors.royalPurple,
   },
+
+  votingForIcon: {
+    marginRight: theme.spacing(1),
+    composes: '$votingIcon',
+    color: colors.shamrock,
+  },
+
+  votingAgainstIcon: {
+    marginRight: theme.spacing(1),
+    composes: '$votingIcon',
+    color: colors.geraldine,
+  },
 }));

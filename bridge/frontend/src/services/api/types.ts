@@ -1,3 +1,5 @@
+import { LimitKind } from 'generated/bridge-graphql';
+
 export enum ConnectionStatus {
   connecting = 'CONNECTING',
   ready = 'READY',
@@ -9,16 +11,4 @@ export interface IConnectionInfo {
   errors: number;
 }
 
-export interface ICreateProposalOptions {
-  fromAddress: string;
-  minHostTransactionValue: string;
-  maxHostTransactionValue: string;
-  dayHostMaxLimit: string;
-  dayHostMaxLimitForOneAddress: string;
-  maxHostPendingTransactionLimit: string;
-  minGuestTransactionValue: string;
-  maxGuestTransactionValue: string;
-  dayGuestMaxLimit: string;
-  dayGuestMaxLimitForOneAddress: string;
-  maxGuestPendingTransactionLimit: string;
-}
+export type ICreateProposalOptions = Record<LimitKind, string> & { fromAddress: string };

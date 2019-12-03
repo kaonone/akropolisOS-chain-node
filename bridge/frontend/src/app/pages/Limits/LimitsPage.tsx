@@ -20,12 +20,16 @@ export function LimitsPage() {
         <LimitsList />
       </Grid>
       <Grid item xs={12}>
-        <CreateProposalButton canVote />
-      </Grid>
-      <Grid item xs={12}>
-        <Typography variant="h4" noWrap gutterBottom>
-          {t(tKeys.proposalsTitle.getKey())}
-        </Typography>
+        <Grid container spacing={2}>
+          <Grid item>
+            <Typography variant="h4" noWrap gutterBottom>
+              {t(tKeys.proposalsTitle.getKey())}
+            </Typography>
+          </Grid>
+          <Grid item>
+            <CreateProposalButton canVote />
+          </Grid>
+        </Grid>
       </Grid>
       <Grid item xs={12}>
         <LimitsProposalsList />
