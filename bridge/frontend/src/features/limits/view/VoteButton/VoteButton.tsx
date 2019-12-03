@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { ButtonProps } from '@material-ui/core/Button';
 
 import { Button } from 'components';
 import { useApi } from 'services/api';
@@ -11,8 +12,8 @@ interface IProps {
 
 const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
-function VoteButton(props: IProps) {
-  const { proposalId, fromAddress } = props;
+function VoteButton(props: IProps & ButtonProps) {
+  const { proposalId, fromAddress, disabled } = props;
   const api = useApi();
   const { t } = useTranslate();
 
@@ -25,7 +26,13 @@ function VoteButton(props: IProps) {
   }, [proposalId, fromAddress]);
 
   return (
-    <Button onClick={handleButtonClick} variant="contained" color="primary" fullWidth>
+    <Button
+      onClick={handleButtonClick}
+      variant="contained"
+      color="primary"
+      disabled={disabled}
+      fullWidth
+    >
       {t(tKeys.approve.getKey())}
     </Button>
   );

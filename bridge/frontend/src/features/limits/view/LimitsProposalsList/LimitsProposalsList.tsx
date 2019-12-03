@@ -14,7 +14,12 @@ import { VoteButton } from '../VoteButton/VoteButton';
 
 const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
-function LimitsProposalsList() {
+interface IProps {
+  canVote: boolean;
+}
+
+function LimitsProposalsList(props: IProps) {
+  const { canVote } = props;
   const api = useApi();
   const [account, accountMeta] = useSubscribable(() => api.getEthAccount$(), []);
 
@@ -46,7 +51,11 @@ function LimitsProposalsList() {
                 }
               >
                 <VotingCard.Voting>
-                  <VoteButton proposalId={limitProposal.id} fromAddress={account} />
+                  <VoteButton
+                    proposalId={limitProposal.id}
+                    fromAddress={account}
+                    disabled={!canVote}
+                  />
                 </VotingCard.Voting>
               </VotingCard>
             </Grid>
