@@ -14,6 +14,7 @@ import { getContractData$ } from 'utils/ethereum';
 import { Direction, Status } from 'generated/bridge-graphql';
 
 import { TransfersApi } from './TransfersApi';
+import { ICreateProposalOptions } from './types';
 
 export class EthereumApi {
   private daiContract: Contract;
@@ -69,6 +70,43 @@ export class EthereumApi {
       skipWhile(account => !account),
       switchMap(() => interval(1000).pipe(switchMap(() => getEthAccount(this.web3)))),
     );
+  }
+
+  @autobind
+  public async approveNewLimit(proposalId: string, fromAddress: string): Promise<void> {
+    await this.daiContract.methods.approvedNewProposal(proposalId).send({ from: fromAddress }); // TODO need to test
+  }
+
+  @autobind
+  public async createLimitProposal(options: ICreateProposalOptions): Promise<void> {
+    const {
+      fromAddress,
+      MIN_HOST_TRANSACTION_VALUE,
+      MAX_HOST_TRANSACTION_VALUE,
+      DAY_HOST_MAX_LIMIT,
+      DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS,
+      MAX_HOST_PENDING_TRANSACTION_LIMIT,
+      MIN_GUEST_TRANSACTION_VALUE,
+      MAX_GUEST_TRANSACTION_VALUE,
+      DAY_GUEST_MAX_LIMIT,
+      DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS,
+      MAX_GUEST_PENDING_TRANSACTION_LIMIT,
+    } = options;
+
+    await this.daiContract.methods
+      .createProposal(
+        MIN_HOST_TRANSACTION_VALUE,
+        MAX_HOST_TRANSACTION_VALUE,
+        DAY_HOST_MAX_LIMIT,
+        DAY_HOST_MAX_LIMIT_FOR_ONE_ADDRESS,
+        MAX_HOST_PENDING_TRANSACTION_LIMIT,
+        MIN_GUEST_TRANSACTION_VALUE,
+        MAX_GUEST_TRANSACTION_VALUE,
+        DAY_GUEST_MAX_LIMIT,
+        DAY_GUEST_MAX_LIMIT_FOR_ONE_ADDRESS,
+        MAX_GUEST_PENDING_TRANSACTION_LIMIT,
+      )
+      .send({ from: fromAddress }); // TODO need to test
   }
 
   private async approveBridge(fromAddress: string, amount: string): Promise<void> {

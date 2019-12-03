@@ -9,6 +9,7 @@ export { TransactionStatus } from './TransactionStatus/TransactionStatus';
 export { Hint } from './Hint/Hint';
 export { RowsLayout } from './RowsLayout/RowsLayout';
 export { Pagination } from './Pagination/Pagination';
+export { ModalButton } from './ModalButton/ModalButton';
 
 export { default as CssBaseline } from '@material-ui/core/CssBaseline';
 export { default as Typography } from '@material-ui/core/Typography';

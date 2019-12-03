@@ -6,7 +6,6 @@ const en = {
       limits: {
         title: 'Limits',
         proposalsTitle: 'Limits proposals',
-        limitsChangingFormTitle: 'Change limits',
       },
       validators: {
         title: 'Validators',
@@ -41,8 +40,8 @@ const en = {
       status: {
         APPROVED: 'approved',
         DECLINED: 'declined',
+        PENDING: 'pending',
       },
-      showLimits: 'Show proposed limits',
     },
   },
   features: {
@@ -57,14 +56,14 @@ const en = {
       notFound: 'Transfers not found',
     },
     tokenTransfer: {},
-    settings: {
-      localSettings: {
-        bridgeSettings: 'Bridge settings',
-        connectionStatus: 'Connection status:',
-        resetButton: 'Reset & Reload',
-        saveButton: 'Save & reload',
-      },
-      limits: {
+    localSettings: {
+      bridgeSettings: 'Bridge settings',
+      connectionStatus: 'Connection status:',
+      resetButton: 'Reset & Reload',
+      saveButton: 'Save & reload',
+    },
+    limits: {
+      limitsList: {
         items: {
           MIN_HOST_TRANSACTION_VALUE: 'Min host transaction value',
           MAX_HOST_TRANSACTION_VALUE: 'Max host transaction value',
@@ -83,11 +82,15 @@ const en = {
         ethBlockNumber: 'Block number',
       },
       limitsChangingForm: {
+        title: 'Change limits',
         cancelButtonText: 'Cancel',
       },
       limitsProposalsList: {
         notFound: 'Limits proposals not found',
+        showLimits: 'Show proposed limits',
+        approve: 'Approve',
       },
+      createProposal: 'Create proposal',
     },
   },
 };

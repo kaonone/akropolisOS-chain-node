@@ -33,7 +33,7 @@ const statuses: Record<ConnectionStatus, string> = {
   ERROR: 'error',
 };
 
-const tKeys = tKeysAll.features.settings.localSettings;
+const tKeys = tKeysAll.features.localSettings;
 
 function LocalSettings() {
   const { t } = useTranslate();

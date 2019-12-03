@@ -1,37 +1,64 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as React from 'react';
 import Grid from '@material-ui/core/Grid';
 import Typography from '@material-ui/core/Typography';
 import ExpansionPanel from '@material-ui/core/ExpansionPanel';
 import ExpansionPanelSummary from '@material-ui/core/ExpansionPanelSummary';
 import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
-import Button from '@material-ui/core/Button';
 
-import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { useTranslate, tKeys as tKeysAll, ITranslateKey } from 'services/i18n';
 import { ShortAddress } from 'components/ShortAddress/ShortAddress';
-import { ContainedCircleArrow, OutlinedCircleArrow } from 'components/icons';
-import { LimitsList } from 'features/settings/view/LimitsList/LimitsList';
-import { LimitProposal } from 'generated/bridge-graphql';
+import { Loading } from 'components/Loading';
+import {
+  ContainedCircleArrow,
+  OutlinedCircleArrow,
+  Checked,
+  ContainedCross,
+} from 'components/icons';
+import { ProposalStatus, useLastValidatorsListMessageQuery } from 'generated/bridge-graphql';
+import { attachStaticFields } from 'utils/object';
+import { filterChildrenByComponent } from 'utils/react';
 
-import { VotingResult } from './VotingResult/VotingResult';
 import { useStyles } from './VotingCard.style';
 import { Column } from './Column/Column';
 
 const tKeys = tKeysAll.components.votingCard;
 
 interface IOwnProps {
-  limitProposal: LimitProposal;
-  neededVotes: number;
+  children?: React.ReactNode;
+  ethBlockNumber: string;
+  ethAddress: string;
+  status: ProposalStatus;
+  expansionPanelTitle: ITranslateKey;
+  expansionPanelDetails: React.ReactNode;
 }
 
-function VotingCard(props: IOwnProps) {
-  const { limitProposal, neededVotes } = props;
+interface IVotingProps {
+  children?: React.ReactNode;
+}
+
+function VotingCardComponent(props: IOwnProps) {
+  const {
+    ethBlockNumber,
+    ethAddress,
+    status,
+    children,
+    expansionPanelTitle,
+    expansionPanelDetails,
+  } = props;
 
   const classes = useStyles();
   const { t } = useTranslate();
   const [expanded, setExpanded] = React.useState(false);
 
-  const { ethBlockNumber, ethAddress, status } = limitProposal;
+  const [votingContent] = filterChildrenByComponent<IVotingProps>(children, Voting);
+
   const isOver = status !== 'PENDING';
+
+  const lastValidatorsListMessage = useLastValidatorsListMessageQuery();
+  const neededVotes: number = Number(
+    lastValidatorsListMessage.data?.validatorsListMessages[0]?.newHowManyValidatorsDecide || 0,
+  );
 
   const handleExpansionPanelChange = (_event: React.ChangeEvent<{}>, isExpanded: boolean) => {
     setExpanded(isExpanded);
@@ -47,7 +74,11 @@ function VotingCard(props: IOwnProps) {
             title={t(tKeys.from.getKey())}
             value={<ShortAddress address={ethAddress} />}
           />
-          <Column xs={4} title={t(tKeys.needed.getKey())} value={neededVotes} />
+          <Column
+            xs={4}
+            title={t(tKeys.needed.getKey())}
+            value={<Loading gqlResults={lastValidatorsListMessage}>{neededVotes}</Loading>}
+          />
           <Grid item xs={12} zeroMinWidth container wrap="nowrap">
             <ExpansionPanel
               onChange={handleExpansionPanelChange}
@@ -60,31 +91,38 @@ function VotingCard(props: IOwnProps) {
               >
                 {expanded && <ContainedCircleArrow className={classes.toggleExpandIcon} />}
                 {!expanded && <OutlinedCircleArrow className={classes.toggleExpandIcon} />}
-                <Typography className={classes.showLimits}>
-                  {t(tKeys.showLimits.getKey())}
-                </Typography>
+                <Typography className={classes.showButton}>{expansionPanelTitle}</Typography>
               </ExpansionPanelSummary>
-              <ExpansionPanelDetails>
-                <LimitsList variant="compact" />
-              </ExpansionPanelDetails>
+              <ExpansionPanelDetails>{expansionPanelDetails}</ExpansionPanelDetails>
             </ExpansionPanel>
           </Grid>
         </Grid>
       </Grid>
-      {!isOver && (
-        <Grid item xs={3} className={classes.voting}>
-          <Button variant="contained" color="primary" disabled fullWidth>
-            Approve
-          </Button>
-        </Grid>
-      )}
-      {isOver && (
-        <Grid item xs={3} className={classes.votingResult}>
-          <VotingResult votingStatus={status} />
-        </Grid>
-      )}
+      <Grid item xs={3} className={classes.voting}>
+        {isOver ? (
+          <Grid container spacing={3} justify="center" direction="column">
+            <Grid item>
+              <Grid container wrap="nowrap" alignItems="center" justify="center">
+                {status === ProposalStatus.Approved && (
+                  <Checked className={classes.votingForIcon} />
+                )}
+                {status === ProposalStatus.Declined && (
+                  <ContainedCross className={classes.votingAgainstIcon} />
+                )}
+                <Typography variant="h6">{t(tKeys.status[status].getKey())}</Typography>
+              </Grid>
+            </Grid>
+          </Grid>
+        ) : (
+          <>{votingContent?.props.children}</>
+        )}
+      </Grid>
     </Grid>
   );
 }
 
-export { VotingCard };
+function Voting(_props: IVotingProps) {
+  return <noscript />;
+}
+
+export const VotingCard = attachStaticFields(VotingCardComponent, { Voting });

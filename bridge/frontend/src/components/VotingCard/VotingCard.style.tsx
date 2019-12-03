@@ -30,13 +30,8 @@ export const useStyles = makeStyles((theme: Theme) => ({
     padding: 0,
   },
 
-  showLimits: {
+  showButton: {
     color: colors.royalPurple,
-  },
-
-  votingIcon: {
-    width: '1.25rem',
-    marginRight: theme.spacing(0.5),
   },
 
   votingForIcon: {
@@ -49,10 +44,5 @@ export const useStyles = makeStyles((theme: Theme) => ({
     marginRight: theme.spacing(1),
     composes: '$votingIcon',
     color: colors.geraldine,
-  },
-
-  votingResult: {
-    padding: theme.spacing(2),
-    borderLeft: `solid ${colors.athensGray} 1px`,
   },
 }));
