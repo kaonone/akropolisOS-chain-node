@@ -1,39 +1,43 @@
-import React, { useCallback } from 'react';
-import { ButtonProps } from '@material-ui/core/Button';
+import React, { useEffect } from 'react';
 
-import { Button } from 'components';
+import { Button, CircularProgress } from 'components';
 import { useApi } from 'services/api';
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
+import { useCommunication } from 'utils/react';
+import { getErrorMsg } from 'utils/getErrorMsg';
 
 interface IProps {
   proposalId: string;
   fromAddress: string;
+  disabled: boolean;
 }
 
 const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
-function VoteButton(props: IProps & ButtonProps) {
+function VoteButton(props: IProps) {
   const { proposalId, fromAddress, disabled } = props;
   const api = useApi();
   const { t } = useTranslate();
 
-  const handleButtonClick = useCallback(async () => {
-    try {
-      await api.approveNewLimit(proposalId, fromAddress);
-    } catch (error) {
-      throw new Error(error);
-    }
-  }, [proposalId, fromAddress]);
+  const approving = useCommunication(() => api.approveNewLimit(proposalId, fromAddress), [
+    proposalId,
+    fromAddress,
+  ]);
+
+  useEffect(() => {
+    approving.error && console.error(getErrorMsg(approving.error));
+  }, [approving.error]);
 
   return (
     <Button
-      onClick={handleButtonClick}
+      onClick={approving.execute}
+      disabled={disabled || approving.status === 'pending'}
       variant="contained"
       color="primary"
-      disabled={disabled}
       fullWidth
     >
       {t(tKeys.approve.getKey())}
+      {approving.status === 'pending' && <CircularProgress size={24} />}
     </Button>
   );
 }
