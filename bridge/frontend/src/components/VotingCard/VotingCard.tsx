@@ -9,7 +9,12 @@ import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
 import { useTranslate, tKeys as tKeysAll, ITranslateKey } from 'services/i18n';
 import { ShortAddress } from 'components/ShortAddress/ShortAddress';
 import { Loading } from 'components/Loading';
-import { ContainedCircleArrow, OutlinedCircleArrow, Checked, ContainedCross } from 'components/icons';
+import {
+  ContainedCircleArrow,
+  OutlinedCircleArrow,
+  Checked,
+  ContainedCross,
+} from 'components/icons';
 import { ProposalStatus, useLastValidatorsListMessageQuery } from 'generated/bridge-graphql';
 import { attachStaticFields } from 'utils/object';
 import { filterChildrenByComponent } from 'utils/react';
