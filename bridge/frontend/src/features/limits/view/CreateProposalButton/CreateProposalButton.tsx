@@ -5,23 +5,13 @@ import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 
 import { LimitsChangingForm } from '../LimitsChangingForm/LimitsChangingForm';
 
-interface IProps {
-  canVote: boolean;
-}
-
 const tKeys = tKeysAll.features.limits;
 
-function CreateProposalButton(props: IProps) {
-  const { canVote } = props;
+function CreateProposalButton() {
   const { t } = useTranslate();
 
   return (
-    <ModalButton
-      color="primary"
-      variant="contained"
-      content={t(tKeys.createProposal.getKey())}
-      disabled={!canVote}
-    >
+    <ModalButton color="primary" variant="contained" content={t(tKeys.createProposal.getKey())}>
       {({ closeModal }) => <LimitsChangingForm onCancel={closeModal} />}
     </ModalButton>
   );

@@ -9,12 +9,13 @@ import { getErrorMsg } from 'utils/getErrorMsg';
 interface IProps {
   proposalId: string;
   fromAddress: string;
+  disabled: boolean;
 }
 
 const tKeys = tKeysAll.features.limits.limitsProposalsList;
 
 function VoteButton(props: IProps) {
-  const { proposalId, fromAddress } = props;
+  const { proposalId, fromAddress, disabled } = props;
   const api = useApi();
   const { t } = useTranslate();
 
@@ -30,7 +31,7 @@ function VoteButton(props: IProps) {
   return (
     <Button
       onClick={approving.execute}
-      disabled={approving.status === 'pending'}
+      disabled={disabled || approving.status === 'pending'}
       variant="contained"
       color="primary"
       fullWidth
