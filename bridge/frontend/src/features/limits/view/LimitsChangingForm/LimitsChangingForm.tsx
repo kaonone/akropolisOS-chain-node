@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Form } from 'react-final-form';
+import { FORM_ERROR } from 'final-form';
 
 import { useTranslate, tKeys as tKeysAll } from 'services/i18n';
 import { useApi } from 'services/api';
@@ -8,6 +9,7 @@ import { Typography, Hint, Loading, Button, Grid, CircularProgress } from 'compo
 import { useLimitsQuery, LimitKind } from 'generated/bridge-graphql';
 import { composeValidators, validateInteger, validatePositiveNumber } from 'utils/validators';
 import { useSubscribable } from 'utils/react';
+import { getErrorMsg } from 'utils/getErrorMsg';
 import { DEFAULT_DECIMALS, ETHEREUM_UNIT_NAME } from 'env';
 
 const tKeys = tKeysAll.features.limits.limitsChangingForm;
@@ -17,6 +19,8 @@ const textFields: LimitKind[] = [
   LimitKind.MaxHostPendingTransactionLimit,
   LimitKind.MaxGuestPendingTransactionLimit,
 ];
+
+type IFormData = Record<LimitKind, string>;
 
 interface IProps {
   onCancel: () => void;
@@ -32,7 +36,7 @@ function LimitsChangingForm(props: IProps) {
 
   const list = limitsResult.data?.limits;
 
-  const initialFormValues = React.useMemo(
+  const initialFormValues: IFormData = React.useMemo(
     () =>
       (list &&
         list.reduce(
@@ -40,9 +44,9 @@ function LimitsChangingForm(props: IProps) {
             ...initialValues,
             [limit.kind]: limit.value,
           }),
-          {},
+          {} as IFormData,
         )) ||
-      {},
+      ({} as IFormData),
     [list],
   );
 
@@ -51,12 +55,18 @@ function LimitsChangingForm(props: IProps) {
   }, []);
 
   const onSubmit = useCallback(
-    async values => {
+    async (values: IFormData) => {
       try {
+        if (!account) {
+          throw new Error('Account not found');
+        }
         await api.createLimitProposal({ fromAddress: account, ...values });
         onCancel();
+        return undefined;
       } catch (error) {
-        throw new Error(error);
+        return {
+          [FORM_ERROR]: getErrorMsg(error),
+        };
       }
     },
     [account],
