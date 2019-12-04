@@ -13,8 +13,8 @@ export function App() {
   const { t } = useTranslate();
 
   return (
-    <Switch>
-      <BaseLayout title={t(tKeys.mainTitle.getKey())}>
+    <BaseLayout title={t(tKeys.mainTitle.getKey())}>
+      <Switch>
         {process.env.NODE_ENV !== 'production' && (
           <Route exact path={routes.demo.getRoutePath()} component={DemoPage} />
         )}
@@ -23,7 +23,7 @@ export function App() {
         <Route exact path={routes.validators.getRoutePath()} component={ValidatorsPage} />
         <Route exact path={routes.settings.getRoutePath()} component={SettingsPage} />
         <Redirect to={routes.bridge.sourceChain.getRedirectPath({ sourceChain: 'ethereum' })} />
-      </BaseLayout>
-    </Switch>
+      </Switch>
+    </BaseLayout>
   );
 }
