@@ -101,7 +101,7 @@ This guide will walk you through how to create account and how to connect to Akr
   "DaoId": "u64",
   "MemberId": "u64",
   "ProposalId": "u64",
-  "TokenBalance": "u64",
+  "TokenBalance": "u128",
   "VotesCount": "MemberId",
   "TokenId": "u32",
   "Days": "u32",
@@ -137,9 +137,21 @@ This guide will walk you through how to create account and how to connect to Akr
     "decimals": "u16",
     "symbol": "Vec<u8>"
   },
+  "Limits": {
+    "max_tx_value": "u128",
+    "day_max_limit": "u128",
+    "day_max_limit_for_one_address": "u128",
+    "max_pending_tx_limit": "u128",
+    "min_tx_value": "u128",
+  },
   "Status": {
       "_enum":[
+        "Revoked",
         "Pending",
+        "PauseTheBridge",
+        "ResumeTheBridge",
+        "UpdateValidatorSet",
+        "UpdateLimits",
         "Deposit",
         "Withdraw",
         "Approved",
@@ -147,7 +159,14 @@ This guide will walk you through how to create account and how to connect to Akr
         "Confirmed"
       ]
   },
-    "Message": {
+  "Kind" :{
+    "_enum":[
+    "Transfer",
+    "Limits",
+    "Validator",
+    "Bridge",
+  },
+    "TransferMessage": {
       "message_id": "H256",
       "eth_address": "H160",
       "substrate_address": "AccountId",
@@ -155,11 +174,30 @@ This guide will walk you through how to create account and how to connect to Akr
       "status": "Status",
       "direction": "Status"
   },
+    "LimitMessage": {
+      "id": "H256",
+      "limits": "Limits",
+      "status": "Status",
+  },
+    "BridgeMessage": {
+      "message_id": "H256",
+      "account": "AccountId",
+      "status": "Status",
+      "action": "Status"
+  },
+    "ValidatorMessage": {
+      "message_id": "H256",
+      "quorum":"u64",
+      "accounts": "Vec<AccountId>",
+      "status": "Status",
+      "action": "Status"
+  },
   "BridgeTransfer": {
     "transfer_id": "ProposalId",
     "message_id": "H256",
     "open": "bool",
     "votes": "MemberId"
+    "kind": "Kind"
   }
 }
 
