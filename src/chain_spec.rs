@@ -117,6 +117,11 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     root_key: AccountId,
 ) -> GenesisConfig {
+	let bridge_validators = vec![
+        hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
+        hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
+        hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
+    ];
     GenesisConfig {
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm").to_vec(),
@@ -194,8 +199,15 @@ fn testnet_genesis(
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
 		bridge: Some(BridgeConfig {
-			validators_count: 3usize, //default 
-			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
+			validator_accounts: bridge_validators,
+			validators_count: 3u32,
+			current_limits: vec![
+				 100*10u128.pow(18),
+				 200*10u128.pow(18),
+				 50*10u128.pow(18),
+				400*10u128.pow(18),
+				10*10u128.pow(18),
+			]
 		}),
 	}
 }
@@ -227,6 +239,12 @@ fn akropolis_staging_genesis() -> GenesisConfig {
             hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc8eed6ff3aa5428db31a16c875")
                 .unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
         ),
+	];
+	
+	let bridge_validators = vec![
+        hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
+        hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
+        hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
     ];
 
     const DEV: u128 = 1_000_000_000_000_000;
@@ -310,8 +328,15 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
 		bridge: Some(BridgeConfig {
-			validators_count: 3usize, //default 
-			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
-		})
+			validator_accounts: bridge_validators,
+			validators_count: 3u32,
+			current_limits: vec![
+				 100*10u128.pow(18),
+				 200*10u128.pow(18),
+				 50*10u128.pow(18),
+				400*10u128.pow(18),
+				10*10u128.pow(18),
+			]
+		}),
 	}
 }
