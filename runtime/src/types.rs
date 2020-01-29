@@ -11,6 +11,60 @@ pub type VotesCount = MemberId;
 pub type Days = u32;
 pub type Rate = u32;
 
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Dao<AccountId> {
+    pub address: AccountId,
+    pub name: Vec<u8>,
+    pub description: Vec<u8>,
+    pub founder: AccountId,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Proposal<DaoId, AccountId, Balance, VotingDeadline, MemberId> {
+    pub dao_id: DaoId,
+    pub action: Action<AccountId, Balance, VotingDeadline>,
+    pub open: bool,
+    pub accepted: bool,
+    pub voting_deadline: VotingDeadline,
+    pub yes_count: MemberId,
+    pub no_count: MemberId,
+}
+
+impl<D, A, B, V, M> Default for Proposal<D, A, B, V, M>
+where
+    D: Default,
+    A: Default,
+    B: Default,
+    V: Default,
+    M: Default,
+{
+    fn default() -> Self {
+        Proposal {
+            dao_id: D::default(),
+            action: Action::EmptyAction,
+            open: true,
+            accepted: false,
+            voting_deadline: V::default(),
+            yes_count: M::default(),
+            no_count: M::default(),
+        }
+    }
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub enum Action<AccountId, Balance, Timeout> {
+    EmptyAction,
+    AddMember(AccountId),
+    RemoveMember(AccountId),
+    GetLoan(Vec<u8>, Days, Rate, Balance),
+    Withdraw(AccountId, Balance, Vec<u8>),
+    ChangeTimeout(DaoId, Timeout),
+    ChangeMaximumNumberOfMembers(DaoId, MemberId),
+}
+
 //token factory
 pub type TokenBalance = u128;
 pub type TokenId = u32;
