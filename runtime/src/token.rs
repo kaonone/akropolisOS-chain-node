@@ -2,22 +2,13 @@
 /// You can use mint to create tokens or burn created tokens
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///
-use crate::types::{TokenBalance, TokenId};
-use parity_codec::{Decode, Encode};
+use crate::types::{TokenBalance, Token, TokenId};
 use rstd::prelude::Vec;
 use runtime_primitives::traits::{StaticLookup, Zero};
 use support::{
     decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
 use system::{self, ensure_signed};
-
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub struct Token {
-    pub id: TokenId,
-    pub decimals: u16,
-    pub symbol: Vec<u8>,
-}
 
 decl_event!(
     pub enum Event<T>
@@ -38,11 +29,11 @@ pub trait Trait: balances::Trait + system::Trait {
 decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
         Count get(count): TokenId;
-        Locked get(locked): map(T::AccountId) => TokenBalance;
+        Locked get(locked): map T::AccountId => TokenBalance;
 
         TokenDefault get(token_default): Token = Token{id: 0, decimals: 18, symbol: Vec::from("TOKEN")};
         TotalSupply get(total_supply): TokenBalance;
-        Balance get(balance_of): map (T::AccountId) => TokenBalance;
+        Balance get(balance_of): map T::AccountId => TokenBalance;
         Allowance get(allowance_of): map (T::AccountId, T::AccountId) => TokenBalance;
     }
 }
@@ -51,28 +42,27 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event<T>() = default;
 
-        // Burn tokens
-        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
-            ensure_signed(origin)?;
+        // // ( ! ): can be called directly
+        // // ( ? ): do we even need this?
+        // fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
+        //     ensure_signed(origin)?;
 
-            // (!) : can be called directly
-            // do we even need this?
-            Self::_burn(from.clone(), amount)?;
-            Self::deposit_event(RawEvent::Burn(from, amount));
+        //     Self::_burn(from.clone(), amount)?;
+        //     Self::deposit_event(RawEvent::Burn(from, amount));
 
-            Ok(())
-        }
+        //     Ok(())
+        // }
 
-        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
-            ensure_signed(origin)?;
+        // // ( ! ): can be called directly
+        // // ( ? ): do we even need this?
+        // fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
+        //     ensure_signed(origin)?;
 
-            // (!) : can be called directly
-            // do we even need this ?
-            Self::_mint(to.clone(), amount)?;
-            Self::deposit_event(RawEvent::Mint(to, amount));
+        //     Self::_mint(to.clone(), amount)?;
+        //     Self::deposit_event(RawEvent::Mint(to, amount));
 
-            Ok(())
-        }
+        //     Ok(())
+        // }
 
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
@@ -107,7 +97,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let allowance = Self::allowance_of((from.clone(), sender.clone()));
 
-            let updated_allowance = allowance.checked_sub(value).ok_or("underflow in calculating allowance")?;
+            let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
             Self::make_transfer(from.clone(), to.clone(), value)?;
 
@@ -130,14 +120,14 @@ impl<T: Trait> Module<T> {
             free_balance > TokenBalance::zero(),
             "Cannot burn with zero balance"
         );
-        ensure!(free_balance >= amount, "not enough because of locked funds");
+        ensure!(free_balance >= amount, "Not enough because of locked funds");
 
         let next_balance = free_balance
             .checked_sub(amount)
-            .ok_or("underflow subtracting from balance burn")?;
+            .ok_or("Underflow subtracting from balance burn")?;
         let next_total = Self::total_supply()
             .checked_sub(amount)
-            .ok_or("underflow subtracting from total supply")?;
+            .ok_or("Underflow subtracting from total supply")?;
 
         <Balance<T>>::insert(from.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
@@ -145,15 +135,15 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     pub fn _mint(to: T::AccountId, amount: TokenBalance) -> Result {
-        ensure!(!amount.is_zero(), "amount should be non-zero");
+        ensure!(!amount.is_zero(), "Amount should be non-zero");
 
         let old_balance = <Balance<T>>::get(to.clone());
         let next_balance = old_balance
             .checked_add(amount)
-            .ok_or("overflow adding to balance")?;
+            .ok_or("Overflow adding to balance")?;
         let next_total = Self::total_supply()
             .checked_add(amount)
-            .ok_or("overflow adding to total supply")?;
+            .ok_or("Overflow adding to total supply")?;
 
         <Balance<T>>::insert(to.clone(), next_balance);
         <TotalSupply<T>>::put(next_total);
@@ -163,9 +153,9 @@ impl<T: Trait> Module<T> {
 
     fn make_transfer(from: T::AccountId, to: T::AccountId, amount: TokenBalance) -> Result {
         let from_balance = <Balance<T>>::get(&from);
-        ensure!(from_balance >= amount, "user does not have enough tokens");
+        ensure!(from_balance >= amount, "User does not have enough tokens");
         let free_balance = <Balance<T>>::get(&from) - <Locked<T>>::get(&from);
-        ensure!(free_balance >= amount, "not enough because of locked funds");
+        ensure!(free_balance >= amount, "Not enough because of locked funds");
 
         <Balance<T>>::insert(from.clone(), from_balance - amount);
         <Balance<T>>::mutate(to.clone(), |balance| *balance += amount);
@@ -183,7 +173,7 @@ impl<T: Trait> Module<T> {
         let balance = <Locked<T>>::get(account);
         let new_balance = balance
             .checked_sub(amount)
-            .expect("underflow while unlocking");
+            .expect("Underflow while unlocking. Check if user has enough locked funds.");
         match balance - amount {
             0 => <Locked<T>>::remove(account),
             _ => <Locked<T>>::insert(account.clone(), new_balance),
@@ -263,7 +253,7 @@ mod tests {
 
         r.extend(
             balances::GenesisConfig::<Test> {
-                balances: vec![(USER1, 100_000), (USER2, 300_000)],
+                balances: vec![(USER1, 100000), (USER2, 300000)],
                 vesting: vec![],
                 transaction_base_fee: 1,
                 transaction_byte_fee: 1,
@@ -282,7 +272,7 @@ mod tests {
     #[test]
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_eq!(TokenModule::total_supply(), 1000);
@@ -292,7 +282,7 @@ mod tests {
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint( USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
@@ -304,7 +294,7 @@ mod tests {
     #[test]
     fn token_transfer_not_enough() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(USER2, 1000));
 
             assert_eq!(TokenModule::balance_of(USER2), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
@@ -313,27 +303,27 @@ mod tests {
             assert_eq!(TokenModule::locked(USER2), 0);
             assert_noop!(
                 TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
-                "user does not have enough tokens"
+                "User does not have enough tokens"
             );
         })
     }
     #[test]
     fn token_transfer_burn_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(USER2, 1000));
             assert_eq!(TokenModule::balance_of(USER2), 1000);
 
-            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 300));
+            assert_ok!(TokenModule::_burn(USER2, 300));
             assert_eq!(TokenModule::balance_of(USER2), 700);
         })
     }
     #[test]
     fn token_transfer_burn_all_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(USER2, 1000));
             assert_eq!(TokenModule::balance_of(USER2), 1000);
 
-            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_burn(USER2, 1000));
             assert_eq!(TokenModule::balance_of(USER2), 0);
         })
     }

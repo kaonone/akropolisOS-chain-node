@@ -9,12 +9,12 @@ use system::ensure_signed;
 
 use runtime_primitives::traits::{As, Bounded, Hash};
 
-use parity_codec::{Decode, Encode};
+use parity_codec::{Encode};
 
 use rstd::prelude::Vec;
 
 use crate::marketplace;
-use crate::types::{Count, DaoId, Days, MemberId, ProposalId, Rate, VotesCount};
+use crate::types::{Count, Proposal, Dao, Action, DaoId, Days, MemberId, ProposalId, Rate, VotesCount};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
 const MINIMUM_VOTE_TIOMEOUT: u64 = 30; // ~5 min
@@ -26,90 +26,36 @@ pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + syste
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub struct Dao<AccountId> {
-    address: AccountId,
-    name: Vec<u8>,
-    description: Vec<u8>,
-    founder: AccountId,
-}
-
-#[derive(Encode, Decode, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub struct Proposal<DaoId, AccountId, Balance, VotingDeadline, MemberId> {
-    dao_id: DaoId,
-    action: Action<AccountId, Balance, VotingDeadline>,
-    open: bool,
-    accepted: bool,
-    voting_deadline: VotingDeadline,
-    yes_count: MemberId,
-    no_count: MemberId,
-}
-
-impl<D, A, B, V, M> Default for Proposal<D, A, B, V, M>
-where
-    D: Default,
-    A: Default,
-    B: Default,
-    V: Default,
-    M: Default,
-{
-    fn default() -> Self {
-        Proposal {
-            dao_id: D::default(),
-            action: Action::EmptyAction,
-            open: true,
-            accepted: false,
-            voting_deadline: V::default(),
-            yes_count: M::default(),
-            no_count: M::default(),
-        }
-    }
-}
-
-#[derive(Encode, Decode, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub enum Action<AccountId, Balance, Timeout> {
-    EmptyAction,
-    AddMember(AccountId),
-    RemoveMember(AccountId),
-    GetLoan(Vec<u8>, Days, Rate, Balance),
-    Withdraw(AccountId, Balance, Vec<u8>),
-    ChangeTimeout(DaoId, Timeout),
-    ChangeMaximumNumberOfMembers(DaoId, MemberId),
-}
-
 // This module's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as DaoStorage {
-        Daos get(daos): map(DaoId) => Dao<T::AccountId>;
+        Daos get(daos): map DaoId => Dao<T::AccountId>;
         DaosCount get(daos_count): Count;
-        DaoNames get(dao_names): map(T::Hash) => DaoId;
-        DaoAddresses get(dao_addresses): map(T::AccountId) => DaoId;
-        DaoTimeouts get(dao_timeouts): map(DaoId) => T::BlockNumber;
-        DaoMaximumNumberOfMembers get(dao_maximum_number_of_members): map(DaoId) => MemberId;
-        Address get(address): map(DaoId) => T::AccountId;
+        DaoNames get(dao_names): map T::Hash => DaoId;
+        DaoAddresses get(dao_addresses): map T::AccountId => DaoId;
+        DaoTimeouts get(dao_timeouts): map DaoId => T::BlockNumber;
+        DaoMaximumNumberOfMembers get(dao_maximum_number_of_members): map DaoId => MemberId;
+        Address get(address): map DaoId => T::AccountId;
 
         MinumumNumberOfMebers get(minimum_number_of_members) config(): MemberId = 1;
         MaximumNumberOfMebers get(maximum_number_of_members) config(): MemberId = 4;
         Members get(members): map(DaoId, MemberId) => T::AccountId;
-        MembersCount get(members_count): map(DaoId) => MemberId;
+        MembersCount get(members_count): map DaoId => MemberId;
         DaoMembers get(dao_members): map(DaoId, T::AccountId) => MemberId;
 
         DaoProposals get(dao_proposals): map(DaoId, ProposalId) => Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, VotesCount>;
-        DaoProposalsCount get(dao_proposals_count): map(DaoId) => ProposalId;
-        DaoProposalsIndex get(dao_proposals_index): map(ProposalId) => DaoId;
+        DaoProposalsCount get(dao_proposals_count): map DaoId => ProposalId;
+        DaoProposalsIndex get(dao_proposals_index): map ProposalId => DaoId;
 
         DaoProposalsVotes get(dao_proposals_votes): map(DaoId, ProposalId, MemberId) => T::AccountId;
         DaoProposalsVotesCount get(dao_proposals_votes_count): map(DaoId, ProposalId) => MemberId;
         DaoProposalsVotesIndex get(dao_proposals_votes_index): map(DaoId, ProposalId, T::AccountId) => MemberId;
 
         OpenDaoProposalsLimit get(open_proposals_per_block) config(): usize = 2;
-        OpenDaoProposals get(open_dao_proposals): map(T::BlockNumber) => Vec<ProposalId>;
-        OpenDaoProposalsIndex get(open_dao_proposals_index): map(ProposalId) => T::BlockNumber;
-        OpenDaoProposalsHashes get(open_dao_proposals_hashes): map(T::Hash) => ProposalId;
-        OpenDaoProposalsHashesIndex get(open_dao_proposals_hashes_index): map(ProposalId) => T::Hash;
+        OpenDaoProposals get(open_dao_proposals): map T::BlockNumber => Vec<ProposalId>;
+        OpenDaoProposalsIndex get(open_dao_proposals_index): map ProposalId => T::BlockNumber;
+        OpenDaoProposalsHashes get(open_dao_proposals_hashes): map T::Hash => ProposalId;
+        OpenDaoProposalsHashesIndex get(open_dao_proposals_hashes_index): map ProposalId => T::Hash;
     }
 }
 
