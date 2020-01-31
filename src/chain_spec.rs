@@ -26,6 +26,7 @@ pub enum Alternative {
     /// Whatever the current runtime is, with simple Alice/Bob auths.
     LocalTestnet,
     Akropolis,
+    AkropolisSyracuse,
     AkropolisStaging,
 }
 
@@ -78,18 +79,19 @@ impl Alternative {
                 None,
             ),
             Alternative::Akropolis => akropolis_genesis()?,
+            Alternative::AkropolisSyracuse => akropolis_syracuse_genesis()?,
             Alternative::AkropolisStaging => {
                 let boot_nodes = vec![
-                    "/ip4/157.230.35.215/tcp/30333/p2p/QmdRjsEvcGGKDTPAcVnCrRnsqqhbURbzetkkUQYwAmnxaS".to_string(),
-                    "/ip4/178.128.225.241/tcp/30333/p2p/QmbriyUytrn9W2AAsnMXN8g4SGQ8cspnmFju4ZJYiYq1Ax".to_string()
+                    "/ip4/178.128.225.241/tcp/30353/p2p/QmYdDmRbpyjjM1M4aLS1btAMq4ouopsQLnHjp8imodomZa".to_string(),
+                    "/ip4/157.230.35.215/tcp/30353/p2p/QmdRRSjFmwQxrzDTih6c6di3W1oCf8BjELYF783hji4ZsA".to_string()
                 ];
                 let telemetry = TelemetryEndpoints::new(vec![
                     ("ws://telemetry.polkadot.io:1024".to_string(), 0),
                     ("ws://167.99.142.212:1024".to_string(), 0),
                 ]);
                 ChainSpec::from_genesis(
-                    "Akropolis",
-                    "akropolis",
+                    "Syracuse 0.3 Testnet",
+                    "akropolis_syracuse",
                     akropolis_staging_genesis,
                     boot_nodes,
                     Some(telemetry),
@@ -105,7 +107,8 @@ impl Alternative {
         match s {
             "dev" => Some(Alternative::Development),
             "local" => Some(Alternative::LocalTestnet),
-            "" | "akropolis" => Some(Alternative::Akropolis),
+            "akropolis" => Some(Alternative::Akropolis),
+            "" | "akropolis_syracuse" => Some(Alternative::AkropolisSyracuse),
             "akropolis_staging" => Some(Alternative::AkropolisStaging),
             _ => None,
         }
@@ -214,6 +217,10 @@ fn testnet_genesis(
 
 fn akropolis_genesis() -> Result<ChainSpec, String> {
     ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
+}
+
+fn akropolis_syracuse_genesis() -> Result<ChainSpec, String> {
+    ChainSpec::from_embedded(include_bytes!("../res/akropolis_syracuse.json"))
 }
 
 fn akropolis_staging_genesis() -> GenesisConfig {
