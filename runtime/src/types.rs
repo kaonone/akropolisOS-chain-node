@@ -128,6 +128,7 @@ pub enum Kind {
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct TransferMessage<AccountId, Hash> {
     pub message_id: Hash,
+    pub token: TokenId,
     pub eth_address: H160,
     pub substrate_address: AccountId,
     pub amount: TokenBalance,
@@ -170,6 +171,7 @@ where
     fn default() -> Self {
         TransferMessage {
             message_id: H::default(),
+            token: TokenId::default(),
             eth_address: H160::default(),
             substrate_address: A::default(),
             amount: TokenBalance::default(),

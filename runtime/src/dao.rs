@@ -1217,7 +1217,7 @@ mod tests {
             assert_eq!(DaoModule::daos_count(), 1);
             assert_noop!(
                 DaoModule::propose_to_remove_member(Origin::signed(USER), DAO_ID),
-                "You are the latest member of this DAO"
+                "You are the last member of this DAO"
             );
         })
     }

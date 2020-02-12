@@ -33,7 +33,7 @@ decl_storage! {
         Locked get(locked): map(TokenId, T::AccountId) => TokenBalance;
 
         TokenDefault get(token_default): Token = Token{id: 0, decimals: 18, symbol: Vec::from("TOKEN")};
-        TokenInfo get(token_info): map (TokenId) => Token;
+        TokenInfo get(token_info): map TokenId => Token;
         TokenIds get(token_id_by_symbol): map Vec<u8> => TokenId;
         TokenSymbol get(token_symbol_by_id): map TokenId => Vec<u8>;
         TotalSupply get(total_supply): map TokenId => TokenBalance;
@@ -85,7 +85,7 @@ decl_module! {
         ) -> Result{
             let sender = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
-            ensure!(!amount.is_zero(), "transfer amount should be non-zero");
+            ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
             let id = <TokenDefault<T>>::get().id;
             Self::make_transfer(id, sender, to, amount)?;
@@ -145,7 +145,7 @@ impl<T: Trait> Module<T> {
 
         let next_balance = free_balance
             .checked_sub(amount)
-            .ok_or("underflow subtracting from balance burn")?;
+            .ok_or("Underflow subtracting from balance burn")?;
         let next_total = Self::total_supply(0)
             .checked_sub(amount)
             .ok_or("Underflow subtracting from total supply")?;
@@ -156,12 +156,12 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     pub fn _mint(token_id: TokenId, to: T::AccountId, amount: TokenBalance) -> Result {
-        ensure!(!amount.is_zero(), "amount should be non-zero");
+        ensure!(!amount.is_zero(), "Amount should be non-zero");
 
         let old_balance = <Balance<T>>::get((token_id, to.clone()));
         let next_balance = old_balance
             .checked_add(amount)
-            .ok_or("overflow adding to balance")?;
+            .ok_or("Overflow adding to balance")?;
         let next_total = Self::total_supply(0)
             .checked_add(amount)
             .ok_or("Overflow adding to total supply")?;
@@ -179,10 +179,10 @@ impl<T: Trait> Module<T> {
         amount: TokenBalance,
     ) -> Result {
         let from_balance = <Balance<T>>::get((token_id, from.clone()));
-        ensure!(from_balance >= amount, "not enough balance");
+        ensure!(from_balance >= amount, "User does not have enough tokens");
         let free_balance = <Balance<T>>::get((token_id, from.clone()))
             - <Locked<T>>::get((token_id, from.clone()));
-        ensure!(free_balance >= amount, "not enough because of locked funds");
+        ensure!(free_balance >= amount, "Not enough because of locked funds");
 
         <Balance<T>>::insert((token_id, from.clone()), from_balance - amount);
         <Balance<T>>::mutate((token_id, to.clone()), |balance| *balance += amount);
@@ -216,6 +216,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     // Token management
+    // Add new or do nothing
     pub fn check_token_exist(token: &Vec<u8>) -> Result {
         if !<TokenIds<T>>::exists(token.clone()) {
             Self::validate_name(token)?;
@@ -229,7 +230,7 @@ impl<T: Trait> Module<T> {
             0u32 => 0u32,
             count => count
                 .checked_add(One::one())
-                .ok_or("overflow when adding new token")?,
+                .ok_or("Overflow when adding new token")?,
         };
 
         <Count<T>>::mutate(|n| *n = if next_id == 0u32 { 1 } else { next_id });
@@ -251,10 +252,10 @@ impl<T: Trait> Module<T> {
 
     fn validate_name(name: &[u8]) -> Result {
         if name.len() > 10 {
-            return Err("the token symbol is too long");
+            return Err("The token symbol is too long");
         }
         if name.len() < 3 {
-            return Err("the token symbol is too short");
+            return Err("The token symbol is too short");
         }
 
         Ok(())
@@ -352,7 +353,8 @@ mod tests {
     fn mint_new_token_works() {
         with_externalities(&mut new_test_ext(), || {
             assert_eq!(TokenModule::count(), 0);
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::check_token_exist(&TokenModule::token_default().symbol));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
             assert_eq!(TokenModule::count(), 1);
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
@@ -363,7 +365,7 @@ mod tests {
     #[test]
     fn token_transfer_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
@@ -374,7 +376,7 @@ mod tests {
     #[test]
     fn token_lock_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::lock(0, USER2, 400));
@@ -385,7 +387,7 @@ mod tests {
     #[test]
     fn token_unlock_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::lock(0, USER2, 400));
@@ -398,7 +400,7 @@ mod tests {
     #[test]
     fn token_transfer_not_enough() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
@@ -414,20 +416,20 @@ mod tests {
     #[test]
     fn token_transfer_burn_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
 
-            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 300));
+            assert_ok!(TokenModule::_burn(0, USER2, 300));
             assert_eq!(TokenModule::balance_of((0, USER2)), 700);
         })
     }
     #[test]
     fn token_transfer_burn_all_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
 
-            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_burn(0, USER2, 1000));
             assert_eq!(TokenModule::balance_of((0, USER2)), 0);
         })
     }
@@ -442,11 +444,12 @@ mod tests {
             ));
             assert_eq!(TokenModule::count(), 1);
 
-            assert_ok!(TokenModule::mint(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::check_token_exist(&TokenModule::token_default().symbol));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_eq!(TokenModule::count(), 2);
 
-            assert_ok!(TokenModule::burn(Origin::signed(USER1), USER2, 1000));
+            assert_ok!(TokenModule::_burn(0, USER2, 1000));
             assert_eq!(TokenModule::balance_of((0, USER2)), 0);
         })
     }
@@ -455,11 +458,11 @@ mod tests {
         with_externalities(&mut new_test_ext(), || {
             assert_noop!(
                 TokenModule::create_token(Origin::signed(USER1), TOKEN_SHORT_NAME.to_vec()),
-                "the token symbol is too short"
+                "The token symbol is too short"
             );
             assert_noop!(
                 TokenModule::create_token(Origin::signed(USER1), TOKEN_LONG_NAME.to_vec()),
-                "the token symbol is too long"
+                "The token symbol is too long"
             );
             assert_eq!(TokenModule::count(), 0);
         })

@@ -102,6 +102,9 @@ decl_module! {
             let from = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
+            let default_token = <token::Module<T>>::token_default().clone();
+           <token::Module<T>>::check_token_exist(&default_token.symbol)?;
+           let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
 
             Self::check_amount(amount)?;
             Self::check_pending_burn(amount)?;
@@ -131,9 +134,9 @@ decl_module! {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
-//             let default_token = <token::Module<T>>::token_default().clone();
-// -            <token::Module<T>>::check_token_exist(validator.clone(), &default_token.symbol)?;
-// -            let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
+            let default_token = <token::Module<T>>::token_default().clone();
+           <token::Module<T>>::check_token_exist(&default_token.symbol)?;
+           let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
 
             Self::check_validator(validator.clone())?;
             Self::check_pending_mint(amount)?;
@@ -905,8 +908,8 @@ mod tests {
             let transfer = BridgeModule::transfers(0);
             assert_eq!(transfer.open, false);
 
-            assert_eq!(TokenModule::balance_of(USER2), amount);
-            assert_eq!(TokenModule::total_supply(), amount);
+            assert_eq!(TokenModule::balance_of((0, USER2)), amount);
+            assert_eq!(TokenModule::total_supply(0), amount);
         })
     }
     #[test]
@@ -941,8 +944,8 @@ mod tests {
                 ),
                 "This transfer is not open"
             );
-            assert_eq!(TokenModule::balance_of(USER2), amount);
-            assert_eq!(TokenModule::total_supply(), amount);
+            assert_eq!(TokenModule::balance_of((0, USER2)), amount);
+            assert_eq!(TokenModule::total_supply(0), amount);
             let transfer = BridgeModule::transfers(0);
             assert_eq!(transfer.open, false);
 
@@ -958,7 +961,7 @@ mod tests {
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
@@ -990,8 +993,8 @@ mod tests {
 
             // at this point transfer is in Approved status and are waiting for confirmation
             // from ethereum side to burn. Funds are locked.
-            assert_eq!(TokenModule::locked(USER2), amount2);
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
+            assert_eq!(TokenModule::locked((0,USER2)), amount2);
+            assert_eq!(TokenModule::balance_of((0, USER2)), amount1);
             // once it happends, validators call confirm_transfer
 
             assert_ok!(BridgeModule::confirm_transfer(
@@ -1010,8 +1013,8 @@ mod tests {
             // assert_ok!(BridgeModule::confirm_transfer(Origin::signed(USER1), sub_message_id));
             //BurnedMessage(Hash, AccountId, H160, u64) event emitted
             let tokens_left = amount1 - amount2;
-            assert_eq!(TokenModule::balance_of(USER2), tokens_left);
-            assert_eq!(TokenModule::total_supply(), tokens_left);
+            assert_eq!(TokenModule::balance_of((0, USER2)), tokens_left);
+            assert_eq!(TokenModule::total_supply(0), tokens_left);
         })
     }
     #[test]
@@ -1021,10 +1024,10 @@ mod tests {
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
 
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
-            assert_eq!(TokenModule::total_supply(), amount1);
+            assert_eq!(TokenModule::balance_of((0, USER2)), amount1);
+            assert_eq!(TokenModule::total_supply(0), amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
@@ -1054,7 +1057,7 @@ mod tests {
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
@@ -1094,7 +1097,7 @@ mod tests {
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
@@ -1110,7 +1113,7 @@ mod tests {
             assert_eq!(message.status, Status::Withdraw);
 
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0,USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
@@ -1125,8 +1128,8 @@ mod tests {
 
             // at this point transfer is in Approved status and are waiting for confirmation
             // from ethereum side to burn. Funds are locked.
-            assert_eq!(TokenModule::locked(USER2), amount2);
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
+            assert_eq!(TokenModule::locked((0,USER2)), amount2);
+            assert_eq!(TokenModule::balance_of((0, USER2)), amount1);
             // once it happends, validators call confirm_transfer
 
             assert_ok!(BridgeModule::confirm_transfer(
@@ -1145,8 +1148,8 @@ mod tests {
             // assert_ok!(BridgeModule::confirm_transfer(Origin::signed(USER1), sub_message_id));
             //BurnedMessage(Hash, AccountId, H160, u64) event emitted
             let tokens_left = amount1 - amount2;
-            assert_eq!(TokenModule::balance_of(USER2), tokens_left);
-            assert_eq!(TokenModule::total_supply(), tokens_left);
+            assert_eq!(TokenModule::balance_of((0, USER2)), tokens_left);
+            assert_eq!(TokenModule::total_supply(0), tokens_left);
             assert_noop!(
                 BridgeModule::cancel_transfer(Origin::signed(V2), sub_message_id),
                 "Failed to cancel. This transfer is already executed."
@@ -1290,7 +1293,7 @@ mod tests {
             let mut message = get_message();
             assert_eq!(message.status, Status::Withdraw);
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0,USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
@@ -1365,15 +1368,15 @@ mod tests {
             let amount1 = 60;
             let amount2 = 49;
             //TODO: pending transactions volume never reached if daily limit is lower
-            let _ = TokenModule::_mint(USER1, amount1);
-            let _ = TokenModule::_mint(USER2, amount1);
-            let _ = TokenModule::_mint(USER3, amount1);
-            let _ = TokenModule::_mint(USER4, amount1);
-            let _ = TokenModule::_mint(USER5, amount1);
-            let _ = TokenModule::_mint(USER6, amount1);
-            let _ = TokenModule::_mint(USER7, amount1);
-            let _ = TokenModule::_mint(USER8, amount1);
-            let _ = TokenModule::_mint(USER9, amount1);
+            let _ = TokenModule::_mint(0, USER1, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
+            let _ = TokenModule::_mint(0, USER3, amount1);
+            let _ = TokenModule::_mint(0, USER4, amount1);
+            let _ = TokenModule::_mint(0, USER5, amount1);
+            let _ = TokenModule::_mint(0, USER6, amount1);
+            let _ = TokenModule::_mint(0, USER7, amount1);
+            let _ = TokenModule::_mint(0, USER8, amount1);
+            let _ = TokenModule::_mint(0, USER9, amount1);
             //1
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
@@ -1566,7 +1569,7 @@ mod tests {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
@@ -1596,7 +1599,7 @@ mod tests {
             let amount2 = 49;
             run_to_block(DAY_IN_BLOCKS);
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(0, USER2, amount1);
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
