@@ -1,6 +1,8 @@
 use parity_codec::{Decode, Encode};
 use primitives::H160;
 use rstd::prelude::Vec;
+
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 //dao
@@ -70,15 +72,15 @@ pub enum Action<AccountId, Balance, Timeout> {
 pub type TokenBalance = u128;
 pub type TokenId = u32;
 
-#[derive(Encode, Decode, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Deserialize, Serialize, Debug))]
 pub struct Token {
     pub id: TokenId,
     pub decimals: u16,
     pub symbol: Vec<u8>,
 }
 
-//bridge 
+//bridge
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Limits {
