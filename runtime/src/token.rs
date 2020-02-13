@@ -32,13 +32,25 @@ decl_storage! {
         Count get(count): TokenId;
         Locked get(locked): map(TokenId, T::AccountId) => TokenBalance;
 
-        TokenDefault get(token_default): Token = Token{id: 0, decimals: 18, symbol: Vec::from("TOKEN")};
-        TokenInfo get(token_info): map TokenId => Token;
-        TokenIds get(token_id_by_symbol): map Vec<u8> => TokenId;
-        TokenSymbol get(token_symbol_by_id): map TokenId => Vec<u8>;
+        Tokens get(tokens) build(|config: &GenesisConfig<T>| {
+            config.tokens.clone().into_iter().enumerate()
+            .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
+        }): map TokenId => Token;
+        TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig<T>| {
+            config.tokens.clone().into_iter().enumerate()
+            .map(|(i, t): (usize, Token)| (t.symbol, i as u32)).collect::<Vec<_>>()
+        }): map Vec<u8> => TokenId;
+        TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig<T>| {
+            config.tokens.clone().into_iter().enumerate()
+            .map(|(i, t): (usize, Token)| (i as u32, t.symbol)).collect::<Vec<_>>()
+        }): map TokenId => Vec<u8>;
+        
         TotalSupply get(total_supply): map TokenId => TokenBalance;
         Balance get(balance_of): map (TokenId, T::AccountId) => TokenBalance;
         Allowance get(allowance_of): map (TokenId, T::AccountId, T::AccountId) => TokenBalance;
+    }
+    add_extra_genesis{
+        config(tokens): Vec<Token>;
     }
 }
 
@@ -48,36 +60,32 @@ decl_module! {
 
         // // ( ! ): can be called directly
         // // ( ? ): do we even need this?
-        // fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
-        //     ensure_signed(origin)?;
-        // TODO: replace this by adding it to extrinsics call    ^
-        //     let token = <TokenDefault<T>>::get();
-        //     Self::check_token_exist(&token.symbol)?;
-        //     Self::_burn(from.clone(), amount)?;
-        //     Self::deposit_event(RawEvent::Burn(from, amount));
-        //     Ok(())
-        // }
+        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
+            ensure_signed(origin)?;
+            // TODO: replace this by adding it to extrinsics call    ^
+            let token = <Tokens<T>>::get(0);
+            Self::check_token_exist(&token.symbol)?;
+            Self::_burn(0, from.clone(), amount)?;
+            Self::deposit_event(RawEvent::Burn(from, amount));
+            Ok(())
+        }
 
         // // ( ! ): can be called directly
         // // ( ? ): do we even need this?
-        // fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
-        //     ensure_signed(origin)?;
-        // TODO: replace this by adding it to extrinsics call    ^
-        //     let token = <TokenDefault<T>>::get();
-        //     Self::check_token_exist(&token.symbol)?;
-        //     Self::_mint(to.clone(), amount)?;
-        //     Self::deposit_event(RawEvent::Mint(to, amount));
-        //     let id = <TokenDefault<T>>::get().id;
-        //     Self::_mint(id, to.clone(), amount)?;
-        //     Self::deposit_event(RawEvent::Mint(to, amount));
-        //     Ok(())
-        // }
-
-        fn create_token(origin, token: Vec<u8>) -> Result {
+        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
             ensure_signed(origin)?;
-
-            Self::check_token_exist(&token)
+            // TODO: replace this by adding it to extrinsics call    ^
+            let token = <Tokens<T>>::get(0);
+            Self::check_token_exist(&token.symbol)?;
+            Self::_mint(token.id, to.clone(), amount)?;
+            Self::deposit_event(RawEvent::Mint(to.clone(), amount));
+            Ok(())
         }
+
+        // fn create_token(origin, token: Vec<u8>) -> Result {
+        //     ensure_signed(origin)?;
+        //     Self::check_token_exist(&token)
+        // }
 
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
@@ -87,7 +95,7 @@ decl_module! {
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
-            let id = <TokenDefault<T>>::get().id;
+            let id = <Tokens<T>>::get(0).id;
             Self::make_transfer(id, sender, to, amount)?;
             Ok(())
         }
@@ -99,7 +107,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            let id = <TokenDefault<T>>::get().id;
+            let id = <Tokens<T>>::get(0).id;
             <Allowance<T>>::insert((id,sender.clone(), spender.clone()), value);
 
             Self::deposit_event(RawEvent::Approval(sender, spender, value));
@@ -112,13 +120,13 @@ decl_module! {
             #[compact] value: TokenBalance
         ) -> Result{
             let sender = ensure_signed(origin)?;
-            let id = <TokenDefault<T>>::get().id;
+            let id = <Tokens<T>>::get(0).id;
             let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
 
-            let id = <TokenDefault<T>>::get().id;
+            let id = <Tokens<T>>::get(0).id;
             Self::make_transfer(id, from.clone(), to.clone(), value)?;
 
             <Allowance<T>>::insert((id, from, sender), updated_allowance);
@@ -244,7 +252,7 @@ impl<T: Trait> Module<T> {
             symbol: token.clone(),
         };
 
-        <TokenInfo<T>>::insert(next_id, next_token);
+        <Tokens<T>>::insert(next_id, next_token);
         Self::deposit_event(RawEvent::NewToken(next_id));
 
         Ok(())
@@ -317,7 +325,7 @@ mod tests {
 
     type TokenModule = Module<Test>;
 
-    const TOKEN_NAME: &[u8; 4] = b"DOOM";
+    // const TOKEN_NAME: &[u8; 4] = b"DOOM";
     const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
     const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
     const USER1: u64 = 1;
@@ -346,19 +354,46 @@ mod tests {
             .0,
         );
 
+        r.extend(
+            GenesisConfig::<Test> {
+                tokens: vec![Token {
+                    id: 0,
+                    decimals: 18,
+                    symbol: Vec::from("TOKEN"),
+                }],
+			_genesis_phantom_data: Default::default()
+            }
+            .build_storage()
+            .unwrap()
+            .0,
+        );
+
         r.into()
     }
 
     #[test]
-    fn mint_new_token_works() {
+    fn new_token_mint_works() {
         with_externalities(&mut new_test_ext(), || {
-            assert_eq!(TokenModule::count(), 0);
-            assert_ok!(TokenModule::check_token_exist(&TokenModule::token_default().symbol));
+            assert_ok!(TokenModule::check_token_exist(
+                &TokenModule::tokens(0).symbol
+            ));
             assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::count(), 1);
-
             assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
             assert_eq!(TokenModule::total_supply(0), 1000);
+        })
+    }
+
+    #[test]
+    fn new_token_mint_and_burn_works() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(TokenModule::check_token_exist(
+                &TokenModule::tokens(0).symbol
+            ));
+            assert_ok!(TokenModule::_mint(0, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+
+            assert_ok!(TokenModule::_burn(0, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
         })
     }
 
@@ -434,34 +469,16 @@ mod tests {
         })
     }
 
-    #[test]
-    fn new_token_mint_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_eq!(TokenModule::count(), 0);
-            assert_ok!(TokenModule::create_token(
-                Origin::signed(USER1),
-                TOKEN_NAME.to_vec()
-            ));
-            assert_eq!(TokenModule::count(), 1);
 
-            assert_ok!(TokenModule::check_token_exist(&TokenModule::token_default().symbol));
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_eq!(TokenModule::count(), 2);
-
-            assert_ok!(TokenModule::_burn(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
-        })
-    }
     #[test]
     fn new_token_symbol_len_failed() {
         with_externalities(&mut new_test_ext(), || {
             assert_noop!(
-                TokenModule::create_token(Origin::signed(USER1), TOKEN_SHORT_NAME.to_vec()),
+                TokenModule::validate_name(&TOKEN_SHORT_NAME.to_vec()),
                 "The token symbol is too short"
             );
             assert_noop!(
-                TokenModule::create_token(Origin::signed(USER1), TOKEN_LONG_NAME.to_vec()),
+                TokenModule::validate_name(&TOKEN_LONG_NAME.to_vec()),
                 "The token symbol is too long"
             );
             assert_eq!(TokenModule::count(), 0);

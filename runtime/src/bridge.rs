@@ -9,7 +9,7 @@
 use crate::token;
 use crate::types::{
     BridgeMessage, BridgeTransfer, Kind, LimitMessage, Limits, MemberId, ProposalId, Status,
-    TokenBalance, TransferMessage, ValidatorsMessage,
+    TokenBalance, TransferMessage, ValidatorMessage
 };
 use parity_codec::Encode;
 use primitives::H160;
@@ -79,7 +79,7 @@ decl_storage! {
         Quorum get(quorum): u64 = 2;
         ValidatorsCount get(validators_count) config(): u32 = 3;
         ValidatorVotes get(validator_votes): map(ProposalId, T::AccountId) => bool;
-        ValidatorHistory get(validator_history): map T::Hash  => ValidatorsMessage<T::AccountId, T::Hash>;
+        ValidatorHistory get(validator_history): map T::Hash  => ValidatorMessage<T::AccountId, T::Hash>;
         Validators get(validators) build(|config: &GenesisConfig<T>| {
             config.validator_accounts.clone().into_iter()
             .map(|acc: T::AccountId| (acc, true)).collect::<Vec<_>>()
@@ -102,7 +102,7 @@ decl_module! {
             let from = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
-            let default_token = <token::Module<T>>::token_default().clone();
+            let default_token = <token::Module<T>>::tokens(0).clone();
            <token::Module<T>>::check_token_exist(&default_token.symbol)?;
            let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
 
@@ -134,7 +134,7 @@ decl_module! {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
-            let default_token = <token::Module<T>>::token_default().clone();
+            let default_token = <token::Module<T>>::tokens(0).clone();
            <token::Module<T>>::check_token_exist(&default_token.symbol)?;
            let token_id = <token::Module<T>>::token_id_by_symbol(default_token.symbol);
 
@@ -204,7 +204,7 @@ decl_module! {
             Self::check_validator(validator.clone())?;
 
             if !<ValidatorHistory<T>>::exists(message_id) {
-                let message = ValidatorsMessage {
+                let message = ValidatorMessage {
                     message_id,
                     quorum,
                     accounts: new_validator_list,
@@ -466,7 +466,7 @@ impl<T: Trait> Module<T> {
     }
 
     /// update validators list
-    fn manage_validator_list(info: ValidatorsMessage<T::AccountId, T::Hash>) -> Result {
+    fn manage_validator_list(info: ValidatorMessage<T::AccountId, T::Hash>) -> Result {
         let new_count = u32::sa(info.accounts.clone().len());
         ensure!(
             new_count < MAX_VALIDATORS,
@@ -752,6 +752,7 @@ mod tests {
         BuildStorage,
     };
     use support::{assert_noop, assert_ok, impl_outer_origin};
+    use crate::types::Token;
 
     impl_outer_origin! {
         pub enum Origin for Test {}
@@ -841,7 +842,7 @@ mod tests {
             .unwrap()
             .0;
 
-        //specify balances chain_spec configuration
+        //balances chain_spec configuration
         r.extend(
             balances::GenesisConfig::<Test> {
                 balances: vec![
@@ -862,7 +863,21 @@ mod tests {
             .unwrap()
             .0,
         );
-        //specify bridge chain_spec configuration
+        //token chain_spec configuration
+        r.extend(
+            token::GenesisConfig::<Test> {
+                tokens: vec![Token {
+                    id: 0,
+                    decimals: 18,
+                    symbol: Vec::from("TOKEN"),
+                }],
+            _genesis_phantom_data: Default::default()
+            }
+            .build_storage()
+            .unwrap()
+            .0,
+        );
+        //bridge chain_spec configuration
         r.extend(
             GenesisConfig::<Test> {
                 validators_count: 3u32,
@@ -874,6 +889,7 @@ mod tests {
             .0,
         );
 
+
         r.into()
     }
 
@@ -883,6 +899,9 @@ mod tests {
             let message_id = H256::from(ETH_MESSAGE_ID);
             let eth_address = H160::from(ETH_ADDRESS);
             let amount = 99;
+
+            let token = TokenModule::tokens(0);
+            println!("{:?}", token);
 
             //substrate <----- ETH
             assert_ok!(BridgeModule::multi_signed_mint(

@@ -1,6 +1,7 @@
 use parity_codec::{Decode, Encode};
 use primitives::H160;
 use rstd::prelude::Vec;
+use serde::{Deserialize, Serialize};
 
 //dao
 pub type Count = u64;
@@ -69,8 +70,7 @@ pub enum Action<AccountId, Balance, Timeout> {
 pub type TokenBalance = u128;
 pub type TokenId = u32;
 
-//bridge 
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[derive(Encode, Decode, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Token {
     pub id: TokenId,
@@ -78,6 +78,7 @@ pub struct Token {
     pub symbol: Vec<u8>,
 }
 
+//bridge 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Limits {
@@ -155,7 +156,7 @@ pub struct BridgeMessage<AccountId, Hash> {
 
 #[derive(Encode, Decode, Clone)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct ValidatorsMessage<AccountId, Hash> {
+pub struct ValidatorMessage<AccountId, Hash> {
     pub message_id: Hash,
     pub quorum: u64,
     pub accounts: Vec<AccountId>,
@@ -209,13 +210,13 @@ where
     }
 }
 
-impl<A, H> Default for ValidatorsMessage<A, H>
+impl<A, H> Default for ValidatorMessage<A, H>
 where
     A: Default,
     H: Default,
 {
     fn default() -> Self {
-        ValidatorsMessage {
+        ValidatorMessage {
             message_id: H::default(),
             quorum: u64::default(),
             accounts: Vec::default(),
