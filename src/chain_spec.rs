@@ -1,13 +1,13 @@
 use akropolisos_substrate_node_runtime::{
-    AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
-    DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill, Permill, Schedule,
-    SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TreasuryConfig,
+	types::Token, AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig,
+	CouncilVotingConfig, DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill,
+	Permill, Schedule, SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig,
+	TokenConfig, TreasuryConfig,
 };
 use primitives::{crypto::UncheckedInto, ed25519, sr25519, Pair};
 use substrate_service;
 
 use ed25519::Public as AuthorityId;
-
 use telemetry::TelemetryEndpoints;
 
 // Note this is the URL for the telemetry server
@@ -21,108 +21,113 @@ pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
 /// from a string (`--chain=...`) into a `ChainSpec`.
 #[derive(Clone, Debug)]
 pub enum Alternative {
-    /// Whatever the current runtime is, with just Alice as an auth.
-    Development,
-    /// Whatever the current runtime is, with simple Alice/Bob auths.
-    LocalTestnet,
-    Akropolis,
-    AkropolisStaging,
+	/// Whatever the current runtime is, with just Alice as an auth.
+	Development,
+	/// Whatever the current runtime is, with simple Alice/Bob auths.
+	LocalTestnet,
+	Akropolis,
+	AkropolisStaging,
 }
 
 fn authority_key(s: &str) -> AuthorityId {
-    ed25519::Pair::from_string(&format!("//{}", s), None)
-        .expect("static values are valid; qed")
-        .public()
+	ed25519::Pair::from_string(&format!("//{}", s), None)
+		.expect("static values are valid; qed")
+		.public()
 }
 
 fn account_key(s: &str) -> AccountId {
-    sr25519::Pair::from_string(&format!("//{}", s), None)
-        .expect("static values are valid; qed")
-        .public()
+	sr25519::Pair::from_string(&format!("//{}", s), None)
+		.expect("static values are valid; qed")
+		.public()
 }
 
 impl Alternative {
-    /// Get an actual chain config from one of the alternatives.
-    pub(crate) fn load(self) -> Result<ChainSpec, String> {
-        Ok(match self {
-            Alternative::Development => ChainSpec::from_genesis(
-                "Development",
-                "dev",
-                || {
-                    testnet_genesis(
-                        vec![authority_key("Alice")],
-                        vec![account_key("Alice")],
-                        account_key("Alice"),
-                    )
-                },
-                vec![],
-                None,
-                None,
-                None,
-                None,
-            ),
-            Alternative::LocalTestnet => ChainSpec::from_genesis(
-                "Local Testnet",
-                "local_testnet",
-                || {
-                    testnet_genesis(
-                        vec![authority_key("Alice"), authority_key("Bob")],
-                        vec![account_key("Alice"), account_key("Bob")],
-                        account_key("Alice"),
-                    )
-                },
-                vec![],
-                None,
-                None,
-                None,
-                None,
-            ),
-            Alternative::Akropolis => akropolis_genesis()?,
-            Alternative::AkropolisStaging => {
-                let boot_nodes = vec![
+	/// Get an actual chain config from one of the alternatives.
+	pub(crate) fn load(self) -> Result<ChainSpec, String> {
+		Ok(match self {
+			Alternative::Development => ChainSpec::from_genesis(
+				"Development",
+				"dev",
+				|| {
+					testnet_genesis(
+						vec![authority_key("Alice")],
+						vec![account_key("Alice")],
+						account_key("Alice"),
+					)
+				},
+				vec![],
+				None,
+				None,
+				None,
+				None,
+			),
+			Alternative::LocalTestnet => ChainSpec::from_genesis(
+				"Local Testnet",
+				"local_testnet",
+				|| {
+					testnet_genesis(
+						vec![authority_key("Alice"), authority_key("Bob")],
+						vec![account_key("Alice"), account_key("Bob")],
+						account_key("Alice"),
+					)
+				},
+				vec![],
+				None,
+				None,
+				None,
+				None,
+			),
+			Alternative::Akropolis => akropolis_genesis()?,
+			Alternative::AkropolisStaging => {
+				let boot_nodes = vec![
                     "/ip4/157.230.35.215/tcp/30333/p2p/QmdRjsEvcGGKDTPAcVnCrRnsqqhbURbzetkkUQYwAmnxaS".to_string(),
                     "/ip4/178.128.225.241/tcp/30333/p2p/QmbriyUytrn9W2AAsnMXN8g4SGQ8cspnmFju4ZJYiYq1Ax".to_string()
                 ];
-                let telemetry = TelemetryEndpoints::new(vec![
-                    ("ws://telemetry.polkadot.io:1024".to_string(), 0),
-                    ("ws://167.99.142.212:1024".to_string(), 0),
-                ]);
-                ChainSpec::from_genesis(
-                    "Akropolis",
-                    "akropolis",
-                    akropolis_staging_genesis,
-                    boot_nodes,
-                    Some(telemetry),
-                    None,
-                    None,
-                    None,
-                )
-            }
-        })
-    }
+				let telemetry = TelemetryEndpoints::new(vec![
+					("ws://telemetry.polkadot.io:1024".to_string(), 0),
+					("ws://167.99.142.212:1024".to_string(), 0),
+				]);
+				ChainSpec::from_genesis(
+					"Akropolis",
+					"akropolis",
+					akropolis_staging_genesis,
+					boot_nodes,
+					Some(telemetry),
+					None,
+					None,
+					None,
+				)
+			}
+		})
+	}
 
-    pub(crate) fn from(s: &str) -> Option<Self> {
-        match s {
-            "dev" => Some(Alternative::Development),
-            "local" => Some(Alternative::LocalTestnet),
-            "" | "akropolis" => Some(Alternative::Akropolis),
-            "akropolis_staging" => Some(Alternative::AkropolisStaging),
-            _ => None,
-        }
-    }
+	pub(crate) fn from(s: &str) -> Option<Self> {
+		match s {
+			"dev" => Some(Alternative::Development),
+			"local" => Some(Alternative::LocalTestnet),
+			"" | "akropolis" => Some(Alternative::Akropolis),
+			"akropolis_staging" => Some(Alternative::AkropolisStaging),
+			_ => None,
+		}
+	}
 }
 
 fn testnet_genesis(
-    initial_authorities: Vec<AuthorityId>,
-    endowed_accounts: Vec<AccountId>,
-    root_key: AccountId,
+	initial_authorities: Vec<AuthorityId>,
+	endowed_accounts: Vec<AccountId>,
+	root_key: AccountId,
 ) -> GenesisConfig {
 	let bridge_validators = vec![
-        hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
-        hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
-        hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
-    ];
-    GenesisConfig {
+		hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
+		hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
+		hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
+	];
+	let tokens = vec![Token {
+		id: 0,
+		decimals: 18,
+		symbol: Vec::from("TOKEN"),
+	}];
+	GenesisConfig {
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm").to_vec(),
 			authorities: initial_authorities.clone(),
@@ -209,49 +214,57 @@ fn testnet_genesis(
 				10*10u128.pow(18),
 			]
 		}),
+		token: Some(TokenConfig{
+			tokens,
+			_genesis_phantom_data: Default::default()
+		})
 	}
 }
 
 fn akropolis_genesis() -> Result<ChainSpec, String> {
-    ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
+	ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
 }
 
 fn akropolis_staging_genesis() -> GenesisConfig {
-    let endowed_accounts = vec![
-        hex!("ac093ae2c4b5cc62aca5ceca961ed3bd3ad65d0fdcc3cbd206109d5ab970e171").unchecked_into(), // 5FxGqPvuyvKaGvwaHAiTjvVpQMoZcgd1tLbWWWyPH4QNyc6Q
-    ];
-
-    let initial_authorities = vec![
-        // (stash, controller, session)
-        (
-            hex!("927b39cac18dabc394d7c744fad4467d51310bf299330f9810427f8508d6ee09")
-                .unchecked_into(), // 5FNmTHadRw12fPwkrSdoKNznX5HpTcvcwvmKu5PF1suGiwP8
-            hex!("6cd3b2029a60d1e8a415de9aeed40b76ed3815678f75557b12db2b57559f8d43")
-                .unchecked_into(), // 5EXPv3Y6obajCD9PTCa4u6ZdZgQ2wowFh8yZA7DiKibirpDW
-            hex!("c763486fcc0753cfde644da6d193d092d10015384cb5ef6cca7597bbb9a900b3")
-                .unchecked_into(), // 5Ga8sxc52JGnb31zhizJpS9ixVzMneDjse8XLNAi4Gvp2mhB
-        ),
-        (
-            hex!("10fffd9162e7950a449eff6024ac326321228df2659c2a1f9d5c084c56fcc112")
-                .unchecked_into(), // 5CSzfigG2EGM3MmCcjKSAJMdtgbh4eNKc54kVU9BJBPVxju3
-            hex!("4e18e46d6e8c086a81a9162fa72d95bb3a0712f0ab73ea872cc88b810bdd2575")
-                .unchecked_into(), // 5Dq6zBbF78utVLB16oAc3b7bCJKRksuoomoWeBF7LsbKVcjx
-            hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc8eed6ff3aa5428db31a16c875")
-                .unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
-        ),
+	let endowed_accounts = vec![
+		hex!("ac093ae2c4b5cc62aca5ceca961ed3bd3ad65d0fdcc3cbd206109d5ab970e171").unchecked_into(), // 5FxGqPvuyvKaGvwaHAiTjvVpQMoZcgd1tLbWWWyPH4QNyc6Q
 	];
-	
+
+	let initial_authorities = vec![
+		// (stash, controller, session)
+		(
+			hex!("927b39cac18dabc394d7c744fad4467d51310bf299330f9810427f8508d6ee09")
+				.unchecked_into(), // 5FNmTHadRw12fPwkrSdoKNznX5HpTcvcwvmKu5PF1suGiwP8
+			hex!("6cd3b2029a60d1e8a415de9aeed40b76ed3815678f75557b12db2b57559f8d43")
+				.unchecked_into(), // 5EXPv3Y6obajCD9PTCa4u6ZdZgQ2wowFh8yZA7DiKibirpDW
+			hex!("c763486fcc0753cfde644da6d193d092d10015384cb5ef6cca7597bbb9a900b3")
+				.unchecked_into(), // 5Ga8sxc52JGnb31zhizJpS9ixVzMneDjse8XLNAi4Gvp2mhB
+		),
+		(
+			hex!("10fffd9162e7950a449eff6024ac326321228df2659c2a1f9d5c084c56fcc112")
+				.unchecked_into(), // 5CSzfigG2EGM3MmCcjKSAJMdtgbh4eNKc54kVU9BJBPVxju3
+			hex!("4e18e46d6e8c086a81a9162fa72d95bb3a0712f0ab73ea872cc88b810bdd2575")
+				.unchecked_into(), // 5Dq6zBbF78utVLB16oAc3b7bCJKRksuoomoWeBF7LsbKVcjx
+			hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc8eed6ff3aa5428db31a16c875")
+				.unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
+		),
+	];
 	let bridge_validators = vec![
-        hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
-        hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
-        hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
-    ];
+		hex!("3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753").unchecked_into(), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
+		hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
+		hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
+	];
+	let tokens = vec![Token {
+		id: 0,
+		decimals: 18,
+		symbol: Vec::from("TOKEN"),
+	}];
 
-    const DEV: u128 = 1_000_000_000_000_000;
-    const ENDOWMENT: u128 = 4_000_000 * DEV;
-    const STASH: u128 = 10 * DEV;
+	const DEV: u128 = 1_000_000_000_000_000;
+	const ENDOWMENT: u128 = 4_000_000 * DEV;
+	const STASH: u128 = 10 * DEV;
 
-    GenesisConfig {
+	GenesisConfig {
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm").to_vec(),
 			authorities: initial_authorities.iter().cloned().map(|x| x.2).collect(),
@@ -338,5 +351,9 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 				10*10u128.pow(18),
 			]
 		}),
+		token: Some(TokenConfig{
+			tokens,
+			_genesis_phantom_data: Default::default()
+		})
 	}
 }

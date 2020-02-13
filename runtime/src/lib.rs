@@ -60,10 +60,10 @@ pub type BlockNumber = u64;
 pub type Nonce = u64;
 
 pub mod bridge;
-mod dao;
+pub mod types;
 mod marketplace;
 mod token;
-mod types;
+mod dao;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -315,7 +315,7 @@ construct_runtime!(
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        Token: token::{Module, Call, Storage, Event<T>},
+        Token: token::{Module, Call, Storage, Config<T>, Event<T>},
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
 	}
 );
