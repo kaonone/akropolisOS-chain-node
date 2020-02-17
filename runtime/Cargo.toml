@@ -33,7 +33,7 @@ std = [
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-substrate-node-runtime'
-version = '1.0.0'
+version = '0.3.0'
 [dependencies.aura]
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
