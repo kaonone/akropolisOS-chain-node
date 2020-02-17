@@ -4,9 +4,9 @@
 ///
 use crate::types::{Token, TokenBalance, TokenId};
 use rstd::prelude::Vec;
-use runtime_primitives::traits::{One, StaticLookup, Zero};
+use runtime_primitives::traits::{StaticLookup, Zero};
 use support::{
-    decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
+    decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap
 };
 use system::{self, ensure_signed};
 
@@ -15,7 +15,6 @@ decl_event!(
     where
         AccountId = <T as system::Trait>::AccountId,
     {
-        NewToken(TokenId),
         Transfer(AccountId, AccountId, TokenBalance),
         Approval(AccountId, AccountId, TokenBalance),
         Mint(AccountId, TokenBalance),
@@ -58,8 +57,8 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event<T>() = default;
 
-        // // ( ! ): can be called directly
-        // // ( ? ): do we even need this?
+        // ( ! ): can be called directly
+        // ( ? ): do we even need this?
         fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
@@ -70,8 +69,8 @@ decl_module! {
             Ok(())
         }
 
-        // // ( ! ): can be called directly
-        // // ( ? ): do we even need this?
+        // ( ! ): can be called directly
+        // ( ? ): do we even need this?
         fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
@@ -82,6 +81,7 @@ decl_module! {
             Ok(())
         }
 
+        // TODO: decide whether we need it from outside
         // fn create_token(origin, token: Vec<u8>) -> Result {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
@@ -227,36 +227,12 @@ impl<T: Trait> Module<T> {
     // Add new or do nothing
     pub fn check_token_exist(token: &Vec<u8>) -> Result {
         if !<TokenIds<T>>::exists(token.clone()) {
-            Self::validate_name(token)?;
-            Self::_create_token(&token)
+            Self::validate_name(token)
         } else {
             Ok(())
         }
     }
-    fn _create_token(token: &Vec<u8>) -> Result {
-        let next_id = match <Count<T>>::get() {
-            0u32 => 0u32,
-            count => count
-                .checked_add(One::one())
-                .ok_or("Overflow when adding new token")?,
-        };
 
-        <Count<T>>::mutate(|n| *n = if next_id == 0u32 { 1 } else { next_id });
-        <TokenIds<T>>::insert(token.clone(), &next_id);
-        <TokenSymbol<T>>::insert(&next_id, token.clone());
-
-        //TODO: choose the right way to add\customize decimals
-        let next_token = Token {
-            id: next_id,
-            decimals: 18,
-            symbol: token.clone(),
-        };
-
-        <Tokens<T>>::insert(next_id, next_token);
-        Self::deposit_event(RawEvent::NewToken(next_id));
-
-        Ok(())
-    }
 
     fn validate_name(name: &[u8]) -> Result {
         if name.len() > 10 {
