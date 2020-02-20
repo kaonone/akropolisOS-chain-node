@@ -5,9 +5,7 @@
 use crate::types::{Token, TokenBalance, TokenId};
 use rstd::prelude::Vec;
 use runtime_primitives::traits::{StaticLookup, Zero};
-use support::{
-    decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap
-};
+use support::{decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap};
 use system::{self, ensure_signed};
 
 decl_event!(
@@ -36,8 +34,7 @@ decl_storage! {
             .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
         }): map TokenId => Token;
         TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig<T>| {
-            config.tokens.clone().into_iter().enumerate()
-            .map(|(i, t): (usize, Token)| (t.symbol, i as u32)).collect::<Vec<_>>()
+            config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
         }): map Vec<u8> => TokenId;
         TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig<T>| {
             config.tokens.clone().into_iter().enumerate()
@@ -233,7 +230,6 @@ impl<T: Trait> Module<T> {
         }
     }
 
-
     fn validate_name(name: &[u8]) -> Result {
         if name.len() > 10 {
             return Err("The token symbol is too long");
@@ -337,7 +333,7 @@ mod tests {
                     decimals: 18,
                     symbol: Vec::from("TOKEN"),
                 }],
-			_genesis_phantom_data: Default::default()
+                _genesis_phantom_data: Default::default(),
             }
             .build_storage()
             .unwrap()
@@ -444,7 +440,6 @@ mod tests {
             assert_eq!(TokenModule::balance_of((0, USER2)), 0);
         })
     }
-
 
     #[test]
     fn new_token_symbol_len_failed() {

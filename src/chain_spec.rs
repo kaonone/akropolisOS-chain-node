@@ -122,11 +122,18 @@ fn testnet_genesis(
 		hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
 		hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
 	];
-	let tokens = vec![Token {
-		id: 0,
-		decimals: 18,
-		symbol: Vec::from("TOKEN"),
-	}];
+	let tokens = vec![
+		Token {
+			id: 0,
+			decimals: 18,
+			symbol: Vec::from("DAI"),
+		},
+		Token {
+			id: 1,
+			decimals: 18,
+			symbol: Vec::from("cDAI"),
+		},
+	];
 	GenesisConfig {
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm").to_vec(),
@@ -254,11 +261,18 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 		hex!("1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77").unchecked_into(), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
 		hex!("2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58").unchecked_into(), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
 	];
-	let tokens = vec![Token {
-		id: 0,
-		decimals: 18,
-		symbol: Vec::from("TOKEN"),
-	}];
+	let tokens = vec![
+		Token {
+			id: 0,
+			decimals: 18,
+			symbol: Vec::from("DAI"),
+		},
+		Token {
+			id: 1,
+			decimals: 18,
+			symbol: Vec::from("cDAI"),
+		},
+	];
 
 	const DEV: u128 = 1_000_000_000_000_000;
 	const ENDOWMENT: u128 = 4_000_000 * DEV;
