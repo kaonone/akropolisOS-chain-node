@@ -2,10 +2,10 @@ use akropolisos_substrate_node_runtime::{
 	types::Token, AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig,
 	CouncilVotingConfig, DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill,
 	Permill, Schedule, SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig,
-	TokenConfig, TreasuryConfig,
+	TokenConfig,
 };
 use primitives::{crypto::UncheckedInto, ed25519, sr25519, Pair};
-use substrate_service;
+use sc_service;
 
 use ed25519::Public as AuthorityId;
 use telemetry::TelemetryEndpoints;
@@ -14,7 +14,7 @@ use telemetry::TelemetryEndpoints;
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
 
 /// The chain specification option. This is expected to come in from the CLI and
 /// is little more than one of a number of alternatives which can easily be converted
@@ -191,12 +191,6 @@ fn testnet_genesis(
 		grandpa: Some(GrandpaConfig {
 			authorities: initial_authorities.iter().cloned().map(|x| (x, 1)).collect()
 		}),
-		treasury: Some(TreasuryConfig {
-			proposal_bond: Permill::from_millionths(50_000), // Proportion of funds that should be bonded in order to place a proposal.
-			proposal_bond_minimum: 1_000_000, // Minimum amount of funds that should be placed in a deposit for making a proposal.
-			spend_period: 360, // Period between successive spends.
-			burn: Permill::from_millionths(100_000), // Percentage of spare funds (if any) that are burnt per spend period.
-		}),
 		contract: Some(ContractConfig {
 			transfer_fee: 100, // The fee required to make a transfer.
 			creation_fee: 100, // The fee required to create an account.
@@ -334,12 +328,6 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 		}),
 		grandpa: Some(GrandpaConfig {
 			authorities: initial_authorities.iter().cloned().map(|x| (x.2, 1)).collect()
-		}),
-		treasury: Some(TreasuryConfig {
-			proposal_bond: Permill::from_millionths(50_000), // Proportion of funds that should be bonded in order to place a proposal.
-			proposal_bond_minimum: 1_000_000, // Minimum amount of funds that should be placed in a deposit for making a proposal.
-			spend_period: 360, // Period between successive spends.
-			burn: Permill::from_millionths(100_000), // Percentage of spare funds (if any) that are burnt per spend period.
 		}),
 		contract: Some(ContractConfig {
 			transfer_fee: 100, // The fee required to make a transfer.

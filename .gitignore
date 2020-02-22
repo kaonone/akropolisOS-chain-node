@@ -15,3 +15,6 @@
 
 # Code editors
 .vscode
+
+# local helper scripts
+*.sh

@@ -1,24 +1,27 @@
 use support::{
     decl_event, decl_module, decl_storage,
-    dispatch::Result,
+    dispatch::{DispatchResult, DispatchError},
     ensure,
-    traits::{Currency, LockIdentifier, LockableCurrency, WithdrawReasons},
-    StorageMap, StorageValue,
+    traits::{Currency, ExistenceRequirement, LockIdentifier, Get, LockableCurrency, WithdrawReasons},
+    StorageMap, StorageValue
 };
 use system::ensure_signed;
-
-use runtime_primitives::traits::{As, Bounded, Hash};
-
-use parity_codec::{Encode};
-
-use rstd::prelude::Vec;
+use sp_runtime::traits::{Bounded, Hash, Zero};
+use codec::Encode;
+use rstd::{convert::{TryInto, TryFrom}, prelude::Vec};
+// #[cfg(feature = "std")]
+// use std::convert::TryInto;
 
 use crate::marketplace;
-use crate::types::{Count, Proposal, Dao, Action, DaoId, Days, MemberId, ProposalId, Rate, VotesCount};
+use crate::types::{
+    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, VotesCount,
+};
+
+type Result<T> = core::result::Result<T, &'static str>;
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
-const MINIMUM_VOTE_TIOMEOUT: u64 = 30; // ~5 min
-const MAXIMUM_VOTE_TIMEOUT: u64 = 3 * 30 * 24 * 60 * 6; // ~90 days
+const MINIMUM_VOTE_TIOMEOUT: u32 = 30; // ~5 min
+const MAXIMUM_VOTE_TIMEOUT: u32 = 3 * 30 * 24 * 60 * 6; // ~90 days
 
 /// The module's configuration trait.
 pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + system::Trait {
@@ -51,7 +54,7 @@ decl_storage! {
         DaoProposalsVotesCount get(dao_proposals_votes_count): map(DaoId, ProposalId) => MemberId;
         DaoProposalsVotesIndex get(dao_proposals_votes_index): map(DaoId, ProposalId, T::AccountId) => MemberId;
 
-        OpenDaoProposalsLimit get(open_proposals_per_block) config(): usize = 2;
+        OpenDaoProposalsLimit get(open_proposals_per_block) config(): u32 = 2;
         OpenDaoProposals get(open_dao_proposals): map T::BlockNumber => Vec<ProposalId>;
         OpenDaoProposalsIndex get(open_dao_proposals_index): map ProposalId => T::BlockNumber;
         OpenDaoProposalsHashes get(open_dao_proposals_hashes): map T::Hash => ProposalId;
@@ -62,17 +65,17 @@ decl_storage! {
 decl_module! {
     /// The module declaration.
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
-        pub fn create(origin, address: T::AccountId, name: Vec<u8>, description: Vec<u8>) -> Result {
+        pub fn create(origin, address: T::AccountId, name: Vec<u8>, description: Vec<u8>) -> DispatchResult {
             let founder = ensure_signed(origin)?;
 
-            let daos_count = <DaosCount<T>>::get();
+            let daos_count = <DaosCount>::get();
             let new_daos_count = daos_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new dao")?;
             let name_hash = (&name).using_encoded(<T as system::Trait>::Hashing::hash);
-            let zero = <T::Balance as As<u64>>::sa(0);
+            let zero = <T::Balance>::zero();
 
             ensure!(founder != address, "Founder address matches DAO address");
             Self::validate_name(&name)?;
@@ -90,26 +93,26 @@ decl_module! {
             };
             let dao_id = daos_count;
 
-            let dao_deposit = <balances::ExistentialDeposit<T>>::get();
-            <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit)?;
+            let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
+            <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, T::BlockNumber::max_value(), WithdrawReasons::all());
 
             <Daos<T>>::insert(dao_id, new_dao);
             <DaosCount<T>>::put(new_daos_count);
             <DaoNames<T>>::insert(name_hash, dao_id);
             <DaoAddresses<T>>::insert(&address, dao_id);
-            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::sa(MINIMUM_VOTE_TIOMEOUT));
-            <DaoMaximumNumberOfMembers<T>>::insert(dao_id, Self::maximum_number_of_members());
+            <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::from(MINIMUM_VOTE_TIOMEOUT));
+            <DaoMaximumNumberOfMembers>::insert(dao_id, Self::maximum_number_of_members());
             <Address<T>>::insert(dao_id, &address);
             <Members<T>>::insert((dao_id, 0), &founder);
-            <MembersCount<T>>::insert(dao_id, 1);
+            <MembersCount>::insert(dao_id, 1);
             <DaoMembers<T>>::insert((dao_id, founder.clone()), 0);
 
             Self::deposit_event(RawEvent::DaoCreated(address, founder, name));
             Ok(())
         }
 
-        pub fn propose_to_add_member(origin, dao_id: DaoId) -> Result {
+        pub fn propose_to_add_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_add_member", &candidate, dao_id)
@@ -120,11 +123,12 @@ decl_module! {
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(!<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You already are a member of this DAO");
             ensure!(!<DaoAddresses<T>>::exists(candidate.clone()), "A DAO can not be a member of other DAO");
-            ensure!(<MembersCount<T>>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id), "Maximum number of members for this DAO is reached");
+            ensure!(<MembersCount>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id), "Maximum number of members for this DAO is reached");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -142,8 +146,8 @@ decl_module! {
             open_proposals.push(proposal_id);
 
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -152,7 +156,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_remove_member(origin, dao_id: DaoId) -> Result {
+        pub fn propose_to_remove_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_remove_member", &candidate, dao_id)
@@ -162,11 +166,12 @@ decl_module! {
 
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You already are not a member of this DAO");
-            ensure!(<MembersCount<T>>::get(dao_id) > 1, "You are the last member of this DAO");
+            ensure!(<MembersCount>::get(dao_id) > 1, "You are the last member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -184,8 +189,8 @@ decl_module! {
             open_proposals.push(proposal_id);
 
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -194,7 +199,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, value: T::Balance) -> Result {
+        pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_get_loan", &proposer, dao_id)
@@ -206,9 +211,10 @@ decl_module! {
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, proposer.clone())), "You already are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -226,8 +232,8 @@ decl_module! {
             open_proposals.push(proposal_id);
 
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -236,7 +242,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_withdraw(origin, dao_id: DaoId, description: Vec<u8>, value: T::Balance) -> Result {
+        pub fn propose_to_withdraw(origin, dao_id: DaoId, description: Vec<u8>, value: T::Balance) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_withdraw", &candidate, dao_id)
@@ -246,10 +252,11 @@ decl_module! {
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, candidate.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
             Self::withdraw_from_dao_balance_is_valid(dao_id, value)?;
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -266,8 +273,8 @@ decl_module! {
             let proposal_id = dao_proposals_count;
             open_proposals.push(proposal_id);
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -275,7 +282,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_change_vote_timeout(origin, dao_id: DaoId, value: T::BlockNumber) -> Result {
+        pub fn propose_to_change_vote_timeout(origin, dao_id: DaoId, value: T::BlockNumber) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_change_vote_timeout", &proposer, dao_id)
@@ -288,9 +295,10 @@ decl_module! {
             ensure!(<DaoMembers<T>>::exists((dao_id, proposer.clone())), "You are not a member of this DAO");
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(<DaoTimeouts<T>>::get(dao_id) != value, "new vote timeout equal current vote timeout");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -308,8 +316,8 @@ decl_module! {
             let proposal_id = dao_proposals_count;
             open_proposals.push(proposal_id);
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -317,7 +325,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> Result {
+        pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_change_maximum_number_of_members", &proposer, dao_id)
@@ -331,9 +339,10 @@ decl_module! {
             ensure!(!<OpenDaoProposalsHashes<T>>::exists(proposal_hash), "This proposal already open");
             ensure!(Self::dao_maximum_number_of_members(dao_id) != value, "New maximum number of members equal current number of members");
             ensure!(Self::members_count(dao_id) <= value, "The current number of members in this DAO more than the new maximum number of members");
-            ensure!(open_proposals.len() < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
 
-            let dao_proposals_count = <DaoProposalsCount<T>>::get(dao_id);
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
                 .checked_add(1)
                 .ok_or("Overflow adding a new DAO proposal")?;
@@ -351,8 +360,8 @@ decl_module! {
             let proposal_id = dao_proposals_count;
             open_proposals.push(proposal_id);
             <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount<T>>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex<T>>::insert(proposal_id, dao_id);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
             <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
             <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
@@ -360,14 +369,14 @@ decl_module! {
             Ok(())
         }
 
-        pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> Result {
+        pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> DispatchResult {
             let voter = ensure_signed(origin)?;
 
             ensure!(<DaoMembers<T>>::exists((dao_id, voter.clone())), "You are not a member of this DAO");
             ensure!(<DaoProposals<T>>::exists((dao_id, proposal_id)), "This proposal not exists");
             ensure!(!<DaoProposalsVotesIndex<T>>::exists((dao_id, proposal_id, voter.clone())), "You voted already");
 
-            let dao_proposal_votes_count = <DaoProposalsVotesCount<T>>::get((dao_id, proposal_id));
+            let dao_proposal_votes_count = <DaoProposalsVotesCount>::get((dao_id, proposal_id));
             let new_dao_proposals_votes_count = dao_proposal_votes_count
                 .checked_add(1)
                 .ok_or("Overwlow adding a new vote of DAO proposal")?;
@@ -381,7 +390,7 @@ decl_module! {
                 proposal.no_count += 1;
             }
 
-            let dao_members_count = <MembersCount<T>>::get(dao_id);
+            let dao_members_count = <MembersCount>::get(dao_id);
             let proposal_is_accepted = Self::votes_are_enough(proposal.yes_count, dao_members_count);
             let proposal_is_rejected = Self::votes_are_enough(proposal.no_count, dao_members_count);
             let all_member_voted = dao_members_count <= proposal.yes_count + proposal.no_count;
@@ -397,7 +406,7 @@ decl_module! {
             }
 
             <DaoProposalsVotes<T>>::insert((dao_id, proposal_id, dao_proposal_votes_count), &voter);
-            <DaoProposalsVotesCount<T>>::insert((dao_id, proposal_id), new_dao_proposals_votes_count);
+            <DaoProposalsVotesCount>::insert((dao_id, proposal_id), new_dao_proposals_votes_count);
             <DaoProposalsVotesIndex<T>>::insert((dao_id, proposal_id, voter.clone()), dao_proposal_votes_count);
 
             Self::deposit_event(RawEvent::NewVote(dao_id, proposal_id, voter, vote));
@@ -412,13 +421,13 @@ decl_module! {
             Ok(())
         }
 
-        pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> Result {
+        pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
             ensure!(<Daos<T>>::exists(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::exists((dao_id, depositor.clone())), "You are not a member of this DAO");
             let dao_address = <Address<T>>::get(dao_id);
-            <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value)?;
+            <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
             <balances::Module<T>>::set_lock(LOCK_NAME, &dao_address, <balances::FreeBalance<T>>::get(&dao_address), T::BlockNumber::max_value(), WithdrawReasons::all());
 
@@ -432,7 +441,7 @@ decl_module! {
             Self::open_dao_proposals(block_number)
                 .iter()
                 .for_each(|&proposal_id| {
-                    let dao_id = <DaoProposalsIndex<T>>::get(proposal_id);
+                    let dao_id = <DaoProposalsIndex>::get(proposal_id);
                     let proposal = <DaoProposals<T>>::get((dao_id, proposal_id));
 
                     if proposal.open {
@@ -470,12 +479,12 @@ decl_event!(
 );
 
 impl<T: Trait> Module<T> {
-    fn validate_name(name: &[u8]) -> Result {
+    fn validate_name(name: &[u8]) -> DispatchResult {
         if name.len() < 10 {
-            return Err("The name is very short");
+            return Err(DispatchError::Other("The name is very short"));
         }
         if name.len() > 255 {
-            return Err("The name is very long");
+            return Err(DispatchError::Other("The name is very long"));
         }
 
         let is_valid_char = |&c| {
@@ -485,65 +494,68 @@ impl<T: Trait> Module<T> {
             c == 45 || c == 95 // '-', '_'
         };
         if !(name.iter().all(is_valid_char)) {
-            return Err("The name has invalid chars");
+            return Err(DispatchError::Other("The name has invalid chars"));
         }
 
         Ok(())
     }
 
-    fn validate_description(description: &[u8]) -> Result {
+    fn validate_description(description: &[u8]) -> DispatchResult {
         if description.len() < 10 {
-            return Err("The description is very short");
+            return Err(DispatchError::Other("The description is very short"));
         }
         if description.len() > 4096 {
-            return Err("The description is very long");
+            return Err(DispatchError::Other("The description is very long"));
         }
 
         Ok(())
     }
-    fn validate_vote_timeout(timeout: T::BlockNumber) -> Result {
-        if timeout < T::BlockNumber::sa(MINIMUM_VOTE_TIOMEOUT) {
-            return Err("The vote timeout must be not less 30 blocks");
+    fn validate_vote_timeout(timeout: T::BlockNumber) -> DispatchResult {
+        if timeout < T::BlockNumber::from(MINIMUM_VOTE_TIOMEOUT) {
+            return Err(DispatchError::Other("The vote timeout must be not less 30 blocks"));
         }
-        if timeout > T::BlockNumber::sa(MAXIMUM_VOTE_TIMEOUT) {
-            return Err("The vote timeout must be not more 777600 blocks");
+        if timeout > T::BlockNumber::from(MAXIMUM_VOTE_TIMEOUT) {
+            return Err(DispatchError::Other("The vote timeout must be not more 777600 blocks"));
         }
 
         Ok(())
     }
 
-    fn validate_number_of_members(number_of_members: MemberId) -> Result {
+    fn validate_number_of_members(number_of_members: MemberId) -> DispatchResult {
         if number_of_members < Self::minimum_number_of_members() {
-            return Err("The new maximum number of members is very small");
+            return Err(DispatchError::Other("The new maximum number of members is very small"));
         }
         if number_of_members > Self::maximum_number_of_members() {
-            return Err("The new maximum number of members is very big");
+            return Err(DispatchError::Other("The new maximum number of members is very big"));
         }
 
         Ok(())
     }
 
-    fn add_member(dao_id: DaoId, member: T::AccountId) -> Result {
+    fn add_member(dao_id: DaoId, member: T::AccountId) -> DispatchResult {
         ensure!(
-            <MembersCount<T>>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id),
+            <MembersCount>::get(dao_id) < Self::dao_maximum_number_of_members(dao_id),
             "Maximum number of members for this DAO is reached"
         );
 
-        let members_count = <MembersCount<T>>::get(dao_id);
+        let members_count = <MembersCount>::get(dao_id);
         let new_members_count = members_count
             .checked_add(1)
             .ok_or("Overflow adding a member to DAO")?;
 
         <Members<T>>::insert((dao_id, members_count), &member);
-        <MembersCount<T>>::insert(dao_id, new_members_count);
+        <MembersCount>::insert(dao_id, new_members_count);
         <DaoMembers<T>>::insert((dao_id, member), members_count);
 
         Ok(())
     }
 
-    fn remove_member(dao_id: DaoId, member: T::AccountId) -> Result {
-        let members_count = <MembersCount<T>>::get(dao_id);
-        ensure!(<MembersCount<T>>::get(dao_id) > 1, "Cannot remove last member of this DAO");
+    fn remove_member(dao_id: DaoId, member: T::AccountId) -> DispatchResult {
+        let members_count = <MembersCount>::get(dao_id);
+        ensure!(
+            <MembersCount>::get(dao_id) > 1,
+            "Cannot remove last member of this DAO"
+        );
 
         let new_members_count = members_count
             .checked_sub(1)
@@ -558,7 +570,7 @@ impl<T: Trait> Module<T> {
             <DaoMembers<T>>::insert((dao_id, latest_member), member_id);
         }
         <Members<T>>::remove((dao_id, max_member_id));
-        <MembersCount<T>>::insert(dao_id, new_members_count);
+        <MembersCount>::insert(dao_id, new_members_count);
         <DaoMembers<T>>::remove((dao_id, member));
 
         Ok(())
@@ -570,43 +582,44 @@ impl<T: Trait> Module<T> {
         days: Days,
         rate: Rate,
         value: T::Balance,
-    ) -> Result {
-        <marketplace::Module<T>>::propose_to_investment(dao_id, description, days, rate, value)?;
-
-        Ok(())
+    ) -> DispatchResult {
+        <marketplace::Module<T>>::propose_to_investment(dao_id, description, days, rate, value)
     }
 
-    fn change_timeout(dao_id: DaoId, timeout: T::BlockNumber) -> Result {
+    fn change_timeout(dao_id: DaoId, timeout: T::BlockNumber) -> DispatchResult {
         <DaoTimeouts<T>>::mutate(dao_id, |old_timeout| *old_timeout = timeout);
 
         Ok(())
     }
 
-    fn change_maximum_number_of_members(dao_id: DaoId, number_of_members: MemberId) -> Result {
-        <DaoMaximumNumberOfMembers<T>>::mutate(dao_id, |old_number_of_members| {
+    fn change_maximum_number_of_members(
+        dao_id: DaoId,
+        number_of_members: MemberId,
+    ) -> DispatchResult {
+        <DaoMaximumNumberOfMembers>::mutate(dao_id, |old_number_of_members| {
             *old_number_of_members = number_of_members
         });
 
         Ok(())
     }
 
-    fn withdraw_from_dao_balance_is_valid(dao_id: DaoId, value: T::Balance) -> Result {
+    fn withdraw_from_dao_balance_is_valid(dao_id: DaoId, value: T::Balance) -> DispatchResult {
         let dao_address = <Address<T>>::get(dao_id);
         let dao_balance = <balances::FreeBalance<T>>::get(dao_address);
         let allowed_dao_balance = dao_balance
-            - <balances::ExistentialDeposit<T>>::get()
-            - <balances::TransferFee<T>>::get();
+            - <T as balances::Trait>::ExistentialDeposit::get()
+            - <T as balances::Trait>::TransferFee::get();
         ensure!(allowed_dao_balance > value, "DAO balance is not sufficient");
 
         Ok(())
     }
 
-    fn withdraw(dao_id: DaoId, taker: T::AccountId, amount: T::Balance) -> Result {
+    fn withdraw(dao_id: DaoId, taker: T::AccountId, amount: T::Balance) -> DispatchResult {
         Self::withdraw_from_dao_balance_is_valid(dao_id, amount)?;
         let dao_address = <Address<T>>::get(dao_id);
 
         <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
-        <balances::Module<T> as Currency<_>>::transfer(&dao_address, &taker, amount)?;
+        <balances::Module<T> as Currency<_>>::transfer(&dao_address, &taker, amount, ExistenceRequirement::KeepAlive)?;
         <balances::Module<T>>::set_lock(
             LOCK_NAME,
             &dao_address,
@@ -636,10 +649,14 @@ impl<T: Trait> Module<T> {
     fn votes_are_enough(votes: MemberId, maximum_votes: MemberId) -> bool {
         votes as f64 / maximum_votes as f64 >= 0.51
     }
+    fn try_u32_to_usize(n: u32) -> DispatchResult {
+        let n_usize = TryInto::<usize>::try_into(n)?;
+        Ok(n_usize)
+    }
 
     fn execute_proposal(
         proposal: &Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, MemberId>,
-    ) -> Result {
+    ) -> DispatchResult {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_member(proposal.dao_id, member.clone()),
@@ -669,7 +686,7 @@ mod tests {
 
     use primitives::{Blake2Hasher, H256};
     use runtime_io::with_externalities;
-    use runtime_primitives::{
+    use sp_runtime::{
         testing::{Digest, DigestItem, Header},
         traits::{BlakeTwo256, IdentityLookup},
         BuildStorage,

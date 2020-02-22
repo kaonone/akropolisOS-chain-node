@@ -27,7 +27,7 @@ use node_runtime::{UncheckedExtrinsic, Call, BalancesCall};
 use primitives::{/*ed25519, */sr25519, hexdisplay::HexDisplay, Pair, crypto::Ss58Codec, blake2_256};
 use runtime_primitives::generic::Era;
 
-use parity_codec::{Encode, Compact};
+use codec::{Encode, Compact};
 use primitive_types::U256;
 
 use node_primitives::{Balance, Index, Hash};

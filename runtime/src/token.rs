@@ -4,9 +4,13 @@
 ///
 use crate::types::{Token, TokenBalance, TokenId};
 use rstd::prelude::Vec;
-use runtime_primitives::traits::{StaticLookup, Zero};
-use support::{decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap};
+use sp_runtime::traits::{StaticLookup, Zero};
+use support::{
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
+};
 use system::{self, ensure_signed};
+
+type Result<T> = core::result::Result<T, &'static str>;
 
 decl_event!(
     pub enum Event<T>
@@ -29,18 +33,17 @@ decl_storage! {
         Count get(count): TokenId;
         Locked get(locked): map(TokenId, T::AccountId) => TokenBalance;
 
-        Tokens get(tokens) build(|config: &GenesisConfig<T>| {
+        Tokens get(tokens) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
         }): map TokenId => Token;
-        TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig<T>| {
+        TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
         }): map Vec<u8> => TokenId;
-        TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig<T>| {
+        TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t.symbol)).collect::<Vec<_>>()
         }): map TokenId => Vec<u8>;
-        
         TotalSupply get(total_supply): map TokenId => TokenBalance;
         Balance get(balance_of): map (TokenId, T::AccountId) => TokenBalance;
         Allowance get(allowance_of): map (TokenId, T::AccountId, T::AccountId) => TokenBalance;
@@ -52,14 +55,14 @@ decl_storage! {
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> Result {
+        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult {
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens<T>>::get(0);
+            let token = <Tokens>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_burn(0, from.clone(), amount)?;
             Self::deposit_event(RawEvent::Burn(from, amount));
@@ -68,10 +71,10 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> Result{
+        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult{
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens<T>>::get(0);
+            let token = <Tokens>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_mint(token.id, to.clone(), amount)?;
             Self::deposit_event(RawEvent::Mint(to.clone(), amount));
@@ -79,7 +82,7 @@ decl_module! {
         }
 
         // TODO: decide whether we need it from outside
-        // fn create_token(origin, token: Vec<u8>) -> Result {
+        // fn create_token(origin, token: Vec<u8>) -> DispatchResult {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
         // }
@@ -87,12 +90,12 @@ decl_module! {
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
             #[compact] amount: TokenBalance
-        ) -> Result{
+        ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <Tokens>::get(0).id;
             Self::make_transfer(id, sender, to, amount)?;
             Ok(())
         }
@@ -100,11 +103,11 @@ decl_module! {
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
             #[compact] value: TokenBalance
-        ) -> Result{
+        ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <Tokens>::get(0).id;
             <Allowance<T>>::insert((id,sender.clone(), spender.clone()), value);
 
             Self::deposit_event(RawEvent::Approval(sender, spender, value));
@@ -115,15 +118,15 @@ decl_module! {
             from: T::AccountId,
             to: T::AccountId,
             #[compact] value: TokenBalance
-        ) -> Result{
+        ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
-            let id = <Tokens<T>>::get(0).id;
+            let id = <Tokens>::get(0).id;
             let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <Tokens>::get(0).id;
             Self::make_transfer(id, from.clone(), to.clone(), value)?;
 
             <Allowance<T>>::insert((id, from, sender), updated_allowance);
@@ -134,7 +137,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn _burn(token_id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _burn(token_id: TokenId, from: T::AccountId, amount: TokenBalance) -> Result<()> {
         ensure!(
             Self::total_supply(0) >= amount,
             "Cannot burn more than total supply"
@@ -156,11 +159,11 @@ impl<T: Trait> Module<T> {
             .ok_or("Underflow subtracting from total supply")?;
 
         <Balance<T>>::insert((token_id, from.clone()), next_balance);
-        <TotalSupply<T>>::insert(token_id, next_total);
+        <TotalSupply>::insert(token_id, next_total);
 
         Ok(())
     }
-    pub fn _mint(token_id: TokenId, to: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn _mint(token_id: TokenId, to: T::AccountId, amount: TokenBalance) -> Result<()> {
         ensure!(!amount.is_zero(), "Amount should be non-zero");
 
         let old_balance = <Balance<T>>::get((token_id, to.clone()));
@@ -172,7 +175,7 @@ impl<T: Trait> Module<T> {
             .ok_or("Overflow adding to total supply")?;
 
         <Balance<T>>::insert((token_id, to.clone()), next_balance);
-        <TotalSupply<T>>::insert(token_id, next_total);
+        <TotalSupply>::insert(token_id, next_total);
 
         Ok(())
     }
@@ -182,7 +185,7 @@ impl<T: Trait> Module<T> {
         from: T::AccountId,
         to: T::AccountId,
         amount: TokenBalance,
-    ) -> Result {
+    ) -> Result<()> {
         let from_balance = <Balance<T>>::get((token_id, from.clone()));
         ensure!(from_balance >= amount, "User does not have enough tokens");
         let free_balance = <Balance<T>>::get((token_id, from.clone()))
@@ -196,7 +199,7 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    pub fn lock(token_id: TokenId, account: T::AccountId, amount: TokenBalance) -> Result {
+    pub fn lock(token_id: TokenId, account: T::AccountId, amount: TokenBalance) -> Result<()> {
         //TODO: substract this amount from the main balance?
         //              Balance: 1000, Locked: 0
         // lock(400) => Balance: 1000, Locked: 400 or
@@ -205,7 +208,7 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    pub fn unlock(token_id: TokenId, account: &T::AccountId, amount: TokenBalance) -> Result {
+    pub fn unlock(token_id: TokenId, account: &T::AccountId, amount: TokenBalance) -> Result<()> {
         //TODO: add this amount to the main balance?
         //                Balance: 1000, Locked: 400
         // unlock(400) => Balance: 1000, Locked: 0 or
@@ -222,15 +225,15 @@ impl<T: Trait> Module<T> {
     }
     // Token management
     // Add new or do nothing
-    pub fn check_token_exist(token: &Vec<u8>) -> Result {
-        if !<TokenIds<T>>::exists(token.clone()) {
+    pub fn check_token_exist(token: &Vec<u8>) -> Result<()> {
+        if !<TokenIds>::exists(token.clone()) {
             Self::validate_name(token)
         } else {
             Ok(())
         }
     }
 
-    fn validate_name(name: &[u8]) -> Result {
+    fn validate_name(name: &[u8]) -> Result<()> {
         if name.len() > 10 {
             return Err("The token symbol is too long");
         }
@@ -249,7 +252,7 @@ mod tests {
 
     use primitives::{Blake2Hasher, H256};
     use runtime_io::with_externalities;
-    use runtime_primitives::{
+    use sp_runtime::{
         testing::{Digest, DigestItem, Header},
         traits::{BlakeTwo256, IdentityLookup},
         BuildStorage,

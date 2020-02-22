@@ -25,7 +25,7 @@ raw-transaction-builder = { path = 'raw-transaction-builder' }
 
 [dependencies.consensus]
 git = 'https://github.com/paritytech/substrate.git'
-package = 'substrate-consensus-aura'
+package = 'sc-consensus-aura'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 
 [dependencies.system]
@@ -43,13 +43,13 @@ rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 [dependencies.primitives]
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
-package = 'substrate-primitives'
+package = 'sp-core'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 
 [dependencies.runtime-primitives]
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
-package = 'sr-primitives'
+package = 'sp-runtime'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 
 [dependencies.parity-codec]

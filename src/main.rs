@@ -10,7 +10,7 @@ mod chain_spec;
 mod cli;
 mod service;
 
-pub use substrate_cli::{error, IntoExit, VersionInfo};
+pub use sc_cli::{error, IntoExit, VersionInfo};
 
 fn run() -> cli::error::Result<()> {
     let version = VersionInfo {

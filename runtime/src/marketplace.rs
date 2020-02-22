@@ -1,9 +1,9 @@
-use support::{decl_event, decl_module, decl_storage, dispatch::Result, StorageValue};
+use support::{decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue};
 use system::ensure_signed;
-
 use rstd::prelude::Vec;
-
 use crate::types::{DaoId, Days, Rate};
+
+type Result<T> = core::result::Result<T, &'static str>;
 
 /// The module's configuration trait.
 pub trait Trait: balances::Trait + system::Trait {
@@ -21,12 +21,12 @@ decl_storage! {
 decl_module! {
     /// The module declaration.
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
-        fn make_investment(origin, proposal_id: u64) -> Result {
+        fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            <Something<T>>::put(proposal_id);
+            <Something>::put(proposal_id);
 
             Self::deposit_event(RawEvent::NewInvsetment(proposal_id, who));
             Ok(())
@@ -41,7 +41,7 @@ impl<T: Trait> Module<T> {
         days: Days,
         rate: Rate,
         value: T::Balance,
-    ) -> Result {
+    ) -> Result<()> {
         Self::deposit_event(RawEvent::ProposeToInvestment(
             dao_id,
             description,
