@@ -474,7 +474,7 @@ impl<T: Trait> Module<T> {
 
     /// update validators list
     fn manage_validator_list(info: ValidatorMessage<T::AccountId, T::Hash>) -> Result<()> {
-        let new_count = u32::from(info.accounts.clone().len());
+        let new_count = info.accounts.clone().len() as u32;
         ensure!(
             new_count < MAX_VALIDATORS,
             "New validator list is exceeding allowed length."

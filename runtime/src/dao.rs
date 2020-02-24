@@ -8,9 +8,7 @@ use support::{
 use system::ensure_signed;
 use sp_runtime::traits::{Bounded, Hash, Zero};
 use codec::Encode;
-use rstd::{convert::{TryInto, TryFrom}, prelude::Vec};
-// #[cfg(feature = "std")]
-// use std::convert::TryInto;
+use rstd::{convert::TryInto, prelude::Vec};
 
 use crate::marketplace;
 use crate::types::{

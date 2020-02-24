@@ -107,8 +107,8 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("akropolisos-substrate-node"),
-    impl_name: create_runtime_str!("akropolisos-substrate-node"),
+    spec_name: create_runtime_str!("akropolisos-node"),
+    impl_name: create_runtime_str!("akropolisos-node"),
     authoring_version: 3,
     spec_version: 4,
     impl_version: 4,
@@ -306,25 +306,25 @@ impl bridge::Trait for Runtime {
 
 construct_runtime!(
     pub enum Runtime where 
-		Block = Block,
-		NodeBlock = opaque::Block,
+        Block = Block, 
+        NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: system::{Module, Call, Storage, Config, Event},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
+		Aura: aura::{Module, Inherent(Timestamp)},
 		Grandpa: grandpa::{Module, Call, Storage, Config, Event},
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,
-		Session: session,
-		Staking: staking,
+		Session: session::{Module, Call, Storage, Config<T>, Event},
+		Staking: staking::{Module, Call, Storage, Config<T>, Event<T>},
 		Democracy: democracy,
-		Contract: contracts::{Module, Call, Config, Event},
-		Dao: dao::{Module, Call, Storage, Event<T>},
+		Contract: contracts::{Module, Call, Config, Event<T>},
+		Dao: dao::{Module, Call, Storage, Config, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
         Token: token::{Module, Call, Storage, Config, Event<T>},
-        Bridge: bridge::{Module, Call, Storage, Config, Event<T>},
+        Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
         RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 	}
 );
@@ -360,82 +360,82 @@ pub type Executive =
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-	impl sp_api::Core<Block> for Runtime {
-		fn version() -> RuntimeVersion {
-			VERSION
-		}
+    impl sp_api::Core<Block> for Runtime {
+        fn version() -> RuntimeVersion {
+            VERSION
+        }
 
-		fn execute_block(block: Block) {
-			Executive::execute_block(block)
-		}
+        fn execute_block(block: Block) {
+            Executive::execute_block(block)
+        }
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
-			Executive::initialize_block(header)
-		}
-	}
+        fn initialize_block(header: &<Block as BlockT>::Header) {
+            Executive::initialize_block(header)
+        }
+    }
 
-	impl sp_api::Metadata<Block> for Runtime {
-		fn metadata() -> OpaqueMetadata {
-			Runtime::metadata().into()
-		}
-	}
+    impl sp_api::Metadata<Block> for Runtime {
+        fn metadata() -> OpaqueMetadata {
+            Runtime::metadata().into()
+        }
+    }
 
-	impl block_builder_api::BlockBuilder<Block> for Runtime {
-		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
-			Executive::apply_extrinsic(extrinsic)
-		}
+    impl block_builder_api::BlockBuilder<Block> for Runtime {
+        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
+            Executive::apply_extrinsic(extrinsic)
+        }
 
-		fn finalize_block() -> <Block as BlockT>::Header {
-			Executive::finalize_block()
-		}
+        fn finalize_block() -> <Block as BlockT>::Header {
+            Executive::finalize_block()
+        }
 
-		fn inherent_extrinsics(data: inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
-			data.create_extrinsics()
-		}
+        fn inherent_extrinsics(data: inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+            data.create_extrinsics()
+        }
 
-		fn check_inherents(
-			block: Block,
-			data: inherents::InherentData,
-		) -> inherents::CheckInherentsResult {
-			data.check_extrinsics(&block)
-		}
+        fn check_inherents(
+            block: Block,
+            data: inherents::InherentData,
+        ) -> inherents::CheckInherentsResult {
+            data.check_extrinsics(&block)
+        }
 
-		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed()
-		}
-	}
+        fn random_seed() -> <Block as BlockT>::Hash {
+            RandomnessCollectiveFlip::random_seed()
+        }
+    }
 
-	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
-			Executive::validate_transaction(tx)
-		}
-	}
+    impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
+            Executive::validate_transaction(tx)
+        }
+    }
 
-	impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
-		fn offchain_worker(number: NumberFor<Block>) {
-			Executive::offchain_worker(number)
-		}
-	}
+    impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
+        fn offchain_worker(number: NumberFor<Block>) {
+            Executive::offchain_worker(number)
+        }
+    }
 
-	impl aura_primitives::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> u64 {
-			Aura::slot_duration()
-		}
+    impl aura_primitives::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> u64 {
+            Aura::slot_duration()
+        }
 
-		fn authorities() -> Vec<AuraId> {
-			Aura::authorities()
-		}
-	}
+        fn authorities() -> Vec<AuraId> {
+            Aura::authorities()
+        }
+    }
 
-	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-			opaque::SessionKeys::generate(seed)
-		}
-	}
+    impl sp_session::SessionKeys<Block> for Runtime {
+        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+            opaque::SessionKeys::generate(seed)
+        }
+    }
 
-	impl fg_primitives::GrandpaApi<Block> for Runtime {
-		fn grandpa_authorities() -> GrandpaAuthorityList {
-			Grandpa::grandpa_authorities()
-		}
-	}
+    impl fg_primitives::GrandpaApi<Block> for Runtime {
+        fn grandpa_authorities() -> GrandpaAuthorityList {
+            Grandpa::grandpa_authorities()
+        }
+    }
 }

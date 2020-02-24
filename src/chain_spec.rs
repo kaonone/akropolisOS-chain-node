@@ -183,11 +183,6 @@ fn testnet_genesis(
 			max_lock_periods: 60, // The maximum number of additional lock periods a voter may offer to strengthen their vote.
 			voting_period: 144, // How often (in blocks) to check for new votes.
 		}),
-		council_voting: Some(CouncilVotingConfig {
-			cooloff_period: 360, // Period (in blocks) that a veto is in effect.
-			voting_period: 60, // Period (in blocks) that a vote is open for.
-			enact_delay_period: 5, // Number of blocks by which to delay enactment of successful.
-		}),
 		grandpa: Some(GrandpaConfig {
 			authorities: initial_authorities.iter().cloned().map(|x| (x, 1)).collect()
 		}),
@@ -320,11 +315,6 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 			public_delay: 5, // The delay before enactment for all public referenda.
 			max_lock_periods: 60, // The maximum number of additional lock periods a voter may offer to strengthen their vote.
 			voting_period: 144, // How often (in blocks) to check for new votes.
-		}),
-		council_voting: Some(CouncilVotingConfig {
-			cooloff_period: 360, // Period (in blocks) that a veto is in effect.
-			voting_period: 60, // Period (in blocks) that a vote is open for.
-			enact_delay_period: 5, // Number of blocks by which to delay enactment of successful.
 		}),
 		grandpa: Some(GrandpaConfig {
 			authorities: initial_authorities.iter().cloned().map(|x| (x.2, 1)).collect()
