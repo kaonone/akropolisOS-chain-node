@@ -1,6 +1,6 @@
 use codec::{Decode, Encode};
-use primitives::H160;
-use rstd::prelude::Vec;
+use sp_core::H160;
+use sp_std::prelude::Vec;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};

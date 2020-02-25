@@ -1,9 +1,7 @@
-use support::{decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue};
+use frame_support::{decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue};
 use system::ensure_signed;
-use rstd::prelude::Vec;
+use sp_std::prelude::Vec;
 use crate::types::{DaoId, Days, Rate};
-
-type Result<T> = core::result::Result<T, &'static str>;
 
 /// The module's configuration trait.
 pub trait Trait: balances::Trait + system::Trait {
@@ -41,7 +39,7 @@ impl<T: Trait> Module<T> {
         days: Days,
         rate: Rate,
         value: T::Balance,
-    ) -> Result<()> {
+    ) -> DispatchResult {
         Self::deposit_event(RawEvent::ProposeToInvestment(
             dao_id,
             description,
@@ -69,7 +67,7 @@ decl_event!(
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
+    use sp_core::{Blake2Hasher, H256};
     use runtime_io::with_externalities;
     use runtime_primitives::{
         testing::{Digest, DigestItem, Header},

@@ -3,26 +3,24 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-#[macro_use]
-extern crate hex_literal;
-
 mod chain_spec;
-mod cli;
+#[macro_use]
 mod service;
+mod cli;
 
-pub use sc_cli::{error, IntoExit, VersionInfo};
 
-fn run() -> cli::error::Result<()> {
-    let version = VersionInfo {
-        name: "Substrate Node",
-        commit: env!("VERGEN_SHA_SHORT"),
-        version: env!("CARGO_PKG_VERSION"),
-        executable_name: "akropolisos-substrate-node",
-        author: "Akropolis",
-        description: "akropolisos-substrate-node",
-        support_url: "support@akropolis.io",
-    };
-    cli::run(::std::env::args(), cli::Exit, version)
+pub use sc_cli::{VersionInfo, IntoExit, error};
+
+fn main() -> Result<(), cli::error::Error> {
+	let version = VersionInfo {
+		name: "Substrate Node",
+		commit: env!("VERGEN_SHA_SHORT"),
+		version: env!("CARGO_PKG_VERSION"),
+		executable_name: "node-template",
+		author: "Anonymous",
+		description: "Template Node",
+		support_url: "support.anonymous.an",
+	};
+
+	cli::run(std::env::args(), cli::Exit, version)
 }
-
-error_chain::quick_main!(run);

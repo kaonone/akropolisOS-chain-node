@@ -12,10 +12,10 @@ use crate::types::{
     TokenBalance, TransferMessage, ValidatorMessage,
 };
 use codec::Encode;
-use primitives::H160;
-use rstd::prelude::Vec;
+use sp_core::H160;
+use sp_std::prelude::Vec;
 use sp_runtime::traits::Hash;
-use support::{
+use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, fail, StorageMap,
     StorageValue,
 };
@@ -752,8 +752,8 @@ mod tests {
     use super::*;
     //TODO: fix limits after adding them into config
     use crate::types::Token;
-    use primitives::{Blake2Hasher, H160, H256};
-    use runtime_io::with_externalities;
+    use sp_core::{Blake2Hasher, H160, H256};
+    use sp_io::with_externalities;
     use sp_runtime::{
         testing::{Digest, DigestItem, Header},
         traits::{BlakeTwo256, IdentityLookup, OnFinalize},

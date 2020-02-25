@@ -1,59 +1,28 @@
-//! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
+//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-#![warn(unused_extern_crates)]
-
-use akropolisos_substrate_node_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
-use basic_authorship::ProposerFactory;
-use consensus::{import_queue, start_aura, AuraImportQueue,  SlotDuration};
-use grandpa;
-use inherents::InherentDataProviders;
-use log::info;
-use network::construct_simple_protocol;
-use primitives::{ed25519::Pair, Pair as PairT};
 use std::sync::Arc;
 use std::time::Duration;
-use sc_client as client;
+use sc_client::LongestChain;
+use akropolisos_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
+use sc_service::{error::{Error as ServiceError}, AbstractService, Configuration, ServiceBuilder};
+use sp_inherents::InherentDataProviders;
+use sc_network::{construct_simple_protocol};
 use sc_executor::native_executor_instance;
-use sc_service::{
-    FactoryFullConfiguration, FullBackend, FullClient, FullComponents, FullExecutor, LightBackend,
-    LightClient, LightComponents, LightExecutor, TaskExecutor,
-};
-use transaction_pool::{self, txpool::Pool as TransactionPool};
-
 pub use sc_executor::NativeExecutor;
+use sp_consensus_aura::sr25519::{AuthorityPair as AuraPair};
+use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider};
+use sc_basic_authority;
+
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	akropolisos_substrate_node_runtime::api::dispatch,
-	akropolisos_substrate_node_runtime::native_version,
-	include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm")
+	akropolisos_runtime::api::dispatch,
+	akropolisos_runtime::native_version,
 );
 
-pub struct NodeConfig<F: sc_service::ServiceFactory> {
-    /// grandpa connection to import block
-    // FIXME #1134 rather than putting this on the config, let's have an actual intermediate setup state
-    pub grandpa_import_setup: Option<(
-        Arc<grandpa::BlockImportForService<F>>,
-        grandpa::LinkHalfForService<F>,
-    )>,
-    inherent_data_providers: InherentDataProviders,
-}
-
-impl<F> Default for NodeConfig<F>
-where
-    F: sc_service::ServiceFactory,
-{
-    fn default() -> NodeConfig<F> {
-        NodeConfig {
-            grandpa_import_setup: None,
-            inherent_data_providers: InherentDataProviders::new(),
-        }
-    }
-}
-
 construct_simple_protocol! {
-    /// Demo protocol attachment for substrate.
-    pub struct NodeProtocol where Block = Block { }
+	/// Demo protocol attachment for substrate.
+	pub struct NodeProtocol where Block = Block { }
 }
 
 /// Starts a `ServiceBuilder` for a full service.
@@ -66,7 +35,7 @@ macro_rules! new_full_start {
 		let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
 		let builder = sc_service::ServiceBuilder::new_full::<
-			node_template_runtime::opaque::Block, node_template_runtime::RuntimeApi, crate::service::Executor
+			akropolisos_runtime::opaque::Block, akropolisos_runtime::RuntimeApi, crate::service::Executor
 		>($config)?
 			.with_select_chain(|_config, backend| {
 				Ok(sc_client::LongestChain::new(backend.clone()))
@@ -83,7 +52,7 @@ macro_rules! new_full_start {
 					.ok_or_else(|| sc_service::Error::SelectChainRequired)?;
 
 				let (grandpa_block_import, grandpa_link) =
-					grandpa::block_import::<_, _, _, node_template_runtime::RuntimeApi, _>(
+					grandpa::block_import::<_, _, _, akropolisos_runtime::RuntimeApi, _>(
 						client.clone(), &*client, select_chain
 					)?;
 

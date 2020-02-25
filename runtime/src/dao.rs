@@ -1,21 +1,21 @@
-use support::{
-    decl_event, decl_module, decl_storage,
-    dispatch::{DispatchResult, DispatchError},
-    ensure,
-    traits::{Currency, ExistenceRequirement, LockIdentifier, Get, LockableCurrency, WithdrawReasons},
-    StorageMap, StorageValue
-};
-use system::ensure_signed;
-use sp_runtime::traits::{Bounded, Hash, Zero};
 use codec::Encode;
-use rstd::{convert::TryInto, prelude::Vec};
+use frame_support::{
+    decl_event, decl_module, decl_storage,
+    dispatch::{DispatchError, DispatchResult},
+    ensure,
+    traits::{
+        Currency, ExistenceRequirement, Get, LockIdentifier, LockableCurrency, WithdrawReasons,
+    },
+    StorageMap, StorageValue,
+};
+use sp_runtime::traits::{Bounded, Hash, Zero};
+use sp_std::prelude::Vec;
+use system::ensure_signed;
 
 use crate::marketplace;
 use crate::types::{
     Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, VotesCount,
 };
-
-type Result<T> = core::result::Result<T, &'static str>;
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
 const MINIMUM_VOTE_TIOMEOUT: u32 = 30; // ~5 min
@@ -96,7 +96,7 @@ decl_module! {
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, T::BlockNumber::max_value(), WithdrawReasons::all());
 
             <Daos<T>>::insert(dao_id, new_dao);
-            <DaosCount<T>>::put(new_daos_count);
+            <DaosCount>::put(new_daos_count);
             <DaoNames<T>>::insert(name_hash, dao_id);
             <DaoAddresses<T>>::insert(&address, dao_id);
             <DaoTimeouts<T>>::insert(dao_id, T::BlockNumber::from(MINIMUM_VOTE_TIOMEOUT));
@@ -510,10 +510,14 @@ impl<T: Trait> Module<T> {
     }
     fn validate_vote_timeout(timeout: T::BlockNumber) -> DispatchResult {
         if timeout < T::BlockNumber::from(MINIMUM_VOTE_TIOMEOUT) {
-            return Err(DispatchError::Other("The vote timeout must be not less 30 blocks"));
+            return Err(DispatchError::Other(
+                "The vote timeout must be not less 30 blocks",
+            ));
         }
         if timeout > T::BlockNumber::from(MAXIMUM_VOTE_TIMEOUT) {
-            return Err(DispatchError::Other("The vote timeout must be not more 777600 blocks"));
+            return Err(DispatchError::Other(
+                "The vote timeout must be not more 777600 blocks",
+            ));
         }
 
         Ok(())
@@ -521,10 +525,14 @@ impl<T: Trait> Module<T> {
 
     fn validate_number_of_members(number_of_members: MemberId) -> DispatchResult {
         if number_of_members < Self::minimum_number_of_members() {
-            return Err(DispatchError::Other("The new maximum number of members is very small"));
+            return Err(DispatchError::Other(
+                "The new maximum number of members is very small",
+            ));
         }
         if number_of_members > Self::maximum_number_of_members() {
-            return Err(DispatchError::Other("The new maximum number of members is very big"));
+            return Err(DispatchError::Other(
+                "The new maximum number of members is very big",
+            ));
         }
 
         Ok(())
@@ -617,7 +625,12 @@ impl<T: Trait> Module<T> {
         let dao_address = <Address<T>>::get(dao_id);
 
         <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
-        <balances::Module<T> as Currency<_>>::transfer(&dao_address, &taker, amount, ExistenceRequirement::KeepAlive)?;
+        <balances::Module<T> as Currency<_>>::transfer(
+            &dao_address,
+            &taker,
+            amount,
+            ExistenceRequirement::KeepAlive,
+        )?;
         <balances::Module<T>>::set_lock(
             LOCK_NAME,
             &dao_address,
@@ -646,10 +659,6 @@ impl<T: Trait> Module<T> {
 
     fn votes_are_enough(votes: MemberId, maximum_votes: MemberId) -> bool {
         votes as f64 / maximum_votes as f64 >= 0.51
-    }
-    fn try_u32_to_usize(n: u32) -> DispatchResult {
-        let n_usize = TryInto::<usize>::try_into(n)?;
-        Ok(n_usize)
     }
 
     fn execute_proposal(

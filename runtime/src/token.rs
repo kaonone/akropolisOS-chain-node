@@ -3,9 +3,9 @@
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///
 use crate::types::{Token, TokenBalance, TokenId};
-use rstd::prelude::Vec;
+use sp_std::prelude::Vec;
 use sp_runtime::traits::{StaticLookup, Zero};
-use support::{
+use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
 use system::{self, ensure_signed};
@@ -250,14 +250,14 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
+    use sp_core::{Blake2Hasher, H256};
     use runtime_io::with_externalities;
     use sp_runtime::{
         testing::{Digest, DigestItem, Header},
         traits::{BlakeTwo256, IdentityLookup},
         BuildStorage,
     };
-    use support::{assert_noop, assert_ok, impl_outer_origin};
+    use frame_support::{assert_noop, assert_ok, impl_outer_origin};
 
     impl_outer_origin! {
         pub enum Origin for Test {}
