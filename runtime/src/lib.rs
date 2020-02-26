@@ -70,6 +70,7 @@ mod dao;
 mod marketplace;
 mod token;
 pub mod types;
+mod price_fetch;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -210,6 +211,8 @@ impl balances::Trait for Runtime {
 	type Balance = Balance;
 	/// What to do if an account's free balance gets zeroed.
 	type OnFreeBalanceZero = ();
+	/// What to do if an account gets reaped.
+	// type OnReapAccount = ();
 	/// What to do if a new account is created.
 	type OnNewAccount = Indices;
 	/// The ubiquitous event type.
@@ -447,11 +450,35 @@ impl bridge::Trait for Runtime {
     type Event = Event;
 }
 
+/// We need to define the Transaction signer for that using the Key definition
+type SubmitUnsignedPFTransaction = system::offchain::TransactionSubmitter<
+	price_fetch::crypto::Public,
+	Runtime,
+	UncheckedExtrinsic
+>;
+// type SubmitSignedPFTransaction = system::offchain::TransactionSubmitter<
+// 	price_fetch::crypto::Public,
+// 	Runtime,
+// 	CheckedExtrinsic
+// >;
+
+parameter_types! {
+	pub const BlockFetchPeriod: BlockNumber = 2;
+}
+
+impl price_fetch::Trait for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type SubmitUnsignedTransaction = SubmitUnsignedPFTransaction;
+	// type SubmitSignedTransaction = SubmitSignedPFTransaction;
+	type BlockFetchPeriod = BlockFetchPeriod;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
 		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: system::{Module, Call, Storage, Config, Event},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
@@ -470,6 +497,8 @@ construct_runtime!(
         Token: token::{Module, Call, Storage, Config, Event<T>},
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
 		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
+		// Price Oracle
+		PriceFetch: price_fetch::{Module, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
 
