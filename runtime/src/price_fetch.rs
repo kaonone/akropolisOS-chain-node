@@ -32,8 +32,8 @@ use sp_runtime::{
 
 // We have to import a few things
 use sp_std::prelude::*;
-use system::ensure_none;
 use system::offchain::{SubmitSignedTransaction, SubmitUnsignedTransaction};
+use system::{ensure_none, ensure_signed};
 
 type Result<T> = core::result::Result<T, &'static str>;
 
@@ -44,7 +44,7 @@ type Result<T> = core::result::Result<T, &'static str>;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"ofpf");
 
 // REVIEW-CHECK: is it necessary to wrap-around storage vector at `MAX_VEC_LEN`?
-pub const MAX_VEC_LEN: usize = 1000;
+// pub const MAX_VEC_LEN: usize = 1000;
 
 pub mod crypto {
     pub use super::KEY_TYPE;
@@ -117,11 +117,38 @@ decl_module! {
 
     pub fn record_price(
       origin,
-      _block: T::BlockNumber,
       crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
       price: u64
     ) -> dispatch::DispatchResult {
-      // Ensuring this is an unsigned tx
+      debug::info!("ENSURING SIGNED record  price");
+      // Ensuring this is an signed tx
+      ensure_signed(origin)?;
+
+      let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
+      let now = <timestamp::Module<T>>::get();
+
+      // Debug printout
+      debug::info!("record_price: {:?}, {:?}, {:?}",
+        core::str::from_utf8(&symbol).map_err(|_| "`symbol` conversion error")?,
+        core::str::from_utf8(&remote_src).map_err(|_| "`remote_src` conversion error")?,
+        price
+      );
+
+      <TokenPriceHistory<T>>::mutate(&symbol, |pp_vec| pp_vec.push((now, price)));
+
+      // Spit out an event and Add to storage
+      Self::deposit_event(RawEvent::FetchedPrice(symbol, remote_src, now, price));
+
+      Ok(())
+    }
+    pub fn record_price_unsigned(
+      origin,
+      _block_number: T::BlockNumber,
+      crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
+      price: u64
+    ) -> dispatch::DispatchResult {
+      debug::info!("ENSURING UNSIGNED record  price");
+      // Ensuring this is an signed tx
       ensure_none(origin)?;
 
       let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
@@ -144,16 +171,47 @@ decl_module! {
 
     pub fn record_aggregated_price_points(
       origin,
+      symbol: Vec<u8>,
+      price: u64
+    ) -> dispatch::DispatchResult {
+      // Debug printout
+      debug::info!("record_aggregated_price_points: {}: {:?}",
+      core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
+      price
+    );
+
+    debug::info!("ENSURING SIGNED  aggregated");
+      // Ensuring this is an unsigned tx
+      ensure_signed(origin)?;
+
+      let now = <timestamp::Module<T>>::get();
+
+      // Record in the storage
+      let price_pt = (now.clone(), price.clone());
+      <AggregatedPrices<T>>::insert(&symbol, price_pt);
+
+      // Remove relevant storage items
+      <TokenPriceHistory<T>>::remove(&symbol);
+
+      // Spit the event
+      Self::deposit_event(RawEvent::AggregatedPrice(
+        symbol.clone(), now.clone(), price.clone()));
+
+      Ok(())
+    }
+    pub fn record_aggregated_price_points_unsigned(
+      origin,
       _block: T::BlockNumber,
       symbol: Vec<u8>,
       price: u64
     ) -> dispatch::DispatchResult {
       // Debug printout
       debug::info!("record_aggregated_price_points: {}: {:?}",
-        core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
-        price
-      );
+      core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
+      price
+    );
 
+    debug::info!("ENSURING UNSIGNED  aggregated");
       // Ensuring this is an unsigned tx
       ensure_none(origin)?;
 
@@ -259,20 +317,24 @@ impl<T: Trait> Module<T> {
             _ => Err("Unknown remote source"),
         }?;
 
-        let call = Call::record_price(
-            block,
-            (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
-            price,
-        );
-
+        debug::info!("Submitting price of {} cents", price);
         if !T::SubmitSignedTransaction::can_sign() {
-            return Err(
+            debug::error!(
                 "No local accounts available. Consider adding one via `author_insertKey` RPC.",
-            )?;
-        } else {
+            );
+            let call = Call::record_price_unsigned(
+                block,
+                (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
+                price,
+            );
             // Unsigned tx
-            // T::SubmitUnsignedTransaction::submit_unsigned(call)
-            //     .map_err(|_| "fetch_price: submit_unsigned(call) error");
+            T::SubmitUnsignedTransaction::submit_unsigned(call)
+                .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
+        } else {
+            let call = Call::record_price(
+                (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
+                price,
+            );
 
             // Using `SubmitSignedTransaction` associated type we create and submit a transaction
             // representing the call, we've just created.
@@ -330,23 +392,26 @@ impl<T: Trait> Module<T> {
 
         // Avoiding floating-point arithmetic & do integer division
         let price_avg: u64 = price_sum / (token_pricepoints_vec.len() as u64);
+        if !T::SubmitSignedTransaction::can_sign() {
+            let call =
+                Call::record_aggregated_price_points_unsigned(block, symbol.to_vec(), price_avg);
+            // Unsigned tx
+            T::SubmitUnsignedTransaction::submit_unsigned(call)
+                .map_err(|_| "aggregate_price_points: submit_signed(call) error")?;
+        } else {
+            // submit onchain call for aggregating the price
+            let call = Call::record_aggregated_price_points(symbol.to_vec(), price_avg);
 
-        // submit onchain call for aggregating the price
-        let call = Call::record_aggregated_price_points(block, symbol.to_vec(), price_avg);
-
-        // Unsigned tx
-        // T::SubmitUnsignedTransaction::submit_unsigned(call)
-        //     .map_err(|_| "aggregate_price_points: submit_signed(call) error");
-
-        // Using `SubmitSignedTransaction` associated type we create and submit a transaction
-        // representing the call, we've just created.
-        // Submit signed will return a vector of results for all accounts that were found in the
-        // local keystore with expected `KEY_TYPE`.
-        let results = T::SubmitSignedTransaction::submit_signed(call);
-        for (acc, res) in &results {
-            match res {
-                Ok(()) => debug::info!("[{:?}] Submitted price of {} cents", acc, price_avg),
-                Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc, e),
+            // Using `SubmitSignedTransaction` associated type we create and submit a transaction
+            // representing the call, we've just created.
+            // Submit signed will return a vector of results for all accounts that were found in the
+            // local keystore with expected `KEY_TYPE`.
+            let results = T::SubmitSignedTransaction::submit_signed(call);
+            for (acc, res) in &results {
+                match res {
+                    Ok(()) => debug::info!("[{:?}] Submitted price of {} cents", acc, price_avg),
+                    Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc, e),
+                }
             }
         }
 
@@ -360,21 +425,41 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
     #[allow(deprecated)]
     fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+        debug::info!("Calling {:?}", call.);
+
         match call {
-            Call::record_price(block, (symbol, remote_src, ..), price) => Ok(ValidTransaction {
+            Call::record_price_unsigned(block, (symbol, ..), price) => Ok(ValidTransaction {
+                // We set base priority to 2**20 to make sure it's included before any other
+                // transactions in the pool. Next we tweak the priority depending on how much
+                // it differs from the current average. (the more it differs the more priority it
+                // has).
                 priority: 0,
+                // This transaction does not require anything else to go before into the pool.
+                // In theory we could require `previous_unsigned_at` transaction to go first,
+                // but it's not necessary in our case.
                 requires: vec![],
-                provides: vec![(block, symbol, remote_src, price).encode()],
-                longevity: TransactionLongevity::max_value(),
-                propagate: true,
-            }),
-            Call::record_aggregated_price_points(block, symbol, price) => Ok(ValidTransaction {
-                priority: 0,
-                requires: vec![],
+                // We can still have multiple transactions compete for the same "spot",
+                // and the one with higher priority will replace other one in the pool.
                 provides: vec![(block, symbol, price).encode()],
-                longevity: TransactionLongevity::max_value(),
+                // The transaction is only valid for next 5 blocks. After that it's
+                // going to be revalidated by the pool.
+                longevity: 5,
+                // It's fine to propagate that transaction to other peers, which means it can be
+                // created even by nodes that don't produce blocks.
+                // Note that sometimes it's better to keep it for yourself (if you are the block
+                // producer), since for instance in some schemes others may copy your solution and
+                // claim a reward.
                 propagate: true,
             }),
+            Call::record_aggregated_price_points_unsigned(block, symbol, price) => {
+                Ok(ValidTransaction {
+                    priority: 0,
+                    requires: vec![],
+                    provides: vec![(block, symbol, price).encode()],
+                    longevity: 5,
+                    propagate: true,
+                })
+            }
             _ => InvalidTransaction::Call.into(),
         }
     }
