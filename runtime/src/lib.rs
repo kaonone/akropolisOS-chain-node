@@ -464,6 +464,7 @@ type SubmitSignedPFTransaction = system::offchain::TransactionSubmitter<
 
 parameter_types! {
 	pub const BlockFetchPeriod: BlockNumber = 2;
+	pub const GracePeriod: BlockNumber = 5;
 }
 
 impl price_fetch::Trait for Runtime {
@@ -472,6 +473,7 @@ impl price_fetch::Trait for Runtime {
 	type SubmitUnsignedTransaction = SubmitUnsignedPFTransaction;
 	type SubmitSignedTransaction = SubmitSignedPFTransaction;
 	type BlockFetchPeriod = BlockFetchPeriod;
+	type GracePeriod = GracePeriod;
 }
 
 

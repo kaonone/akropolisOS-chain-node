@@ -16,12 +16,14 @@ parking_lot = '0.9.0'
 tokio = '0.1.22'
 trie-root = '0.15.2'
 js-sys = '0.3.35'
+chrono = '0.4.7'
 
 [profile.release]
 panic = 'unwind'
 
 [build-dependencies]
 vergen = '3.0.4'
+chrono = '0.4.10'
 
 [dependencies.akropolisos-runtime]
 path = 'runtime'
@@ -30,8 +32,7 @@ version = '0.4.0'
 [build-dependencies.build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-build-script-utils'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0'
+version = '2.0.0-alpha.2'
 
 [dependencies.codec]
 package = 'parity-scale-codec'
@@ -48,94 +49,71 @@ version = '0.1.29'
 [dependencies.grandpa]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sc-finality-grandpa'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '0.8.0-alpha.2'
 
-[dependencies.grandpa-primitives]
+[dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
-package = 'sp-finality-grandpa'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
-
-
-[dependencies.sc-basic-authority]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-cli]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-client]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-consensus-aura]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '0.8'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-executor]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-network]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '0.8'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-service]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '0.8.0-alpha.2'
 
 [dependencies.sc-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.sp-consensus]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '0.8'
+version = '0.8.0-alpha.2'
 
 [dependencies.sp-consensus-aura]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '0.8'
+version = '0.8.0-alpha.2'
 
 [dependencies.sp-core]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.sp-inherents]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.sp-io]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.sp-runtime]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.sp-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-rev = '8974349874588de655b7350737bba45032bb2548'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.2'
 
 [dependencies.telemetry]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sc-telemetry'
-rev = '8974349874588de655b7350737bba45032bb2548'
 
 [workspace]
 members = ['runtime']

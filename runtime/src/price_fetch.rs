@@ -2,7 +2,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Encode;
-use frame_support::{debug, decl_event, decl_module, decl_storage, dispatch, traits::Get};
+use frame_support::{
+    debug, decl_event, decl_module, decl_storage, dispatch, storage::StorageValueRef, traits::Get,
+};
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use simple_json::{self, json::JsonValue};
@@ -10,8 +12,9 @@ use sp_core::crypto::KeyTypeId;
 use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
     offchain::http,
+    traits::Zero,
     transaction_validity::{
-        InvalidTransaction, TransactionLongevity, TransactionValidity, ValidTransaction,
+        InvalidTransaction, TransactionValidity, ValidTransaction,
     },
 };
 /// A runtime module template with necessary imports
@@ -62,13 +65,19 @@ pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 2] = [
     //    b"https://api.coincap.io/v2/assets/ethereum"),
     //   (b"ETH", b"cryptocompare",
     // b"https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD"),
-    (b"DAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
+    (b"cDAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
     (
-        b"DAI",
+        b"cDAI",
         b"cryptocompare",
-        b"https://min-api.cryptocompare.com/data/price?fsym=DAI&tsyms=USD",
+        b"https://min-api.cryptocompare.com/data/price?fsym=cDAI&tsyms=USD",
     ),
 ];
+
+enum TransactionType {
+    Signed,
+    Unsigned,
+    None,
+}
 
 /// The module's configuration trait.
 pub trait Trait: timestamp::Trait + system::Trait {
@@ -77,6 +86,13 @@ pub trait Trait: timestamp::Trait + system::Trait {
     type Call: From<Call<Self>>;
     type SubmitUnsignedTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
     type SubmitSignedTransaction: SubmitSignedTransaction<Self, <Self as Trait>::Call>;
+
+    /// A grace period after we send transaction.
+    ///
+    /// To avoid sending too many transactions, we only attempt to send one
+    /// every `GRACE_PERIOD` blocks. We use Local Storage to coordinate
+    /// sending between distinct runs of this offchain worker.
+    type GracePeriod: Get<Self::BlockNumber>;
 
     // Wait period between automated fetches. Set to 0 disable this feature.
     //   Then you need to manucally kickoff pricefetch
@@ -155,7 +171,7 @@ decl_module! {
       let now = <timestamp::Module<T>>::get();
 
       // Debug printout
-      debug::info!("record_price: {:?}, {:?}, {:?}",
+      debug::info!("record_price_unsigned: {:?}, {:?}, {:?}",
         core::str::from_utf8(&symbol).map_err(|_| "`symbol` conversion error")?,
         core::str::from_utf8(&remote_src).map_err(|_| "`remote_src` conversion error")?,
         price
@@ -206,7 +222,7 @@ decl_module! {
       price: u64
     ) -> dispatch::DispatchResult {
       // Debug printout
-      debug::info!("record_aggregated_price_points: {}: {:?}",
+      debug::info!("record_aggregated_price_points_unsigned: {}: {:?}",
       core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
       price
     );
@@ -233,28 +249,39 @@ decl_module! {
 
     fn offchain_worker(block: T::BlockNumber) {
       let duration = T::BlockFetchPeriod::get();
+      let should_send = Self::choose_transaction_type(block);
 
       // Type I task: fetch price
       if duration > 0.into() && block % duration == 0.into() {
         for (symbol, remote_src, remote_url) in FETCHED_CRYPTOS.iter() {
-          if let Err(e) = Self::fetch_price(block, *symbol, *remote_src, *remote_url) {
+          let res = match should_send {
+            TransactionType::Signed => Self::fetch_price(*symbol, *remote_src, *remote_url),
+            TransactionType::Unsigned => Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url),
+            TransactionType::None => Ok(()),
+          };
+          if let Err(e) = res {
             debug::error!("Error fetching: {:?}, {:?}: {:?}",
-              core::str::from_utf8(symbol).unwrap(),
-              core::str::from_utf8(remote_src).unwrap(),
-              e);
+            core::str::from_utf8(symbol).unwrap(),
+            core::str::from_utf8(remote_src).unwrap(),
+            e);
           }
         }
       }
 
       // Type II task: aggregate price
       <TokenPriceHistory<T>>::enumerate()
-        // filter those to be updated
-        .filter(|(_, vec)| vec.len() > 0)
-        .for_each(|(symbol, _)| {
-          if let Err(e) = Self::aggregate_price_points(block, &symbol) {
-            debug::error!("Error aggregating price of {:?}: {:?}",
-              core::str::from_utf8(&symbol).unwrap(), e);
-          }
+      // filter those to be updated
+      .filter(|(_, vec)| vec.len() > 0)
+      .for_each(|(symbol, _)| {
+        let res = match should_send {
+          TransactionType::Signed => Self::aggregate_price_points(&symbol),
+          TransactionType::Unsigned => Self::aggregate_price_points_unsigned(block, &symbol),
+          TransactionType::None => Ok(()),
+        };
+        if let Err(e) = res {
+          debug::error!("Error aggregating price of {:?}: {:?}",
+          core::str::from_utf8(&symbol).unwrap(), e);
+        }
         });
     } // end of `fn offchain_worker()`
 
@@ -262,6 +289,78 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    /// Chooses which transaction type to send.
+    ///
+    /// This function serves mostly to showcase `StorageValue` helper
+    /// and local storage usage.
+    ///
+    /// Returns a type of transaction that should be produced in current run.
+    fn choose_transaction_type(block_number: T::BlockNumber) -> TransactionType {
+        /// A friendlier name for the error that is going to be returned in case we are in the grace
+        /// period.
+        const RECENTLY_SENT: () = ();
+
+        // Start off by creating a reference to Local Storage value.
+        // Since the local storage is common for all offchain workers, it's a good practice
+        // to prepend your entry with the module name.
+        let val = StorageValueRef::persistent(b"example_ocw::last_send");
+        // The Local Storage is persisted and shared between runs of the offchain workers,
+        // and offchain workers may run concurrently. We can use the `mutate` function, to
+        // write a storage entry in an atomic fashion. Under the hood it uses `compare_and_set`
+        // low-level method of local storage API, which means that only one worker
+        // will be able to "acquire a lock" and send a transaction if multiple workers
+        // happen to be executed concurrently.
+        let res = val.mutate(|last_send: Option<Option<T::BlockNumber>>| {
+            // We match on the value decoded from the storage. The first `Option`
+            // indicates if the value was present in the storage at all,
+            // the second (inner) `Option` indicates if the value was succesfuly
+            // decoded to expected type (`T::BlockNumber` in our case).
+            match last_send {
+                // If we already have a value in storage and the block number is recent enough
+                // we avoid sending another transaction at this time.
+                Some(Some(block)) if block + T::GracePeriod::get() < block_number => {
+                    Err(RECENTLY_SENT)
+                }
+                // In every other case we attempt to acquire the lock and send a transaction.
+                _ => Ok(block_number),
+            }
+        });
+
+        // The result of `mutate` call will give us a nested `Result` type.
+        // The first one matches the return of the closure passed to `mutate`, i.e.
+        // if we return `Err` from the closure, we get an `Err` here.
+        // In case we return `Ok`, here we will have another (inner) `Result` that indicates
+        // if the value has been set to the storage correctly - i.e. if it wasn't
+        // written to in the meantime.
+        match res {
+            // The value has been set correctly, which means we can safely send a transaction now.
+            Ok(Ok(block_number)) => {
+                // Depending if the block is even or odd we will send a `Signed` or `Unsigned`
+                // transaction.
+                // Note that this logic doesn't really guarantee that the transactions will be sent
+                // in an alternating fashion (i.e. fairly distributed). Depending on the execution
+                // order and lock acquisition, we may end up for instance sending two `Signed`
+                // transactions in a row. If a strict order is desired, it's better to use
+                // the storage entry for that. (for instance store both block number and a flag
+                // indicating the type of next transaction to send).
+                let send_signed = block_number % 2.into() == Zero::zero();
+                if send_signed {
+                    TransactionType::Signed
+                } else {
+                    TransactionType::Unsigned
+                }
+            }
+            // We are in the grace period, we should not send a transaction this time.
+            Err(RECENTLY_SENT) => TransactionType::None,
+            // We wanted to send a transaction, but failed to write the block number (acquire a
+            // lock). This indicates that another offchain worker that was running concurrently
+            // most likely executed the same logic and succeeded at writing to storage.
+            // Thus we don't really want to send the transaction, knowing that the other run
+            // already did.
+            Ok(Err(_)) => TransactionType::None,
+        }
+    }
+
     fn fetch_json<'a>(remote_url: &'a [u8]) -> Result<JsonValue> {
         //TODO: add deadline for request
         let remote_url_str = core::str::from_utf8(remote_url)
@@ -294,14 +393,9 @@ impl<T: Trait> Module<T> {
         Ok(json_val)
     }
 
-    fn fetch_price<'a>(
-        block: T::BlockNumber,
-        symbol: &'a [u8],
-        remote_src: &'a [u8],
-        remote_url: &'a [u8],
-    ) -> Result<()> {
+    fn fetch_price<'a>(symbol: &'a [u8], remote_src: &'a [u8], remote_url: &'a [u8]) -> Result<()> {
         debug::info!(
-            "fetch price: {:?}:{:?}",
+            "fetch price signed: {:?}:{:?}",
             core::str::from_utf8(symbol).unwrap(),
             core::str::from_utf8(remote_src).unwrap()
         );
@@ -317,19 +411,10 @@ impl<T: Trait> Module<T> {
             _ => Err("Unknown remote source"),
         }?;
 
-        debug::info!("Submitting price of {} cents", price);
         if !T::SubmitSignedTransaction::can_sign() {
             debug::error!(
-                "No local accounts available. Consider adding one via `author_insertKey` RPC.",
+                "No local accounts available. Consider adding one via `author_insertKey` RPC."
             );
-            let call = Call::record_price_unsigned(
-                block,
-                (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
-                price,
-            );
-            // Unsigned tx
-            T::SubmitUnsignedTransaction::submit_unsigned(call)
-                .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
         } else {
             let call = Call::record_price(
                 (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
@@ -348,6 +433,40 @@ impl<T: Trait> Module<T> {
                 }
             }
         }
+
+        Ok(())
+    }
+    fn fetch_price_unsigned<'a>(
+        block: T::BlockNumber,
+        symbol: &'a [u8],
+        remote_src: &'a [u8],
+        remote_url: &'a [u8],
+    ) -> Result<()> {
+        debug::info!(
+            "fetch price unsigned: {:?}:{:?}",
+            core::str::from_utf8(symbol).unwrap(),
+            core::str::from_utf8(remote_src).unwrap()
+        );
+
+        let json = Self::fetch_json(remote_url)?;
+
+        let price = match remote_src {
+            src if src == b"coincap" => {
+                Self::fetch_price_from_coincap(json).map_err(|_| "fetch_price_from_coincap error")
+            }
+            src if src == b"cryptocompare" => Self::fetch_price_from_cryptocompare(json)
+                .map_err(|_| "fetch_price_from_cryptocompare error"),
+            _ => Err("Unknown remote source"),
+        }?;
+
+        let call = Call::record_price_unsigned(
+            block,
+            (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
+            price,
+        );
+        // Unsigned tx
+        T::SubmitUnsignedTransaction::submit_unsigned(call)
+            .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
         Ok(())
     }
 
@@ -386,7 +505,36 @@ impl<T: Trait> Module<T> {
         Ok((val_f64 * 10000.).round() as u64)
     }
 
-    fn aggregate_price_points<'a>(block: T::BlockNumber, symbol: &'a [u8]) -> Result<()> {
+    fn aggregate_price_points<'a>(symbol: &'a [u8]) -> Result<()> {
+        let token_pricepoints_vec = <TokenPriceHistory<T>>::get(symbol);
+        let price_sum: u64 = token_pricepoints_vec.iter().fold(0, |mem, pp| mem + pp.1);
+
+        // Avoiding floating-point arithmetic & do integer division
+        let price_avg: u64 = price_sum / (token_pricepoints_vec.len() as u64);
+        if !T::SubmitSignedTransaction::can_sign() {
+            debug::error!(
+                "No local accounts available. Consider adding one via `author_insertKey` RPC."
+            );
+        } else {
+            // submit onchain call for aggregating the price
+            let call = Call::record_aggregated_price_points(symbol.to_vec(), price_avg);
+
+            // Using `SubmitSignedTransaction` associated type we create and submit a transaction
+            // representing the call, we've just created.
+            // Submit signed will return a vector of results for all accounts that were found in the
+            // local keystore with expected `KEY_TYPE`.
+            let results = T::SubmitSignedTransaction::submit_signed(call);
+            for (acc, res) in &results {
+                match res {
+                    Ok(()) => debug::info!("[{:?}] Submitted price of {} cents", acc, price_avg),
+                    Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc, e),
+                }
+            }
+        }
+
+        Ok(())
+    }
+    fn aggregate_price_points_unsigned<'a>(block: T::BlockNumber, symbol: &'a [u8]) -> Result<()> {
         let token_pricepoints_vec = <TokenPriceHistory<T>>::get(symbol);
         let price_sum: u64 = token_pricepoints_vec.iter().fold(0, |mem, pp| mem + pp.1);
 
@@ -425,7 +573,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
     #[allow(deprecated)]
     fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
-        debug::info!("Calling {:?}", call.);
+        debug::info!("Calling {:?}", call);
 
         match call {
             Call::record_price_unsigned(block, (symbol, ..), price) => Ok(ValidTransaction {
