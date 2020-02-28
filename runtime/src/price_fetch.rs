@@ -52,20 +52,17 @@ pub mod crypto {
   app_crypto!(sr25519, KEY_TYPE);
 }
 
-pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 2] = [
-// pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 6] = [
-//   (b"BTC", b"coincap",
-//     b"https://api.coincap.io/v2/assets/bitcoin"),
-//   (b"BTC", b"cryptocompare",
-//     b"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"),
-//   (b"ETH", b"coincap",
-//    b"https://api.coincap.io/v2/assets/ethereum"),
-//   (b"ETH", b"cryptocompare",
-    // b"https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD"),
+pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 5] = [
   (b"DAI", b"coincap",
     b"https://api.coincap.io/v2/assets/dai"),
   (b"DAI", b"cryptocompare",
     b"https://min-api.cryptocompare.com/data/price?fsym=DAI&tsyms=USD"),
+  (b"USDT", b"cryptocompare",
+    b"https://min-api.cryptocompare.com/data/price?fsym=USDT&tsyms=USD"),
+  (b"USDC", b"cryptocompare",
+    b"https://min-api.cryptocompare.com/data/price?fsym=USDC&tsyms=USD"),
+  (b"cDAI", b"coingecko",
+    b"https://api.coingecko.com/api/v3/simple/price?ids=cDAI&vs_currencies=USD"),
 ];
 
 /// The module's configuration trait.
@@ -241,6 +238,8 @@ impl<T: Trait> Module<T> {
     let json = Self::fetch_json(remote_url)?;
 
     let price = match remote_src {
+      src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
+        .map_err(|_| "fetch_price_from_coingecko error"),
       src if src == b"coincap" => Self::fetch_price_from_coincap(json)
         .map_err(|_| "fetch_price_from_coincap error"),
       src if src == b"cryptocompare" => Self::fetch_price_from_cryptocompare(json)
@@ -272,35 +271,46 @@ impl<T: Trait> Module<T> {
     it.clone().into_iter().map(|c| c as u8).collect::<_>()
   }
 
+  fn round_value(v: f64) -> u64{
+    (v * 1000000.).round() as u64
+  }
+
   fn fetch_price_from_cryptocompare(json_val: JsonValue) -> Result<u64> {
     // Expected JSON shape:
     //   r#"{"USD": 7064.16}"#;
     let val_f64: f64 = json_val.get_object()[0].1.get_number_f64();
-    Ok((val_f64 * 10000.).round() as u64)
-  }
+    Ok(Self::round_value(val_f64))
+}
 
-  fn fetch_price_from_coincap(json_val: JsonValue) -> Result<u64> {
+fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<u64> {
+    // Expected JSON shape:
+    //   r#"{"cdai":{"usd": 7064.16}}"#;
+    let val_f64: f64 = json_val.get_object()[0].1.get_object()[0].1.get_number_f64();
+    Ok(Self::round_value(val_f64))
+}
+
+fn fetch_price_from_coincap(json_val: JsonValue) -> Result<u64> {
     // Expected JSON shape:
     //   r#"{"data":{"priceUsd":"8172.2628346190447316"}}"#;
-
+    
     const PRICE_KEY: &[u8] = b"priceUsd";
     let data = json_val.get_object()[0].1.get_object();
-
+    
     let (_, v) = data.iter()
-      .filter(|(k, _)| PRICE_KEY.to_vec() == Self::vecchars_to_vecbytes(k))
-      .nth(0)
-      .ok_or("fetch_price_from_coincap: JSON does not conform to expectation")?;
-
+    .filter(|(k, _)| PRICE_KEY.to_vec() == Self::vecchars_to_vecbytes(k))
+    .nth(0)
+    .ok_or("fetch_price_from_coincap: JSON does not conform to expectation")?;
+    
     // `val` contains the price, such as "222.333" in bytes form
     let val_u8: Vec<u8> = v.get_bytes();
-
+    
     // Convert to number
     let val_f64: f64 = core::str::from_utf8(&val_u8)
-      .map_err(|_| "fetch_price_from_coincap: val_f64 convert to string error")?
-      .parse::<f64>()
-      .map_err(|_| "fetch_price_from_coincap: val_u8 parsing to f64 error")?;
-    Ok((val_f64 * 10000.).round() as u64)
-  }
+    .map_err(|_| "fetch_price_from_coincap: val_f64 convert to string error")?
+    .parse::<f64>()
+    .map_err(|_| "fetch_price_from_coincap: val_u8 parsing to f64 error")?;
+    Ok(Self::round_value(val_f64))
+}
 
   fn aggregate_pp<'a>(block: T::BlockNumber, sym: &'a [u8])
     -> Result<()> {
