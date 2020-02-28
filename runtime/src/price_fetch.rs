@@ -13,9 +13,7 @@ use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
     offchain::http,
     traits::Zero,
-    transaction_validity::{
-        InvalidTransaction, TransactionValidity, ValidTransaction,
-    },
+    transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 };
 /// A runtime module template with necessary imports
 
@@ -55,21 +53,27 @@ pub mod crypto {
     app_crypto!(sr25519, KEY_TYPE);
 }
 
-pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 2] = [
-    // pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 6] = [
-    //   (b"BTC", b"coincap",
-    //     b"https://api.coincap.io/v2/assets/bitcoin"),
-    //   (b"BTC", b"cryptocompare",
-    //     b"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"),
-    //   (b"ETH", b"coincap",
-    //    b"https://api.coincap.io/v2/assets/ethereum"),
-    //   (b"ETH", b"cryptocompare",
-    // b"https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD"),
-    (b"cDAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
+pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 5] = [
+    (b"DAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
+    (
+        b"DAI",
+        b"cryptocompare",
+        b"https://min-api.cryptocompare.com/data/price?fsym=DAI&tsyms=USD",
+    ),
+    (
+        b"USDT",
+        b"cryptocompare",
+        b"https://min-api.cryptocompare.com/data/price?fsym=USDT&tsyms=USD",
+    ),
+    (
+        b"USDC",
+        b"cryptocompare",
+        b"https://min-api.cryptocompare.com/data/price?fsym=USDC&tsyms=USD",
+    ),
     (
         b"cDAI",
-        b"cryptocompare",
-        b"https://min-api.cryptocompare.com/data/price?fsym=cDAI&tsyms=USD",
+        b"coingecko",
+        b"https://api.coingecko.com/api/v3/simple/price?ids=cDAI&vs_currencies=USD",
     ),
 ];
 
@@ -403,6 +407,8 @@ impl<T: Trait> Module<T> {
         let json = Self::fetch_json(remote_url)?;
 
         let price = match remote_src {
+            src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
+                .map_err(|_| "fetch_price_from_coingecko error"),
             src if src == b"coincap" => {
                 Self::fetch_price_from_coincap(json).map_err(|_| "fetch_price_from_coincap error")
             }
@@ -449,8 +455,9 @@ impl<T: Trait> Module<T> {
         );
 
         let json = Self::fetch_json(remote_url)?;
-
         let price = match remote_src {
+            src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
+                .map_err(|_| "fetch_price_from_coingecko error"),
             src if src == b"coincap" => {
                 Self::fetch_price_from_coincap(json).map_err(|_| "fetch_price_from_coincap error")
             }
@@ -479,6 +486,15 @@ impl<T: Trait> Module<T> {
         //   r#"{"USD": 7064.16}"#;
         let val_f64: f64 = json_val.get_object()[0].1.get_number_f64();
         Ok((val_f64 * 10000.).round() as u64)
+    }
+
+    fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<u64> {
+        // Expected JSON shape:
+        //   r#"{"cdai":{"usd": 7064.16}}"#;
+        let val_f64: f64 = json_val.get_object()[0].1.get_object()[0]
+            .1
+            .get_number_f64();
+        Ok(Self::round_value(val_f64))
     }
 
     fn fetch_price_from_coincap(json_val: JsonValue) -> Result<u64> {
