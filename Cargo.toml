@@ -32,11 +32,7 @@ version = '0.4.0'
 [build-dependencies.build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-build-script-utils'
-version = '2.0.0-alpha.2'
-
-[dependencies.codec]
-package = 'parity-scale-codec'
-version = '1.0.0'
+version = '2.0.0-alpha.3'
 
 [dependencies.ctrlc]
 features = ['termination']
@@ -49,67 +45,69 @@ version = '0.1.29'
 [dependencies.grandpa]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sc-finality-grandpa'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
+
+[dependencies.grandpa-primitives]
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sp-finality-grandpa'
+version = '2.0.0-alpha.3'
 
 [dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sc-cli]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sc-client]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
-[dependencies.sc-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
 
 [dependencies.sc-executor]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sc-network]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sc-service]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sc-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
-
-[dependencies.sp-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
-
-[dependencies.sp-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
-
-[dependencies.sp-core]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
-
-[dependencies.sp-inherents]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
-
-[dependencies.sp-io]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
-
-[dependencies.sp-runtime]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.2'
+version = '2.0.0-alpha.3'
+
+[dependencies.sp-consensus]
+git = 'https://github.com/paritytech/substrate.git'
+version = '0.8.0-alpha.3'
+
+[dependencies.sc-consensus-aura]
+git = 'https://github.com/paritytech/substrate.git'
+version = '0.8.0-alpha.3'
+
+[dependencies.sp-consensus-aura]
+git = 'https://github.com/paritytech/substrate.git'
+version = '0.8.0-alpha.3'
+
+[dependencies.sp-core]
+git = 'https://github.com/paritytech/substrate.git'
+version = '2.0.0-alpha.3'
+
+[dependencies.sp-inherents]
+git = 'https://github.com/paritytech/substrate.git'
+version = '2.0.0-alpha.3'
+
+[dependencies.sp-runtime]
+git = 'https://github.com/paritytech/substrate.git'
+version = '2.0.0-alpha.3'
 
 [dependencies.telemetry]
 git = 'https://github.com/paritytech/substrate.git'

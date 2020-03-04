@@ -18,53 +18,52 @@ simple-json = {git = 'https://github.com/jimmychu0807/simple-json', version = '0
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-aura'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.balances]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-balances'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.0.0'
+version = '1.2.0'
 
 [dependencies.frame-executive]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.grandpa]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-grandpa'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.indices]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-indices'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.randomness-collective-flip]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-randomness-collective-flip'
-version = '2.0.0-alpha.1'
-
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-block-builder]
 default-features = false
@@ -73,12 +72,12 @@ git = 'https://github.com/paritytech/substrate.git'
 [dependencies.sp-consensus-aura]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.2'
+version = '0.8.0-alpha.3'
 
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-inherents]
 default-features = false
@@ -87,61 +86,61 @@ git = 'https://github.com/paritytech/substrate.git'
 [dependencies.sp-io]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-offchain]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-session]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-transaction-pool]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sp-version]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.sudo]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-sudo'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'frame-system'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.timestamp]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-timestamp'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [dependencies.transaction-payment]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-transaction-payment'
-version = '2.0.0-alpha.1'
+version = '2.0.0-alpha.3'
 
 [features]
 default = ['std']
