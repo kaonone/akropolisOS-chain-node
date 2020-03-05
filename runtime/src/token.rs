@@ -31,22 +31,22 @@ pub trait Trait: balances::Trait + system::Trait {
 decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
         Count get(count): TokenId;
-        Locked get(locked): map(TokenId, T::AccountId) => TokenBalance;
+        Locked get(locked): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
 
         Tokens get(tokens) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
-        }): map TokenId => Token;
+        }): map hasher(blake2_256) TokenId => Token;
         TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
-        }): map Vec<u8> => TokenId;
+        }): map hasher(blake2_256) Vec<u8> => TokenId;
         TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t.symbol)).collect::<Vec<_>>()
-        }): map TokenId => Vec<u8>;
-        TotalSupply get(total_supply): map TokenId => TokenBalance;
-        Balance get(balance_of): map (TokenId, T::AccountId) => TokenBalance;
-        Allowance get(allowance_of): map (TokenId, T::AccountId, T::AccountId) => TokenBalance;
+        }): map hasher(blake2_256) TokenId => Vec<u8>;
+        TotalSupply get(total_supply): map hasher(blake2_256) TokenId => TokenBalance;
+        Balance get(balance_of): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
+        Allowance get(allowance_of): map hasher(blake2_256) (TokenId, T::AccountId, T::AccountId) => TokenBalance;
     }
     add_extra_genesis{
         config(tokens): Vec<Token>;
@@ -226,7 +226,7 @@ impl<T: Trait> Module<T> {
     // Token management
     // Add new or do nothing
     pub fn check_token_exist(token: &Vec<u8>) -> Result<()> {
-        if !<TokenIds>::exists(token.clone()) {
+        if !<TokenIds>::contains_key(token.clone()) {
             Self::validate_name(token)
         } else {
             Ok(())

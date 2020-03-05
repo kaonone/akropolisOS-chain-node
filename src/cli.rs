@@ -1,134 +1,79 @@
-use crate::chain_spec;
-use crate::service;
-use futures::{
-    channel::oneshot,
-    compat::Future01CompatExt,
-    future::{select, Map},
-    FutureExt, TryFutureExt,
-};
-use log::info;
-use sc_cli::{display_role, informant, parse_and_prepare, NoCustom, ParseAndPrepare};
-pub use sc_cli::{error, IntoExit, VersionInfo};
-use sc_service::{AbstractService, Configuration, Roles as ServiceRoles};
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use std::cell::RefCell;
-use tokio::runtime::Runtime;
+// Copyright 2018-2020 Parity Technologies (UK) Ltd.
+// This file is part of Substrate.
 
-/// Parse command line arguments into service configuration.
-pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
-    E: IntoExit,
-{
-    type Config<T> = Configuration<(), T>;
-    match parse_and_prepare::<NoCustom, NoCustom, _>(&version, "substrate-node", args) {
-        ParseAndPrepare::Run(cmd) => cmd.run(
-            load_spec,
-            exit,
-            |exit, _cli_args, _custom_args, config: Config<_>| {
-                info!("{}", version.name);
-                info!("  version {}", config.full_version());
-                info!("  by {}, 2019, 2020", version.author);
-                info!("Chain specification: {}", config.chain_spec.name());
-                info!("Node name: {}", config.name);
-                info!("Roles: {}", display_role(&config));
-                let runtime = Runtime::new().map_err(|e| format!("{:?}", e))?;
-                match config.roles {
-                    ServiceRoles::LIGHT => {
-                        run_until_exit(runtime, service::new_light(config)?, exit)
-                    }
-                    _ => run_until_exit(runtime, service::new_full(config)?, exit),
-                }
-            },
-        ),
-        ParseAndPrepare::BuildSpec(cmd) => cmd.run::<NoCustom, _, _, _>(load_spec),
-        ParseAndPrepare::ExportBlocks(cmd) => cmd.run_with_builder(
-            |config: Config<_>| Ok(new_full_start!(config).0),
-            load_spec,
-            exit,
-        ),
-        ParseAndPrepare::ImportBlocks(cmd) => cmd.run_with_builder(
-            |config: Config<_>| Ok(new_full_start!(config).0),
-            load_spec,
-            exit,
-        ),
-        ParseAndPrepare::CheckBlock(cmd) => cmd.run_with_builder(
-            |config: Config<_>| Ok(new_full_start!(config).0),
-            load_spec,
-            exit,
-        ),
-        ParseAndPrepare::PurgeChain(cmd) => cmd.run(load_spec),
-        ParseAndPrepare::RevertChain(cmd) => {
-            cmd.run_with_builder(|config: Config<_>| Ok(new_full_start!(config).0), load_spec)
-        }
-        ParseAndPrepare::CustomCommand(_) => Ok(()),
-    }?;
+// Substrate is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 
-    Ok(())
+// Substrate is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
+
+use sc_cli::{SharedParams, ImportParams, RunCmd};
+use structopt::StructOpt;
+
+/// An overarching CLI command definition.
+#[derive(Clone, Debug, StructOpt)]
+pub struct Cli {
+	/// Possible subcommand with parameters.
+	#[structopt(subcommand)]
+	pub subcommand: Option<Subcommand>,
+	#[allow(missing_docs)]
+	#[structopt(flatten)]
+	pub run: RunCmd,
 }
 
-fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
-    Ok(match chain_spec::Alternative::from(id) {
-        Some(spec) => Some(spec.load()?),
-        None => None,
-    })
+/// Possible subcommands of the main binary.
+#[derive(Clone, Debug, StructOpt)]
+pub enum Subcommand {
+	/// A set of base subcommands handled by `sc_cli`.
+	#[structopt(flatten)]
+	Base(sc_cli::Subcommand),
+	/// The custom factory subcommmand for manufacturing transactions.
+	#[structopt(
+		name = "factory",
+		about = "Manufactures num transactions from Alice to random accounts. \
+		Only supported for development or local testnet."
+	)]
+	Factory(FactoryCmd),
+
+	/// The custom inspect subcommmand for decoding blocks and extrinsics.
+	#[structopt(
+		name = "inspect",
+		about = "Decode given block or extrinsic using current native runtime."
+	)]
+	Inspect(node_inspect::cli::InspectCmd),
+
+	/// The custom benchmark subcommmand benchmarking runtime pallets.
+	#[structopt(
+		name = "benchmark",
+		about = "Benchmark runtime pallets."
+	)]
+	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 }
 
-fn run_until_exit<T, E>(mut runtime: Runtime, service: T, e: E) -> error::Result<()>
-where
-    T: AbstractService,
-    E: IntoExit,
-{
-    let (exit_send, exit) = oneshot::channel();
+/// The `factory` command used to generate transactions.
+/// Please note: this command currently only works on an empty database!
+#[derive(Debug, StructOpt, Clone)]
+pub struct FactoryCmd {
+	/// Number of blocks to generate.
+	#[structopt(long="blocks", default_value = "1")]
+	pub blocks: u32,
 
-    let informant = informant::build(&service);
+	/// Number of transactions to push per block.
+	#[structopt(long="transactions", default_value = "8")]
+	pub transactions: u32,
 
-    let future = select(exit, informant).map(|_| Ok(())).compat();
+	#[allow(missing_docs)]
+	#[structopt(flatten)]
+	pub shared_params: SharedParams,
 
-    runtime.executor().spawn(future);
-
-    // we eagerly drop the service so that the internal exit future is fired,
-    // but we need to keep holding a reference to the global telemetry guard
-    let _telemetry = service.telemetry();
-
-    let service_res = {
-        let exit = e.into_exit();
-        let service = service.map_err(|err| error::Error::Service(err)).compat();
-        let select = select(service, exit).map(|_| Ok(())).compat();
-        runtime.block_on(select)
-    };
-
-    let _ = exit_send.send(());
-
-    // TODO [andre]: timeout this future #1318
-    use futures01::Future;
-
-    let _ = runtime.shutdown_on_idle().wait();
-
-    service_res
-}
-
-// handles ctrl-c
-pub struct Exit;
-impl IntoExit for Exit {
-    type Exit = Map<oneshot::Receiver<()>, fn(Result<(), oneshot::Canceled>) -> ()>;
-    fn into_exit(self) -> Self::Exit {
-        // can't use signal directly here because CtrlC takes only `Fn`.
-        let (exit_send, exit) = oneshot::channel();
-
-        let exit_send_cell = RefCell::new(Some(exit_send));
-        ctrlc::set_handler(move || {
-            let exit_send = exit_send_cell
-                .try_borrow_mut()
-                .expect("signal handler not reentrant; qed")
-                .take();
-            if let Some(exit_send) = exit_send {
-                exit_send.send(()).expect("Error sending exit notification");
-            }
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        exit.map(drop)
-    }
+	#[allow(missing_docs)]
+	#[structopt(flatten)]
+	pub import_params: ImportParams,
 }

@@ -50,10 +50,10 @@ pub trait Trait: token::Trait + system::Trait + timestamp::Trait {
 decl_storage! {
     trait Store for Module<T: Trait> as Bridge {
         BridgeIsOperational get(bridge_is_operational): bool = true;
-        BridgeMessages get(bridge_messages): map T::Hash  => BridgeMessage<T::AccountId, T::Hash>;
+        BridgeMessages get(bridge_messages): map hasher(blake2_256) T::Hash  => BridgeMessage<T::AccountId, T::Hash>;
 
         // limits change history
-        LimitMessages get(limit_messages): map T::Hash  => LimitMessage<T::Hash>;
+        LimitMessages get(limit_messages): map hasher(blake2_256) T::Hash  => LimitMessage<T::Hash>;
         CurrentLimits get(current_limits) build(|config: &GenesisConfig<T>| {
             let mut limits_iter = config.current_limits.clone().into_iter();
             Limits {
@@ -69,24 +69,24 @@ decl_storage! {
         CurrentPendingBurn get(pending_burn_count): u128;
         CurrentPendingMint get(pending_mint_count): u128;
 
-        BridgeTransfers get(transfers): map ProposalId => BridgeTransfer<T::Hash>;
+        BridgeTransfers get(transfers): map hasher(blake2_256) ProposalId => BridgeTransfer<T::Hash>;
         BridgeTransfersCount get(bridge_transfers_count): ProposalId;
-        TransferMessages get(messages): map T::Hash  => TransferMessage<T::AccountId, T::Hash>;
-        TransferId get(transfer_id_by_hash): map T::Hash  => ProposalId;
-        MessageId get(message_id_by_transfer_id): map ProposalId  => T::Hash;
+        TransferMessages get(messages): map hasher(blake2_256) T::Hash  => TransferMessage<T::AccountId, T::Hash>;
+        TransferId get(transfer_id_by_hash): map hasher(blake2_256) T::Hash  => ProposalId;
+        MessageId get(message_id_by_transfer_id): map hasher(blake2_256) ProposalId  => T::Hash;
 
-        DailyHolds get(daily_holds): map T::AccountId  => (T::BlockNumber, T::Hash);
-        DailyLimits get(daily_limits_by_account): map T::AccountId  => TokenBalance;
-        DailyBlocked get(daily_blocked): map T::Moment  => Vec<T::AccountId>;
+        DailyHolds get(daily_holds): map hasher(blake2_256) T::AccountId  => (T::BlockNumber, T::Hash);
+        DailyLimits get(daily_limits_by_account): map hasher(blake2_256) T::AccountId  => TokenBalance;
+        DailyBlocked get(daily_blocked): map hasher(blake2_256) T::Moment  => Vec<T::AccountId>;
 
         Quorum get(quorum): u64 = 2;
         ValidatorsCount get(validators_count) config(): u32 = 3;
-        ValidatorVotes get(validator_votes): map(ProposalId, T::AccountId) => bool;
-        ValidatorHistory get(validator_history): map T::Hash  => ValidatorMessage<T::AccountId, T::Hash>;
+        ValidatorVotes get(validator_votes): map hasher(blake2_256) (ProposalId, T::AccountId) => bool;
+        ValidatorHistory get(validator_history): map hasher(blake2_256) T::Hash  => ValidatorMessage<T::AccountId, T::Hash>;
         Validators get(validators) build(|config: &GenesisConfig<T>| {
             config.validator_accounts.clone().into_iter()
             .map(|acc: T::AccountId| (acc, true)).collect::<Vec<_>>()
-        }): map T::AccountId  => bool;
+        }): map hasher(blake2_256) T::AccountId  => bool;
         ValidatorAccounts get(validator_accounts) config(): Vec<T::AccountId>;
     }
     add_extra_genesis{
@@ -145,7 +145,7 @@ decl_module! {
             Self::check_pending_mint(amount)?;
             Self::check_amount(amount)?;
 
-            if !<TransferMessages<T>>::exists(message_id) {
+            if !<TransferMessages<T>>::contains_key(message_id) {
                 let message = TransferMessage{
                     message_id,
                     eth_address: from,
@@ -178,7 +178,7 @@ decl_module! {
             Self::check_limits(&limits)?;
             let id = (limits.clone(), T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<LimitMessages<T>>::exists(id) {
+            if !<LimitMessages<T>>::contains_key(id) {
                 let message = LimitMessage {
                     id,
                     limits,
@@ -209,7 +209,7 @@ decl_module! {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
-            if !<ValidatorHistory<T>>::exists(message_id) {
+            if !<ValidatorHistory<T>>::contains_key(message_id) {
                 let message = ValidatorMessage {
                     message_id,
                     quorum,
@@ -234,7 +234,7 @@ decl_module! {
             ensure!(Self::bridge_is_operational(), "Bridge is not operational already");
             let hash = ("pause", T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<BridgeMessages<T>>::exists(hash) {
+            if !<BridgeMessages<T>>::contains_key(hash) {
                 let message = BridgeMessage {
                     message_id: hash,
                     account: validator.clone(),
@@ -257,7 +257,7 @@ decl_module! {
 
             let hash = ("resume", T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<BridgeMessages<T>>::exists(hash) {
+            if !<BridgeMessages<T>>::contains_key(hash) {
                 let message = BridgeMessage {
                     message_id: hash,
                     account: validator.clone(),
@@ -296,7 +296,7 @@ decl_module! {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
-            let has_burned = <TransferMessages<T>>::exists(message_id) && <TransferMessages<T>>::get(message_id).status == Status::Confirmed;
+            let has_burned = <TransferMessages<T>>::contains_key(message_id) && <TransferMessages<T>>::get(message_id).status == Status::Confirmed;
             ensure!(!has_burned, "Failed to cancel. This transfer is already executed.");
 
             let id = <TransferId<T>>::get(message_id);
@@ -311,7 +311,7 @@ decl_module! {
             // clear accounts blocked day earlier (e.g. 18759 - 1)
             let yesterday = Self::get_day_pair().0;
             let is_first_day = Self::get_day_pair().1 == yesterday;
-            if <DailyBlocked<T>>::exists(&yesterday) && !is_first_day {
+            if <DailyBlocked<T>>::contains_key(&yesterday) && !is_first_day {
                 let blocked_yesterday = <DailyBlocked<T>>::get(&yesterday);
                 blocked_yesterday.iter().for_each(|a| <DailyLimits<T>>::remove(a));
                 blocked_yesterday.iter().for_each(|a|{
@@ -383,7 +383,7 @@ impl<T: Trait> Module<T> {
 
     ///ensure that such transfer exist
     fn get_transfer_id_checked(transfer_hash: T::Hash, kind: Kind) -> Result<()> {
-        if !<TransferId<T>>::exists(transfer_hash) {
+        if !<TransferId<T>>::contains_key(transfer_hash) {
             Self::create_transfer(transfer_hash, kind)?;
         }
         Ok(())
@@ -393,7 +393,7 @@ impl<T: Trait> Module<T> {
     fn deposit(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
         Self::sub_pending_mint(message.clone())?;
         let to = message.substrate_address;
-        if !<DailyHolds<T>>::exists(&to) {
+        if !<DailyHolds<T>>::contains_key(&to) {
             <DailyHolds<T>>::insert(to.clone(), (T::BlockNumber::from(0), message.message_id));
         }
 
@@ -553,7 +553,7 @@ impl<T: Trait> Module<T> {
 
     fn create_transfer(transfer_hash: T::Hash, kind: Kind) -> Result<()> {
         ensure!(
-            !<TransferId<T>>::exists(transfer_hash),
+            !<TransferId<T>>::contains_key(transfer_hash),
             "This transfer already open"
         );
 
@@ -639,7 +639,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     fn check_validator(validator: T::AccountId) -> Result<()> {
-        let is_trusted = <Validators<T>>::exists(validator);
+        let is_trusted = <Validators<T>>::contains_key(validator);
         ensure!(is_trusted, "Only validators can call this function");
 
         Ok(())

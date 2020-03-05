@@ -1,9 +1,6 @@
-// Ensure we're `no_std` when compiling for Wasm.
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use codec::Encode;
 use frame_support::{
-    debug, decl_event, decl_module, decl_storage, dispatch, storage::StorageValueRef, traits::Get,
+    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get,
 };
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
@@ -11,7 +8,7 @@ use simple_json::{self, json::JsonValue};
 use sp_core::crypto::KeyTypeId;
 use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
-    offchain::http,
+    offchain::{http, storage::StorageValueRef},
     traits::Zero,
     transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 };
@@ -120,10 +117,10 @@ decl_storage! {
     //   price has been inflated by 10,000, and in USD.
     //   When used, it should be divided by 10,000.
     // Using linked map for easy traversal from offchain worker or UI
-    TokenPriceHistory: linked_map Vec<u8> => Vec<(T::Moment, u64)>;
+    TokenPriceHistory: linked_map hasher(blake2_256) Vec<u8> => Vec<(T::Moment, u64)>;
 
     // storage about aggregated price points (calculated with our logic)
-    AggregatedPrices: linked_map Vec<u8> => (T::Moment, u64);
+    AggregatedPrices: linked_map hasher(blake2_256) Vec<u8> => (T::Moment, u64);
   }
 }
 
@@ -480,12 +477,16 @@ impl<T: Trait> Module<T> {
     fn vecchars_to_vecbytes<I: IntoIterator<Item = char> + Clone>(it: &I) -> Vec<u8> {
         it.clone().into_iter().map(|c| c as u8).collect::<_>()
     }
+    
+    fn round_value(v: f64) -> u64 {
+        (v * 1000000.).round() as u64
+    }
 
     fn fetch_price_from_cryptocompare(json_val: JsonValue) -> Result<u64> {
         // Expected JSON shape:
         //   r#"{"USD": 7064.16}"#;
         let val_f64: f64 = json_val.get_object()[0].1.get_number_f64();
-        Ok((val_f64 * 10000.).round() as u64)
+        Ok(Self::round_value(val_f64))
     }
 
     fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<u64> {
@@ -496,29 +497,29 @@ impl<T: Trait> Module<T> {
             .get_number_f64();
         Ok(Self::round_value(val_f64))
     }
-
+    
     fn fetch_price_from_coincap(json_val: JsonValue) -> Result<u64> {
         // Expected JSON shape:
         //   r#"{"data":{"priceUsd":"8172.2628346190447316"}}"#;
-
+        
         const PRICE_KEY: &[u8] = b"priceUsd";
         let data = json_val.get_object()[0].1.get_object();
-
+        
         let (_, v) = data
-            .iter()
-            .filter(|(k, _)| PRICE_KEY.to_vec() == Self::vecchars_to_vecbytes(k))
-            .nth(0)
-            .ok_or("fetch_price_from_coincap: JSON does not conform to expectation")?;
-
+        .iter()
+        .filter(|(k, _)| PRICE_KEY.to_vec() == Self::vecchars_to_vecbytes(k))
+        .nth(0)
+        .ok_or("fetch_price_from_coincap: JSON does not conform to expectation")?;
+        
         // `val` contains the price, such as "222.333" in bytes form
         let val_u8: Vec<u8> = v.get_bytes();
-
+        
         // Convert to number
         let val_f64: f64 = core::str::from_utf8(&val_u8)
-            .map_err(|_| "fetch_price_from_coincap: val_f64 convert to string error")?
-            .parse::<f64>()
-            .map_err(|_| "fetch_price_from_coincap: val_u8 parsing to f64 error")?;
-        Ok((val_f64 * 10000.).round() as u64)
+        .map_err(|_| "fetch_price_from_coincap: val_f64 convert to string error")?
+        .parse::<f64>()
+        .map_err(|_| "fetch_price_from_coincap: val_u8 parsing to f64 error")?;
+        Ok(Self::round_value(val_f64))
     }
 
     fn aggregate_price_points<'a>(symbol: &'a [u8]) -> Result<()> {

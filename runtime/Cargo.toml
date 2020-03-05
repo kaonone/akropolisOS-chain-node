@@ -5,14 +5,14 @@ name = 'akropolisos-runtime'
 version = '0.4.0'
 
 [build-dependencies]
-wasm-builder-runner = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder-runner', version = '1.0.5'}
-wasm-builder = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder', version = '1.0.9'}
+wasm-builder-runner = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder-runner', version = '1.0.5', default-features = false}
+wasm-builder = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder', version = '1.0.9', default-features = false}
 
 [dependencies]
 safe-mix = { default-features = false, version = '1.0.0'}
-serde = {features = ['derive'], optional = true, version = '1.0.101'}
+serde = {features = ['derive'],  default-features = false, optional = true, version = '1.0.101'}
 num-traits = { version = "0.2.8", default-features = false }
-simple-json = {git = 'https://github.com/jimmychu0807/simple-json', version = '0.1.5', default_features = false}
+simple-json = {git = 'https://github.com/jimmychu0807/simple-json', version = '0.1.5', default-features = false}
 
 [dependencies.aura]
 default-features = false
@@ -85,6 +85,7 @@ git = 'https://github.com/paritytech/substrate.git'
 
 [dependencies.sp-io]
 default-features = false
+features = ["disable_panic_handler", "disable_oom"]
 git = 'https://github.com/paritytech/substrate.git'
 version = '2.0.0-alpha.3'
 
@@ -170,6 +171,10 @@ std = [
     'sudo/std',
     'system/std',
     'timestamp/std',
+    'simple-json/std',
+    'num-traits/std',
+    'safe-mix/std',
+    'serde/std',
     'transaction-payment/std',
 ]
 
