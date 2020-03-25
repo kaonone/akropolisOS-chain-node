@@ -30,23 +30,23 @@ pub trait Trait: balances::Trait + system::Trait {
 
 decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
-        Count get(count): TokenId;
-        Locked get(locked): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
+        pub Count get(fn count): TokenId;
+        pub Locked get(fn locked): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
 
-        Tokens get(tokens) build(|config: &GenesisConfig| {
+        pub Tokens get(fn tokens) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
         }): map hasher(blake2_256) TokenId => Token;
-        TokenIds get(token_id_by_symbol) build(|config: &GenesisConfig| {
+        pub TokenIds get(fn token_id_by_symbol) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
         }): map hasher(blake2_256) Vec<u8> => TokenId;
-        TokenSymbol get(token_symbol_by_id) build(|config: &GenesisConfig| {
+        pub TokenSymbol get(fn token_symbol_by_id) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t.symbol)).collect::<Vec<_>>()
         }): map hasher(blake2_256) TokenId => Vec<u8>;
-        TotalSupply get(total_supply): map hasher(blake2_256) TokenId => TokenBalance;
-        Balance get(balance_of): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
-        Allowance get(allowance_of): map hasher(blake2_256) (TokenId, T::AccountId, T::AccountId) => TokenBalance;
+        pub TotalSupply get(fn total_supply): map hasher(blake2_256) TokenId => TokenBalance;
+        pub Balance get(fn balance_of): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
+        pub Allowance get(fn allowance_of): map hasher(blake2_256) (TokenId, T::AccountId, T::AccountId) => TokenBalance;
     }
     add_extra_genesis{
         config(tokens): Vec<Token>;
@@ -62,7 +62,7 @@ decl_module! {
         fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult {
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens>::get(0);
+            let token = <Tokens<T>>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_burn(0, from.clone(), amount)?;
             Self::deposit_event(RawEvent::Burn(from, amount));
@@ -74,7 +74,7 @@ decl_module! {
         fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult{
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens>::get(0);
+            let token = <Tokens<T>>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_mint(token.id, to.clone(), amount)?;
             Self::deposit_event(RawEvent::Mint(to.clone(), amount));
@@ -95,7 +95,7 @@ decl_module! {
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
-            let id = <Tokens>::get(0).id;
+            let id = <Tokens<T>>::get(0).id;
             Self::make_transfer(id, sender, to, amount)?;
             Ok(())
         }
@@ -107,7 +107,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            let id = <Tokens>::get(0).id;
+            let id = <Tokens<T>>::get(0).id;
             <Allowance<T>>::insert((id,sender.clone(), spender.clone()), value);
 
             Self::deposit_event(RawEvent::Approval(sender, spender, value));
@@ -120,13 +120,13 @@ decl_module! {
             #[compact] value: TokenBalance
         ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
-            let id = <Tokens>::get(0).id;
+            let id = <Tokens<T>>::get(0).id;
             let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
 
-            let id = <Tokens>::get(0).id;
+            let id = <Tokens<T>>::get(0).id;
             Self::make_transfer(id, from.clone(), to.clone(), value)?;
 
             <Allowance<T>>::insert((id, from, sender), updated_allowance);
@@ -226,7 +226,7 @@ impl<T: Trait> Module<T> {
     // Token management
     // Add new or do nothing
     pub fn check_token_exist(token: &Vec<u8>) -> Result<()> {
-        if !<TokenIds>::contains_key(token.clone()) {
+        if !<TokenIds<T>>::contains_key(token.clone()) {
             Self::validate_name(token)
         } else {
             Ok(())

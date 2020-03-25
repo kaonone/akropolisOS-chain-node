@@ -1,0 +1,28 @@
+[package]
+name = "node-rpc"
+version = "2.0.0-alpha.4"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+homepage = "https://substrate.dev"
+repository = "https://github.com/paritytech/substrate/"
+
+[dependencies]
+sc-client = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+jsonrpc-core = "14.0.3"
+akropolisos-runtime = { version = "0.4.0", path = "../runtime" }
+sp-runtime = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sp-api = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+pallet-contracts-rpc = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+pallet-transaction-payment-rpc = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+substrate-frame-rpc-system = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sp-transaction-pool = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sc-consensus-babe = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sc-consensus-babe-rpc = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sp-consensus-babe = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sc-keystore = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sc-consensus-epochs = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sp-consensus = { version = "0.8.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sp-blockchain = { version = "2.0.0-alpha.4", git = 'https://github.com/paritytech/substrate.git' }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "master" }
+codec = { package = "parity-scale-codec", version = "1.1.0", default-features = false }

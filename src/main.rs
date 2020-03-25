@@ -1,16 +1,13 @@
-//! Substrate Node Template CLI library.
+//! Substrate Node CLI
 #![warn(missing_docs)]
 
-mod chain_spec;
-#[macro_use]
-mod service;
-mod cli;
-mod command;
+use std::env;
 
 fn main() -> sc_cli::Result<()> {
 	let version = sc_cli::VersionInfo {
 		name: "AkropolisOS",
-		commit: env!("VERGEN_SHA_SHORT"),
+		commit: "VERGEN_SHA_SHORT",
+		// commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
 		executable_name: "akropolisos-node",
 		author: "Akropolis",
@@ -19,5 +16,5 @@ fn main() -> sc_cli::Result<()> {
 		copyright_start_year: 2017,
 	};
 
-	command::run(version)
+	node_cli::run(env::args(), version)
 }
