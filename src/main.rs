@@ -2,12 +2,12 @@
 #![warn(missing_docs)]
 
 use std::env;
-
+// use dotenv::dotenv;
 fn main() -> sc_cli::Result<()> {
+	// dotenv().ok();
 	let version = sc_cli::VersionInfo {
 		name: "AkropolisOS",
-		commit: "VERGEN_SHA_SHORT",
-		// commit: env!("VERGEN_SHA_SHORT"),
+		commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
 		executable_name: "akropolisos-node",
 		author: "Akropolis",
