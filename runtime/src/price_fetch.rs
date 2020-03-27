@@ -1,6 +1,6 @@
 use codec::Encode;
 use frame_support::{
-    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get,
+    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get, IterableStorageMap
 };
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
@@ -117,10 +117,12 @@ decl_storage! {
     //   price has been inflated by 10,000, and in USD.
     //   When used, it should be divided by 10,000.
     // Using linked map for easy traversal from offchain worker or UI
-    TokenPriceHistory: linked_map hasher(blake2_256) Vec<u8> => Vec<(T::Moment, u64)>;
+    pub TokenPriceHistory get(fn token_price_history): 
+    map hasher(blake2_128_concat) Vec<u8> => Vec<(T::Moment, u64)>;
 
     // storage about aggregated price points (calculated with our logic)
-    AggregatedPrices: linked_map hasher(blake2_256) Vec<u8> => (T::Moment, u64);
+    pub AggregatedPrices get(fn aggregated_prices): 
+    map hasher(blake2_128_concat) Vec<u8> => (T::Moment, u64);
   }
 }
 
@@ -270,7 +272,7 @@ decl_module! {
       }
 
       // Type II task: aggregate price
-      <TokenPriceHistory<T>>::enumerate()
+      <TokenPriceHistory<T>>::iter()
       // filter those to be updated
       .filter(|(_, vec)| vec.len() > 0)
       .for_each(|(symbol, _)| {
@@ -291,31 +293,16 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
     /// Chooses which transaction type to send.
-    ///
-    /// This function serves mostly to showcase `StorageValue` helper
-    /// and local storage usage.
-    ///
     /// Returns a type of transaction that should be produced in current run.
     fn choose_transaction_type(block_number: T::BlockNumber) -> TransactionType {
-        /// A friendlier name for the error that is going to be returned in case we are in the grace
-        /// period.
         const RECENTLY_SENT: () = ();
 
         // Start off by creating a reference to Local Storage value.
-        // Since the local storage is common for all offchain workers, it's a good practice
-        // to prepend your entry with the module name.
         let val = StorageValueRef::persistent(b"example_ocw::last_send");
         // The Local Storage is persisted and shared between runs of the offchain workers,
         // and offchain workers may run concurrently. We can use the `mutate` function, to
-        // write a storage entry in an atomic fashion. Under the hood it uses `compare_and_set`
-        // low-level method of local storage API, which means that only one worker
-        // will be able to "acquire a lock" and send a transaction if multiple workers
-        // happen to be executed concurrently.
+        // write a storage entry in an atomic fashion. 
         let res = val.mutate(|last_send: Option<Option<T::BlockNumber>>| {
-            // We match on the value decoded from the storage. The first `Option`
-            // indicates if the value was present in the storage at all,
-            // the second (inner) `Option` indicates if the value was succesfuly
-            // decoded to expected type (`T::BlockNumber` in our case).
             match last_send {
                 // If we already have a value in storage and the block number is recent enough
                 // we avoid sending another transaction at this time.
@@ -415,6 +402,7 @@ impl<T: Trait> Module<T> {
         }?;
 
         if !T::SubmitSignedTransaction::can_sign() {
+            debug::info!("data {:?}", price);
             debug::error!(
                 "No local accounts available. Consider adding one via `author_insertKey` RPC."
             );
@@ -639,13 +627,13 @@ mod tests {
     //  3. with multiple record_price of same symbol inserted. On next cycle, the average of the price is calculated
     //  4. can fetch for BTC, parse the JSON blob and get a price > 0 out
     use super::*;
-    use primitives::H256;
+    use sp_core::H256;
     use sp_runtime::{
         testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
         Perbill,
     };
-    use support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
+    use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
 
     impl_outer_origin! {
       pub enum Origin for TestRuntime {}
@@ -708,6 +696,7 @@ mod tests {
         type Event = ();
         type Call = Call;
         type SubmitUnsignedTransaction = SubmitPFTransaction;
+        type SubmitSignedTransaction = SubmitPFTransaction;
 
         // Wait period between automated fetches. Set to 0 disable this feature.
         //   Then you need to manucally kickoff pricefetch
@@ -716,7 +705,7 @@ mod tests {
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
-    pub fn new_test_ext() -> runtime_io::TestExternalities {
+    pub fn new_test_ext() -> sp_io::TestExternalities {
         system::GenesisConfig::default()
             .build_storage::<TestRuntime>()
             .unwrap()
