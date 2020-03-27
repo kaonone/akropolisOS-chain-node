@@ -3,11 +3,11 @@
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///
 use crate::types::{Token, TokenBalance, TokenId};
-use sp_std::prelude::Vec;
-use sp_runtime::traits::{StaticLookup, Zero};
 use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
+use sp_runtime::traits::{StaticLookup, Zero};
+use sp_std::prelude::Vec;
 use system::{self, ensure_signed};
 
 type Result<T> = core::result::Result<T, &'static str>;
@@ -30,23 +30,28 @@ pub trait Trait: balances::Trait + system::Trait {
 
 decl_storage! {
     trait Store for Module<T: Trait> as TokenStorage {
-        pub Count get(fn count): TokenId;
-        pub Locked get(fn locked): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
+        pub Count get(fn count) build(|config: &GenesisConfig| {
+            config.tokens.clone().len() as u32
+        }): TokenId;
+        pub Locked get(fn locked): map hasher(opaque_blake2_256) (TokenId, T::AccountId) => TokenBalance;
 
         pub Tokens get(fn tokens) build(|config: &GenesisConfig| {
+            config.tokens.clone()
+        }): Vec<Token>;
+        pub TokenMap get(fn token_map) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
-        }): map hasher(blake2_256) TokenId => Token;
+        }): map hasher(opaque_blake2_256) TokenId => Token;
         pub TokenIds get(fn token_id_by_symbol) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
-        }): map hasher(blake2_256) Vec<u8> => TokenId;
+        }): map hasher(opaque_blake2_256) Vec<u8> => TokenId;
         pub TokenSymbol get(fn token_symbol_by_id) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().enumerate()
             .map(|(i, t): (usize, Token)| (i as u32, t.symbol)).collect::<Vec<_>>()
-        }): map hasher(blake2_256) TokenId => Vec<u8>;
-        pub TotalSupply get(fn total_supply): map hasher(blake2_256) TokenId => TokenBalance;
-        pub Balance get(fn balance_of): map hasher(blake2_256) (TokenId, T::AccountId) => TokenBalance;
-        pub Allowance get(fn allowance_of): map hasher(blake2_256) (TokenId, T::AccountId, T::AccountId) => TokenBalance;
+        }): map hasher(opaque_blake2_256) TokenId => Vec<u8>;
+        pub TotalSupply get(fn total_supply): map hasher(opaque_blake2_256) TokenId => TokenBalance;
+        pub Balance get(fn balance_of): map hasher(opaque_blake2_256) (TokenId, T::AccountId) => TokenBalance;
+        pub Allowance get(fn allowance_of): map hasher(opaque_blake2_256) (TokenId, T::AccountId, T::AccountId) => TokenBalance;
     }
     add_extra_genesis{
         config(tokens): Vec<Token>;
@@ -62,7 +67,7 @@ decl_module! {
         fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult {
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens<T>>::get(0);
+            let token = <TokenMap>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_burn(0, from.clone(), amount)?;
             Self::deposit_event(RawEvent::Burn(from, amount));
@@ -74,7 +79,7 @@ decl_module! {
         fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult{
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <Tokens<T>>::get(0);
+            let token = <TokenMap>::get(0);
             Self::check_token_exist(&token.symbol)?;
             Self::_mint(token.id, to.clone(), amount)?;
             Self::deposit_event(RawEvent::Mint(to.clone(), amount));
@@ -95,7 +100,7 @@ decl_module! {
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <TokenMap>::get(0).id;
             Self::make_transfer(id, sender, to, amount)?;
             Ok(())
         }
@@ -107,7 +112,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <TokenMap>::get(0).id;
             <Allowance<T>>::insert((id,sender.clone(), spender.clone()), value);
 
             Self::deposit_event(RawEvent::Approval(sender, spender, value));
@@ -120,13 +125,13 @@ decl_module! {
             #[compact] value: TokenBalance
         ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
-            let id = <Tokens<T>>::get(0).id;
+            let id = <TokenMap>::get(0).id;
             let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
 
-            let id = <Tokens<T>>::get(0).id;
+            let id = <TokenMap>::get(0).id;
             Self::make_transfer(id, from.clone(), to.clone(), value)?;
 
             <Allowance<T>>::insert((id, from, sender), updated_allowance);
@@ -226,7 +231,7 @@ impl<T: Trait> Module<T> {
     // Token management
     // Add new or do nothing
     pub fn check_token_exist(token: &Vec<u8>) -> Result<()> {
-        if !<TokenIds<T>>::contains_key(token.clone()) {
+        if !<TokenIds>::contains_key(token.clone()) {
             Self::validate_name(token)
         } else {
             Ok(())
@@ -249,18 +254,32 @@ impl<T: Trait> Module<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use sp_core::{Blake2Hasher, H256};
-    use runtime_io::with_externalities;
-    use sp_runtime::{
-        testing::{Digest, DigestItem, Header},
-        traits::{BlakeTwo256, IdentityLookup},
-        BuildStorage,
+    use frame_support::{
+        assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
     };
-    use frame_support::{assert_noop, assert_ok, impl_outer_origin};
+    use sp_core::H256;
+    use sp_runtime::{testing::Header, traits::{IdentityLookup, BlakeTwo256}, Perbill};
+    use std::cell::RefCell;
+
+    pub type Balance = u128;
+
+    thread_local! {
+        static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
+    }
 
     impl_outer_origin! {
         pub enum Origin for Test {}
+    }
+    pub struct ExistentialDeposit;
+    impl Get<u128> for ExistentialDeposit {
+        fn get() -> u128 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+        }
+    }
+    impl Get<u64> for ExistentialDeposit {
+        fn get() -> u64 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow() as u64)
+        }
     }
 
     // For testing the module, we construct most of a mock runtime. This means
@@ -268,31 +287,49 @@ mod tests {
     // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type Digest = Digest;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
-        type Log = DigestItem;
-    }
-    impl balances::Trait for Test {
-        type Balance = u128;
-        type OnFreeBalanceZero = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+        type ModuleToIndex = ();
+        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
-        type TransactionPayment = ();
-        type TransferPayment = ();
+        type OnKilledAccount = ();
+    }
+
+    impl balances::Trait for Test {
+        type Balance = Balance;
         type DustRemoval = ();
         type Event = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = system::Module<Test>;
+    }
+
+    parameter_types! {
+        pub const MinimumPeriod: u64 = 5;
     }
     impl timestamp::Trait for Test {
         type Moment = u64;
         type OnTimestampSet = ();
+        type MinimumPeriod = MinimumPeriod;
     }
     impl Trait for Test {
         type Event = ();
@@ -300,123 +337,124 @@ mod tests {
 
     type TokenModule = Module<Test>;
 
-    // const TOKEN_NAME: &[u8; 4] = b"DOOM";
+    const TOKEN_NAME: &[u8; 4] = b"DOOM";
     const TOKEN_SHORT_NAME: &[u8; 1] = b"T";
     const TOKEN_LONG_NAME: &[u8; 34] = b"nobody_really_want_such_long_token";
     const USER1: u64 = 1;
     const USER2: u64 = 2;
+    const TOKEN_ID: u32 = 0;
 
-    // This function basically just builds a genesis storage key/value store according to
-    // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        let mut r = system::GenesisConfig::<Test>::default()
-            .build_storage()
-            .unwrap()
-            .0;
+    pub struct ExtBuilder {
+        existential_deposit: u128,
+    }
 
-        r.extend(
-            balances::GenesisConfig::<Test> {
-                balances: vec![(USER1, 100000), (USER2, 300000)],
-                vesting: vec![],
-                transaction_base_fee: 1,
-                transaction_byte_fee: 1,
+    impl Default for ExtBuilder {
+        fn default() -> Self {
+            Self {
                 existential_deposit: 500,
-                transfer_fee: 1,
-                creation_fee: 1,
             }
-            .build_storage()
-            .unwrap()
-            .0,
-        );
+        }
+    }
 
-        r.extend(
-            GenesisConfig::<Test> {
+    impl ExtBuilder {
+        pub fn set_associated_consts(&self) {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
+        }
+        pub fn build(self) -> sp_io::TestExternalities {
+            self.set_associated_consts();
+            let mut storage = system::GenesisConfig::default()
+                .build_storage::<Test>()
+                .unwrap();
+
+            let _ = balances::GenesisConfig::<Test> {
+                balances: vec![(USER1, 100000), (USER2, 300000)],
+            }
+            .assimilate_storage(&mut storage);
+            let _ = GenesisConfig {
                 tokens: vec![Token {
                     id: 0,
                     decimals: 18,
-                    symbol: Vec::from("TOKEN"),
+                    symbol: TOKEN_NAME.to_vec(),
                 }],
-                _genesis_phantom_data: Default::default(),
             }
-            .build_storage()
-            .unwrap()
-            .0,
-        );
+            .assimilate_storage(&mut storage);
 
-        r.into()
+            let ext = sp_io::TestExternalities::from(storage);
+            ext
+        }
     }
 
     #[test]
     fn new_token_mint_works() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_ok!(TokenModule::check_token_exist(
-                &TokenModule::tokens(0).symbol
+                &TokenModule::token_map(TOKEN_ID).symbol
             ));
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_eq!(TokenModule::total_supply(0), 1000);
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), 1000);
         })
     }
 
     #[test]
     fn new_token_mint_and_burn_works() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_ok!(TokenModule::check_token_exist(
-                &TokenModule::tokens(0).symbol
+                &TokenModule::token_map(TOKEN_ID).symbol
             ));
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
 
-            assert_ok!(TokenModule::_burn(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
+            assert_ok!(TokenModule::_burn(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 0);
         })
     }
 
     #[test]
     fn token_transfer_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
         })
     }
     #[test]
     fn token_lock_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_ok!(TokenModule::lock(0, USER2, 400));
-            assert_eq!(TokenModule::locked((0, USER2)), 400);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
+            assert_ok!(TokenModule::lock(TOKEN_ID, USER2, 400));
+            assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 400);
         })
     }
 
     #[test]
     fn token_unlock_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
-            assert_ok!(TokenModule::lock(0, USER2, 400));
-            assert_eq!(TokenModule::locked((0, USER2)), 400);
-            assert_ok!(TokenModule::unlock(0, &USER2, 400));
-            assert_eq!(TokenModule::locked((0, USER2)), 0);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
+            assert_ok!(TokenModule::lock(TOKEN_ID, USER2, 400));
+            assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 400);
+            assert_ok!(TokenModule::unlock(TOKEN_ID, &USER2, 400));
+            assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 0);
         })
     }
 
     #[test]
     fn token_transfer_not_enough() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
             assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
-            assert_eq!(TokenModule::balance_of((0, USER1)), 300);
-            assert_eq!(TokenModule::locked((0, USER2)), 0);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
+            assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 0);
             assert_noop!(
                 TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
                 "User does not have enough tokens"
@@ -425,28 +463,28 @@ mod tests {
     }
     #[test]
     fn token_transfer_burn_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
 
-            assert_ok!(TokenModule::_burn(0, USER2, 300));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 700);
+            assert_ok!(TokenModule::_burn(TOKEN_ID, USER2, 300));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
         })
     }
     #[test]
     fn token_transfer_burn_all_works() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(TokenModule::_mint(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 1000);
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
 
-            assert_ok!(TokenModule::_burn(0, USER2, 1000));
-            assert_eq!(TokenModule::balance_of((0, USER2)), 0);
+            assert_ok!(TokenModule::_burn(TOKEN_ID, USER2, 1000));
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 0);
         })
     }
 
     #[test]
     fn new_token_symbol_len_failed() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_noop!(
                 TokenModule::validate_name(&TOKEN_SHORT_NAME.to_vec()),
                 "The token symbol is too short"
@@ -455,7 +493,6 @@ mod tests {
                 TokenModule::validate_name(&TOKEN_LONG_NAME.to_vec()),
                 "The token symbol is too long"
             );
-            assert_eq!(TokenModule::count(), 0);
         })
     }
 }
