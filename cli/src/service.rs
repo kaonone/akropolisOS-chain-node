@@ -37,6 +37,7 @@ use sp_runtime::traits::Block as BlockT;
 use node_executor::NativeExecutor;
 use sc_network::NetworkService;
 use sc_offchain::OffchainWorkers;
+// use sp_blockchain::{HeaderMetadata, HeaderBackend};
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -87,7 +88,6 @@ macro_rules! new_full_start {
 				import_setup = Some((block_import, grandpa_link, babe_link));
 				Ok(import_queue)
 			})?;
-			// TODO: enable RpcExtension
 			// .with_rpc_extensions(|builder| -> Result<RpcExtension, _> {
 			// 	let babe_link = import_setup.as_ref().map(|s| &s.2)
 			// 		.expect("BabeLink is present for full services or set up failed; qed.");
@@ -348,22 +348,22 @@ pub fn new_light(config: Configuration)
 			let provider = client as Arc<dyn StorageAndProofProvider<_, _>>;
 			Ok(Arc::new(GrandpaFinalityProofProvider::new(backend, provider)) as _)
 		})?
-		.with_rpc_extensions(|builder,| ->
-			Result<RpcExtension, _>
-		{
-			let fetcher = builder.fetcher()
-				.ok_or_else(|| "Trying to start node RPC without active fetcher")?;
-			let remote_blockchain = builder.remote_backend()
-				.ok_or_else(|| "Trying to start node RPC without active remote blockchain")?;
+		// .with_rpc_extensions(|builder,| ->
+		// 	Result<RpcExtension, _>
+		// {
+		// 	let fetcher = builder.fetcher()
+		// 		.ok_or_else(|| "Trying to start node RPC without active fetcher")?;
+		// 	let remote_blockchain = builder.remote_backend()
+		// 		.ok_or_else(|| "Trying to start node RPC without active remote blockchain")?;
 
-			let light_deps = node_rpc::LightDeps {
-				remote_blockchain,
-				fetcher,
-				client: builder.client().clone(),
-				pool: builder.pool(),
-			};
-			Ok(node_rpc::create_light(light_deps))
-		})?
+		// 	let light_deps = node_rpc::LightDeps {
+		// 		remote_blockchain,
+		// 		fetcher,
+		// 		client: builder.client().clone(),
+		// 		pool: builder.pool(),
+		// 	};
+		// 	Ok(node_rpc::create_light(light_deps))
+		// })?
 		.build()?;
 
 	Ok(service)
