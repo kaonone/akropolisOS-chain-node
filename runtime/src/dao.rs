@@ -8,7 +8,7 @@ use frame_support::{
     },
     StorageMap, StorageValue,
 };
-use sp_runtime::traits::{Bounded, Hash, Zero};
+use sp_runtime::traits::{Hash, Zero};
 use sp_std::prelude::Vec;
 use system::ensure_signed;
 
@@ -30,33 +30,33 @@ pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + syste
 // This module's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as DaoStorage {
-        Daos get(daos): map hasher(blake2_256) DaoId => Dao<T::AccountId>;
-        DaosCount get(daos_count): Count;
-        DaoNames get(dao_names): map hasher(blake2_256) T::Hash => DaoId;
-        DaoAddresses get(dao_addresses): map hasher(blake2_256) T::AccountId => DaoId;
-        DaoTimeouts get(dao_timeouts): map hasher(blake2_256) DaoId => T::BlockNumber;
-        DaoMaximumNumberOfMembers get(dao_maximum_number_of_members): map hasher(blake2_256) DaoId => MemberId;
-        Address get(address): map hasher(blake2_256) DaoId => T::AccountId;
+        Daos get(fn daos): map hasher(opaque_blake2_256) DaoId => Dao<T::AccountId>;
+        DaosCount get(fn daos_count): Count;
+        DaoNames get(fn dao_names): map hasher(opaque_blake2_256) T::Hash => DaoId;
+        DaoAddresses get(fn dao_addresses): map hasher(opaque_blake2_256) T::AccountId => DaoId;
+        DaoTimeouts get(fn dao_timeouts): map hasher(opaque_blake2_256) DaoId => T::BlockNumber;
+        DaoMaximumNumberOfMembers get(fn dao_maximum_number_of_members): map hasher(opaque_blake2_256) DaoId => MemberId;
+        Address get(fn address): map hasher(opaque_blake2_256) DaoId => T::AccountId;
 
-        MinumumNumberOfMebers get(minimum_number_of_members) config(): MemberId = 1;
-        MaximumNumberOfMebers get(maximum_number_of_members) config(): MemberId = 4;
-        Members get(members): map hasher(blake2_256) (DaoId, MemberId) => T::AccountId;
-        MembersCount get(members_count): map hasher(blake2_256) DaoId => MemberId;
-        DaoMembers get(dao_members): map hasher(blake2_256) (DaoId, T::AccountId) => MemberId;
+        MinumumNumberOfMebers get(fn minimum_number_of_members) config(): MemberId = 1;
+        MaximumNumberOfMebers get(fn maximum_number_of_members) config(): MemberId = 4;
+        Members get(fn members): map hasher(opaque_blake2_256) (DaoId, MemberId) => T::AccountId;
+        MembersCount get(fn members_count): map hasher(opaque_blake2_256) DaoId => MemberId;
+        DaoMembers get(fn dao_members): map hasher(opaque_blake2_256) (DaoId, T::AccountId) => MemberId;
 
-        DaoProposals get(dao_proposals): map hasher(blake2_256) (DaoId, ProposalId) => Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, VotesCount>;
-        DaoProposalsCount get(dao_proposals_count): map hasher(blake2_256) DaoId => ProposalId;
-        DaoProposalsIndex get(dao_proposals_index): map hasher(blake2_256) ProposalId => DaoId;
+        DaoProposals get(fn dao_proposals): map hasher(opaque_blake2_256) (DaoId, ProposalId) => Proposal<DaoId, T::AccountId, T::Balance, T::BlockNumber, VotesCount>;
+        DaoProposalsCount get(fn dao_proposals_count): map hasher(opaque_blake2_256) DaoId => ProposalId;
+        DaoProposalsIndex get(fn dao_proposals_index): map hasher(opaque_blake2_256) ProposalId => DaoId;
 
-        DaoProposalsVotes get(dao_proposals_votes): map hasher(blake2_256) (DaoId, ProposalId, MemberId) => T::AccountId;
-        DaoProposalsVotesCount get(dao_proposals_votes_count): map hasher(blake2_256) (DaoId, ProposalId) => MemberId;
-        DaoProposalsVotesIndex get(dao_proposals_votes_index): map hasher(blake2_256) (DaoId, ProposalId, T::AccountId) => MemberId;
+        DaoProposalsVotes get(fn dao_proposals_votes): map hasher(opaque_blake2_256) (DaoId, ProposalId, MemberId) => T::AccountId;
+        DaoProposalsVotesCount get(fn dao_proposals_votes_count): map hasher(opaque_blake2_256) (DaoId, ProposalId) => MemberId;
+        DaoProposalsVotesIndex get(fn dao_proposals_votes_index): map hasher(opaque_blake2_256) (DaoId, ProposalId, T::AccountId) => MemberId;
 
-        OpenDaoProposalsLimit get(open_proposals_per_block) config(): u32 = 2;
-        OpenDaoProposals get(open_dao_proposals): map hasher(blake2_256) T::BlockNumber => Vec<ProposalId>;
-        OpenDaoProposalsIndex get(open_dao_proposals_index): map hasher(blake2_256) ProposalId => T::BlockNumber;
-        OpenDaoProposalsHashes get(open_dao_proposals_hashes): map hasher(blake2_256) T::Hash => ProposalId;
-        OpenDaoProposalsHashesIndex get(open_dao_proposals_hashes_index): map hasher(blake2_256) ProposalId => T::Hash;
+        OpenDaoProposalsLimit get(fn open_proposals_per_block) config(): u32 = 2;
+        OpenDaoProposals get(fn open_dao_proposals): map hasher(opaque_blake2_256) T::BlockNumber => Vec<ProposalId>;
+        OpenDaoProposalsIndex get(fn open_dao_proposals_index): map hasher(opaque_blake2_256) ProposalId => T::BlockNumber;
+        OpenDaoProposalsHashes get(fn open_dao_proposals_hashes): map hasher(opaque_blake2_256) T::Hash => ProposalId;
+        OpenDaoProposalsHashesIndex get(fn open_dao_proposals_hashes_index): map hasher(opaque_blake2_256) ProposalId => T::Hash;
     }
 }
 
@@ -612,9 +612,8 @@ impl<T: Trait> Module<T> {
     fn withdraw_from_dao_balance_is_valid(dao_id: DaoId, value: T::Balance) -> DispatchResult {
         let dao_address = <Address<T>>::get(dao_id);
         let dao_balance = <balances::Account<T>>::get(dao_address).free;
-        let allowed_dao_balance = dao_balance
-            - <T as balances::Trait>::ExistentialDeposit::get();
-            // - <T as balances::Trait>::TransferFee::get();
+        let allowed_dao_balance = dao_balance - <T as balances::Trait>::ExistentialDeposit::get();
+        // - <T as balances::Trait>::TransferFee::get();
         ensure!(allowed_dao_balance > value, "DAO balance is not sufficient");
 
         Ok(())
@@ -690,17 +689,33 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
-    use runtime_io::with_externalities;
-    use sp_runtime::{
-        testing::{Digest, DigestItem, Header},
-        traits::{BlakeTwo256, IdentityLookup},
-        BuildStorage,
+    use frame_support::{
+        assert_noop, assert_ok, impl_outer_origin, parameter_types,
+        traits::{Get, ReservableCurrency},
+        weights::Weight,
     };
-    use support::{assert_noop, assert_ok, impl_outer_origin, traits::ReservableCurrency};
+    use sp_core::H256;
+    use sp_runtime::{
+        testing::Header,
+        traits::{BlakeTwo256, IdentityLookup},
+        Perbill,
+    };
+    use std::cell::RefCell;
+
+    pub type Balance = u128;
+
+    thread_local! {
+        static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
+    }
 
     impl_outer_origin! {
         pub enum Origin for Test {}
+    }
+    pub struct ExistentialDeposit;
+    impl Get<u128> for ExistentialDeposit {
+        fn get() -> u128 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+        }
     }
 
     // For testing the module, we construct most of a mock runtime. This means
@@ -708,31 +723,49 @@ mod tests {
     // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type Digest = Digest;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
-        type Log = DigestItem;
-    }
-    impl balances::Trait for Test {
-        type Balance = u128;
-        type OnFreeBalanceZero = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+        type ModuleToIndex = ();
+        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
-        type TransactionPayment = ();
-        type TransferPayment = ();
+        type OnKilledAccount = ();
+    }
+
+    impl balances::Trait for Test {
+        type Balance = Balance;
         type DustRemoval = ();
         type Event = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = system::Module<Test>;
+    }
+
+    parameter_types! {
+        pub const MinimumPeriod: u64 = 5;
     }
     impl timestamp::Trait for Test {
         type Moment = u64;
         type OnTimestampSet = ();
+        type MinimumPeriod = MinimumPeriod;
     }
     impl marketplace::Trait for Test {
         type Event = ();
@@ -760,45 +793,51 @@ mod tests {
     const DAYS: Days = 365;
     const RATE: Rate = 1000;
     const VALUE: u128 = 1_000_000;
-    const VOTE_TIMEOUT: u64 = MINIMUM_VOTE_TIOMEOUT + 1;
-    const VERY_SMALL_VOTE_TIMEOUT: u64 = MINIMUM_VOTE_TIOMEOUT - 1;
-    const VERY_BIG_VOTE_TIMEOUT: u64 = MAXIMUM_VOTE_TIMEOUT + 1;
+    const VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT + 1;
+    const VERY_SMALL_VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT - 1;
+    const VERY_BIG_VOTE_TIMEOUT: u32 = MAXIMUM_VOTE_TIMEOUT + 1;
 
-    // This function basically just builds a genesis storage key/value store according to
-    // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        let mut r = system::GenesisConfig::<Test>::default()
-            .build_storage()
-            .unwrap()
-            .0;
+    pub struct ExtBuilder {
+        existential_deposit: u128,
+    }
 
-        r.extend(
-            balances::GenesisConfig::<Test> {
+    impl Default for ExtBuilder {
+        fn default() -> Self {
+            Self {
+                existential_deposit: 500,
+            }
+        }
+    }
+
+    impl ExtBuilder {
+        pub fn set_associated_consts(&self) {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
+        }
+        pub fn build(self) -> sp_io::TestExternalities {
+            self.set_associated_consts();
+            let mut storage = system::GenesisConfig::default()
+                .build_storage::<Test>()
+                .unwrap();
+
+            let _ = balances::GenesisConfig::<Test> {
                 balances: vec![
                     (USER, 100_000),
-                    (DAO, 0),
+                    (DAO, 500),
                     (NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE),
                     (USER3, 300_000),
-                    (EMPTY_USER, 0),
+                    (EMPTY_USER, 500),
                 ],
-                vesting: vec![],
-                transaction_base_fee: 0,
-                transaction_byte_fee: 0,
-                existential_deposit: 500,
-                transfer_fee: 0,
-                creation_fee: 0,
             }
-            .build_storage()
-            .unwrap()
-            .0,
-        );
+            .assimilate_storage(&mut storage);
 
-        r.into()
+            let ext = sp_io::TestExternalities::from(storage);
+            ext
+        }
     }
 
     #[test]
     fn create_dao_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const MEMBER_ID: MemberId = 0;
 
@@ -820,7 +859,7 @@ mod tests {
 
     #[test]
     fn create_dao_case_founder_address_match_dao_address() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(
@@ -837,7 +876,7 @@ mod tests {
 
     #[test]
     fn dao_name_is_very_short() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(
@@ -854,7 +893,7 @@ mod tests {
 
     #[test]
     fn dao_name_has_invalid_chars() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const ASCII_CODE_OF_PLUS: u8 = 43;
 
             let mut name = DAO_NAME.to_vec();
@@ -871,7 +910,7 @@ mod tests {
 
     #[test]
     fn dao_name_is_very_long() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const ASCII_CODE_OF_A: u8 = 97;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -890,7 +929,7 @@ mod tests {
 
     #[test]
     fn dao_description_is_very_short() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(
@@ -907,7 +946,7 @@ mod tests {
 
     #[test]
     fn dao_description_is_very_long() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const ASCII_CODE_OF_A: u8 = 97;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -926,7 +965,7 @@ mod tests {
 
     #[test]
     fn dao_address_already_busy() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -949,7 +988,7 @@ mod tests {
 
     #[test]
     fn dao_name_already_exists() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -972,7 +1011,7 @@ mod tests {
 
     #[test]
     fn create_case_free_balance_is_not_0() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::create(
@@ -989,7 +1028,7 @@ mod tests {
 
     #[test]
     fn create_case_reserved_balance_is_not_0() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(Balances::reserve(&NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE));
             assert_noop!(
@@ -1007,7 +1046,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1029,7 +1068,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_this_dao_not_exists() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1042,7 +1081,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_you_already_are_a_member_of_this_dao() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1063,7 +1102,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_dao_can_not_be_a_member_of_other_dao() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const DAO_ID2: DaoId = 0;
 
@@ -1092,7 +1131,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_maximum_number_of_members_is_reached() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1116,7 +1155,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_this_proposal_already_open() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1141,7 +1180,7 @@ mod tests {
 
     #[test]
     fn propose_to_add_member_case_maximum_number_of_open_proposals_is_reached() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1170,7 +1209,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1194,7 +1233,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_case_this_dao_not_exists() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1207,7 +1246,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_case_you_already_are_not_member() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1227,7 +1266,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_case_you_are_the_latest_member() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1247,7 +1286,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_case_this_proposal_already_open() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1273,7 +1312,7 @@ mod tests {
 
     #[test]
     fn propose_to_remove_member_case_maximum_number_of_open_proposals_is_reached() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1305,7 +1344,7 @@ mod tests {
 
     #[test]
     fn propose_to_get_loan_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1332,7 +1371,7 @@ mod tests {
 
     #[test]
     fn propose_to_get_loan_case_this_dao_not_exists() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1352,7 +1391,7 @@ mod tests {
 
     #[test]
     fn propose_to_get_loan_case_you_already_are_not_member() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1379,7 +1418,7 @@ mod tests {
 
     #[test]
     fn propose_to_get_loan_case_this_proposal_already_open() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1416,7 +1455,7 @@ mod tests {
 
     #[test]
     fn propose_to_get_loan_case_maximum_number_of_open_proposals_is_reached() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1462,7 +1501,7 @@ mod tests {
 
     #[test]
     fn vote_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1499,7 +1538,7 @@ mod tests {
 
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_yes() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1560,7 +1599,7 @@ mod tests {
 
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_no() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const NO: bool = false;
@@ -1621,7 +1660,7 @@ mod tests {
 
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_members_voted() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const NO: bool = false;
@@ -1685,7 +1724,7 @@ mod tests {
 
     #[test]
     fn vote_case_you_are_not_member_of_this_dao() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1707,7 +1746,7 @@ mod tests {
 
     #[test]
     fn vote_case_this_proposal_not_exists() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1729,7 +1768,7 @@ mod tests {
 
     #[test]
     fn vote_case_you_voted_already() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1761,7 +1800,7 @@ mod tests {
 
     #[test]
     fn vote_case_this_proposal_is_not_open() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1793,7 +1832,7 @@ mod tests {
 
     #[test]
     fn vote_case_maximum_number_of_members_is_reached() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1837,7 +1876,7 @@ mod tests {
 
     #[test]
     fn deposit_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1859,7 +1898,7 @@ mod tests {
 
     #[test]
     fn deposit_should_fail_not_enough() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
@@ -1897,7 +1936,7 @@ mod tests {
 
     #[test]
     fn withdraw_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const AMOUNT2: u128 = 3000;
             const ADD_MEMBER1: ProposalId = 0;
@@ -1951,7 +1990,7 @@ mod tests {
 
     #[test]
     fn change_vote_timeout_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
             const CHANGE_TIMEOUT: ProposalId = 1;
@@ -1988,7 +2027,7 @@ mod tests {
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
                 Origin::signed(USER2),
                 dao_id,
-                VOTE_TIMEOUT
+                VOTE_TIMEOUT.into()
             ));
             assert_ok!(DaoModule::vote(
                 Origin::signed(USER),
@@ -2009,7 +2048,7 @@ mod tests {
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
                 Origin::signed(USER2),
                 dao_id,
-                MINIMUM_VOTE_TIOMEOUT
+                MINIMUM_VOTE_TIOMEOUT.into()
             ));
             assert_ok!(DaoModule::vote(
                 Origin::signed(USER),
@@ -2029,7 +2068,7 @@ mod tests {
 
     #[test]
     fn change_vote_timeout_case_new_vote_timeout_equal_current_vote_timeout() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
             const YES: bool = true;
@@ -2065,7 +2104,7 @@ mod tests {
                 DaoModule::propose_to_change_vote_timeout(
                     Origin::signed(USER2),
                     dao_id,
-                    MINIMUM_VOTE_TIOMEOUT
+                    MINIMUM_VOTE_TIOMEOUT.into()
                 ),
                 "new vote timeout equal current vote timeout"
             );
@@ -2074,7 +2113,7 @@ mod tests {
 
     #[test]
     fn change_vote_timeout_case_new_voting_timeout_is_very_small() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
             const YES: bool = true;
@@ -2109,7 +2148,7 @@ mod tests {
                 DaoModule::propose_to_change_vote_timeout(
                     Origin::signed(USER2),
                     dao_id,
-                    VERY_SMALL_VOTE_TIMEOUT
+                    VERY_SMALL_VOTE_TIMEOUT.into()
                 ),
                 "The vote timeout must be not less 30 blocks"
             );
@@ -2118,7 +2157,7 @@ mod tests {
 
     #[test]
     fn change_vote_timeout_case_new_voting_timeout_is_very_big() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const ADD_MEMBER1: ProposalId = 0;
             const YES: bool = true;
@@ -2153,7 +2192,7 @@ mod tests {
                 DaoModule::propose_to_change_vote_timeout(
                     Origin::signed(USER2),
                     dao_id,
-                    VERY_BIG_VOTE_TIMEOUT
+                    VERY_BIG_VOTE_TIMEOUT.into()
                 ),
                 "The vote timeout must be not more 777600 blocks"
             );
@@ -2162,7 +2201,7 @@ mod tests {
 
     #[test]
     fn change_maximum_number_of_members_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const PROPOSAL_ID: ProposalId = 0;
             const PROPOSAL_ID2: ProposalId = 1;
             const YES: bool = true;
@@ -2216,7 +2255,7 @@ mod tests {
     #[test]
     fn change_maximum_number_of_members_case_current_number_of_members_more_than_new_maximum_number_of_members(
     ) {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with( || {
             const PROPOSAL_ID: ProposalId = 0;
             const YES: bool = true;
 
@@ -2255,7 +2294,7 @@ mod tests {
     #[test]
     fn change_maximum_number_of_members_case_new_maximum_number_of_members_equal_current_maximum_number_of_members(
     ) {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -2280,7 +2319,7 @@ mod tests {
 
     #[test]
     fn change_maximum_number_of_members_case_new_maximum_number_of_members_is_very_small() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -2304,7 +2343,7 @@ mod tests {
 
     #[test]
     fn change_maximum_number_of_members_case_new_voting_timeout_is_very_big() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -2329,7 +2368,7 @@ mod tests {
 
     #[test]
     fn withdraw_should_not_work_not_enough_votes() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const AMOUNT2: u128 = 3000;
             const ADD_MEMBER: ProposalId = 0;
@@ -2383,7 +2422,7 @@ mod tests {
 
     #[test]
     fn withdraw_case_direct_withdraw_forbidden() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
             const AMOUNT2: u128 = AMOUNT - 1000;
 
@@ -2411,7 +2450,7 @@ mod tests {
 
     #[test]
     fn remove_member_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
