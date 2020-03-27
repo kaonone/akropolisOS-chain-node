@@ -132,36 +132,10 @@ where
 
 }
 
-// /// A type representing all RPC extensions.
-// pub type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
-
-// /// Instantiate all RPC extensions.
-// pub fn create_full<C, P, UE>(client: Arc<C>, pool: Arc<P>) -> RpcExtension where
-// 	C: ProvideRuntimeApi<Block>,
-// 	C: sc_client::blockchain::HeaderBackend<Block>,
-// 	C: Send + Sync + 'static,
-// 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-// 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance, UE>,
-// 	P: TransactionPool + Sync + Send + 'static,
-// 	UE: codec::Codec + Send + Sync + 'static,
-// {
-// 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
-// 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-
-// 	let mut io = jsonrpc_core::IoHandler::default();
-// 	io.extend_with(
-// 		SystemApi::to_delegate(FullSystem::new(client.clone(), pool))
-// 	);
-// 	io.extend_with(
-// 		TransactionPaymentApi::to_delegate(TransactionPayment::new(client))
-// 	);
-// 	io
-// }
-
 /// Instantiate all Light RPC extensions.
 pub fn create_light<C, P, M, F>(deps: LightDeps<C, F, P>) -> jsonrpc_core::IoHandler<M>
 where
-    C: sc_client::blockchain::HeaderBackend<Block>,
+    C: HeaderBackend<Block>,
     C: Send + Sync + 'static,
     F: sc_client::light::fetcher::Fetcher<Block> + 'static,
     P: TransactionPool + 'static,
