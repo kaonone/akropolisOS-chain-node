@@ -679,12 +679,7 @@ impl token::Trait for Runtime {
 
 
 /// We need to define the Transaction signer for that using the Key definition
-type SubmitUnsignedPFTransaction = system::offchain::TransactionSubmitter<
-    price_fetch::crypto::Public,
-    Runtime,
-    UncheckedExtrinsic,
->;
-type SubmitSignedPFTransaction = system::offchain::TransactionSubmitter<
+type SubmitPricefetchTransaction = system::offchain::TransactionSubmitter<
     price_fetch::crypto::Public,
     Runtime,
     UncheckedExtrinsic,
@@ -698,8 +693,8 @@ parameter_types! {
 impl price_fetch::Trait for Runtime {
     type Event = Event;
     type Call = Call;
-    type SubmitUnsignedTransaction = SubmitUnsignedPFTransaction;
-    type SubmitSignedTransaction = SubmitSignedPFTransaction;
+    type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
+    // type SubmitSignedTransaction = SubmitPricefetchTransaction;
     type BlockFetchPeriod = BlockFetchPeriod;
     type GracePeriod = GracePeriod;
 }
@@ -739,10 +734,10 @@ construct_runtime!(
 		Recovery: pallet_recovery::{Module, Call, Storage, Event<T>},
 		Vesting: pallet_vesting::{Module, Call, Storage, Event<T>, Config<T>},
 		// Akropolis pallets
+		Token: token::{Module, Call, Storage, Config, Event<T>},
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Config, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-		Token: token::{Module, Call, Storage, Config, Event<T>},
 		PriceFetch: price_fetch::{Module, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
