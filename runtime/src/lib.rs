@@ -58,12 +58,13 @@ pub use constants::{currency::*, time::*};
 pub mod types;
 pub use types::*;
 
-// pub mod bridge;
-// mod dao;
-// mod marketplace;
-// mod price_fetch;
-// mod token;
-// pub use bridge::Call as BridgeCall;
+mod dao;
+mod token;
+mod marketplace;
+pub mod bridge;
+pub use bridge::Call as BridgeCall;
+
+mod price_fetch;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -104,11 +105,11 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("node-template"),
-    impl_name: create_runtime_str!("node-template"),
-    authoring_version: 1,
-    spec_version: 1,
-    impl_version: 1,
+    spec_name: create_runtime_str!("akropolisos-node"),
+    impl_name: create_runtime_str!("akropolisos-node"),
+    authoring_version: 2,
+    spec_version: 2,
+    impl_version: 2,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -660,47 +661,49 @@ impl pallet_vesting::Trait for Runtime {
 	type MinVestedTransfer = MinVestedTransfer;
 }
 
-// impl dao::Trait for Runtime {
-//     type Event = Event;
-// }
+impl bridge::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl marketplace::Trait for Runtime {
-//     type Event = Event;
-// }
+impl dao::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl token::Trait for Runtime {
-//     type Event = Event;
-// }
+impl marketplace::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl bridge::Trait for Runtime {
-//     type Event = Event;
-// }
+impl token::Trait for Runtime {
+    type Event = Event;
+}
 
-// /// We need to define the Transaction signer for that using the Key definition
-// type SubmitUnsignedPFTransaction = system::offchain::TransactionSubmitter<
-//     price_fetch::crypto::Public,
-//     Runtime,
-//     UncheckedExtrinsic,
-// >;
-// type SubmitSignedPFTransaction = system::offchain::TransactionSubmitter<
-//     price_fetch::crypto::Public,
-//     Runtime,
-//     UncheckedExtrinsic,
-// >;
 
-// parameter_types! {
-//     pub const BlockFetchPeriod: BlockNumber = 2;
-//     pub const GracePeriod: BlockNumber = 5;
-// }
+/// We need to define the Transaction signer for that using the Key definition
+type SubmitUnsignedPFTransaction = system::offchain::TransactionSubmitter<
+    price_fetch::crypto::Public,
+    Runtime,
+    UncheckedExtrinsic,
+>;
+type SubmitSignedPFTransaction = system::offchain::TransactionSubmitter<
+    price_fetch::crypto::Public,
+    Runtime,
+    UncheckedExtrinsic,
+>;
 
-// impl price_fetch::Trait for Runtime {
-//     type Event = Event;
-//     type Call = Call;
-//     type SubmitUnsignedTransaction = SubmitUnsignedPFTransaction;
-//     type SubmitSignedTransaction = SubmitSignedPFTransaction;
-//     type BlockFetchPeriod = BlockFetchPeriod;
-//     type GracePeriod = GracePeriod;
-// }
+parameter_types! {
+    pub const BlockFetchPeriod: BlockNumber = 2;
+    pub const GracePeriod: BlockNumber = 5;
+}
+
+impl price_fetch::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type SubmitUnsignedTransaction = SubmitUnsignedPFTransaction;
+    type SubmitSignedTransaction = SubmitSignedPFTransaction;
+    type BlockFetchPeriod = BlockFetchPeriod;
+    type GracePeriod = GracePeriod;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -735,6 +738,12 @@ construct_runtime!(
 		Society: pallet_society::{Module, Call, Storage, Event<T>, Config<T>},
 		Recovery: pallet_recovery::{Module, Call, Storage, Event<T>},
 		Vesting: pallet_vesting::{Module, Call, Storage, Event<T>, Config<T>},
+		// Akropolis pallets
+        Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
+		Dao: dao::{Module, Call, Storage, Config, Event<T>},
+		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
+		Token: token::{Module, Call, Storage, Config, Event<T>},
+		PriceFetch: price_fetch::{Module, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
 
@@ -1027,37 +1036,5 @@ mod tests {
 
 		is_submit_signed_transaction::<SubmitTransaction>();
 		is_sign_and_submit_transaction::<SubmitTransaction>();
-	}
-
-	#[test]
-	fn block_hooks_weight_should_not_exceed_limits() {
-		use frame_support::weights::WeighBlock;
-		let check_for_block = |b| {
-			let block_hooks_weight =
-				<AllModules as WeighBlock<BlockNumber>>::on_initialize(b) +
-				<AllModules as WeighBlock<BlockNumber>>::on_finalize(b);
-
-			assert_eq!(
-				block_hooks_weight,
-				0,
-				"This test might fail simply because the value being compared to has increased to a \
-				module declaring a new weight for a hook or call. In this case update the test and \
-				happily move on.",
-			);
-
-			// Invariant. Always must be like this to have a sane chain.
-			assert!(block_hooks_weight < MaximumBlockWeight::get());
-
-			// Warning.
-			if block_hooks_weight > MaximumBlockWeight::get() / 2 {
-				println!(
-					"block hooks weight is consuming more than a block's capacity. You probably want \
-					to re-think this. This test will fail now."
-				);
-				assert!(false);
-			}
-		};
-
-		let _ = (0..100_000).for_each(check_for_block);
 	}
 }
