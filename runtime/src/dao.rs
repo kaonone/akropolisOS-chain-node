@@ -12,17 +12,24 @@ use sp_runtime::traits::{Hash, Zero};
 use sp_std::prelude::Vec;
 use system::ensure_signed;
 
-use crate::marketplace;
 use crate::types::{
-    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, VotesCount,
+    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, TokenId, VotesCount,
 };
+use crate::{marketplace, price_fetch, token};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
 const MINIMUM_VOTE_TIOMEOUT: u32 = 30; // ~5 min
 const MAXIMUM_VOTE_TIMEOUT: u32 = 3 * 30 * 24 * 60 * 6; // ~90 days
 
 /// The module's configuration trait.
-pub trait Trait: marketplace::Trait + balances::Trait + timestamp::Trait + system::Trait {
+pub trait Trait:
+    marketplace::Trait
+    + token::Trait
+    + balances::Trait
+    + timestamp::Trait
+    + system::Trait
+    + price_fetch::Trait
+{
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
@@ -92,6 +99,8 @@ decl_module! {
             let dao_id = daos_count;
 
             let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
+            // debug::info!("DAO DEPOSIT: {:?}", dao_deposit);
+
             <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, WithdrawReasons::all());
 
@@ -194,6 +203,49 @@ decl_module! {
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
 
             Self::deposit_event(RawEvent::ProposeToRemoveMember(dao_id, candidate, voting_deadline));
+            Ok(())
+        }
+
+        pub fn propose_to_get_tokenized_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
+            let proposer = ensure_signed(origin)?;
+
+            let proposal_hash = ("propose_to_get_token_loan", &proposer, dao_id, token_id)
+                .using_encoded(<T as system::Trait>::Hashing::hash);
+            let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
+            let mut open_proposals = Self::open_dao_proposals(voting_deadline);
+
+            Self::validate_description(&description)?;
+            ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
+            ensure!(<DaoMembers<T>>::contains_key((dao_id, proposer.clone())), "You already are not a member of this DAO");
+            ensure!(!<OpenDaoProposalsHashes<T>>::contains_key(proposal_hash), "This proposal already open");
+            let len = open_proposals.len() as u32;
+            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+
+            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
+            let new_dao_proposals_count = dao_proposals_count
+                .checked_add(1)
+                .ok_or("Overflow adding a new DAO proposal")?;
+
+            let proposal = Proposal {
+                dao_id,
+                action: Action::GetTokenizedLoan(description, days, rate, token_id, value),
+                open: true,
+                accepted: false,
+                voting_deadline,
+                yes_count: 0,
+                no_count: 0
+            };
+            let proposal_id = dao_proposals_count;
+            open_proposals.push(proposal_id);
+
+            <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
+            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
+            <DaoProposalsIndex>::insert(proposal_id, dao_id);
+            <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
+            <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
+            <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
+
+            Self::deposit_event(RawEvent::ProposeToGetLoan(dao_id, proposer, days, rate, value, voting_deadline));
             Ok(())
         }
 
@@ -419,7 +471,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
+        pub fn deposit(origin, dao_id: DaoId, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
             ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
@@ -429,7 +481,7 @@ decl_module! {
             <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
             <balances::Module<T>>::set_lock(LOCK_NAME, &dao_address, <balances::Account<T>>::get(&dao_address).free, WithdrawReasons::all());
 
-            Self::deposit_event(RawEvent::NewDeposit(depositor, dao_address, value));
+            Self::deposit_event(RawEvent::NewDeposit(depositor, dao_address, token_id, value));
 
             Ok(())
         }
@@ -461,7 +513,7 @@ decl_event!(
         AccountId = <T as system::Trait>::AccountId,
         BlockNumber = <T as system::Trait>::BlockNumber,
     {
-        NewDeposit(AccountId, AccountId, Balance),
+        NewDeposit(AccountId, AccountId, TokenId, Balance),
         DaoCreated(AccountId, AccountId, Vec<u8>),
         NewVote(DaoId, ProposalId, AccountId, bool),
         ProposalIsAccepted(DaoId, ProposalId),
@@ -582,14 +634,38 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn propose_to_investment(
+    fn propose_tokenized_investment(
+        dao_id: DaoId,
+        description: Vec<u8>,
+        days: Days,
+        rate: Rate,
+        token_id: TokenId,
+        value: T::Balance,
+    ) -> DispatchResult {
+        let token = <token::Module<T>>::token_map(token_id);
+        //TODO: take last price instead of average?..
+        let price = <price_fetch::Module<T>>::aggregated_prices(token.symbol)
+            .1
+            .into();
+        <marketplace::Module<T>>::propose_tokenized_investment(
+            dao_id,
+            description,
+            days,
+            rate,
+            token_id,
+            price,
+            value,
+        )
+    }
+
+    fn propose_investment(
         dao_id: DaoId,
         description: Vec<u8>,
         days: Days,
         rate: Rate,
         value: T::Balance,
     ) -> DispatchResult {
-        <marketplace::Module<T>>::propose_to_investment(dao_id, description, days, rate, value)
+        <marketplace::Module<T>>::propose_investment(dao_id, description, days, rate, value)
     }
 
     fn change_timeout(dao_id: DaoId, timeout: T::BlockNumber) -> DispatchResult {
@@ -665,13 +741,23 @@ impl<T: Trait> Module<T> {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_member(proposal.dao_id, member.clone()),
-            Action::GetLoan(description, days, rate, value) => Self::propose_to_investment(
+            Action::GetLoan(description, days, rate, value) => Self::propose_investment(
                 proposal.dao_id,
                 description.to_vec(),
                 *days,
                 *rate,
                 *value,
             ),
+            Action::GetTokenizedLoan(description, days, rate, token, value) => {
+                Self::propose_tokenized_investment(
+                    proposal.dao_id,
+                    description.to_vec(),
+                    *days,
+                    *rate,
+                    *token,
+                    *value,
+                )
+            }
             Action::Withdraw(member, amount, ..) => {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
             }
@@ -702,6 +788,7 @@ mod tests {
     };
     use std::cell::RefCell;
 
+    pub type BlockNumber = u64;
     pub type Balance = u128;
 
     thread_local! {
@@ -733,7 +820,7 @@ mod tests {
         type Origin = Origin;
         type Call = ();
         type Index = u64;
-        type BlockNumber = u64;
+        type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
         type AccountId = u64;
@@ -770,6 +857,18 @@ mod tests {
     impl marketplace::Trait for Test {
         type Event = ();
     }
+    impl token::Trait for Test {
+        type Event = ();
+    }
+
+    impl price_fetch::Trait for Runtime {
+        type Event = Event;
+        type Call = Call;
+        type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
+        type BlockFetchPeriod = BlockFetchPeriod;
+        type GracePeriod = GracePeriod;
+    }
+    
     impl Trait for Test {
         type Event = ();
     }
@@ -796,6 +895,7 @@ mod tests {
     const VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT + 1;
     const VERY_SMALL_VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT - 1;
     const VERY_BIG_VOTE_TIMEOUT: u32 = MAXIMUM_VOTE_TIMEOUT + 1;
+    const TOKEN_ID: TokenId = 0;
 
     pub struct ExtBuilder {
         existential_deposit: u128,
@@ -1363,6 +1463,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
@@ -1382,6 +1483,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "This DAO not exists"
@@ -1409,6 +1511,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "You already are not a member of this DAO"
@@ -1437,6 +1540,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_noop!(
@@ -1446,6 +1550,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "This proposal already open"
@@ -1475,6 +1580,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_ok!(DaoModule::propose_to_get_loan(
@@ -1483,6 +1589,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_noop!(
@@ -1492,6 +1599,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "Maximum number of open proposals is reached for the target block, try later"
@@ -1890,7 +1998,12 @@ mod tests {
             assert_eq!(DaoModule::daos_count(), 1);
             assert_eq!(Balances::free_balance(DAO), 500);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
 
             assert_eq!(Balances::free_balance(DAO), 5500);
         })
@@ -1928,7 +2041,7 @@ mod tests {
 
             assert_eq!(Balances::free_balance(DAO), 500);
             assert_noop!(
-                DaoModule::deposit(Origin::signed(EMPTY_USER), dao_id, AMOUNT),
+                DaoModule::deposit(Origin::signed(EMPTY_USER), dao_id, TOKEN_ID, AMOUNT),
                 "balance too low to send value"
             );
         })
@@ -1967,7 +2080,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
 
             assert_ok!(DaoModule::propose_to_withdraw(
@@ -2021,7 +2139,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
             let old_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
@@ -2097,7 +2220,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
 
             assert_noop!(
@@ -2142,7 +2270,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
@@ -2186,7 +2319,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
@@ -2399,7 +2537,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
 
             assert_ok!(DaoModule::propose_to_withdraw(
@@ -2437,7 +2580,12 @@ mod tests {
 
             assert_eq!(Balances::free_balance(DAO), 500);
             assert_eq!(DaoModule::daos_count(), 1);
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_ok!(DaoModule::deposit(
+                Origin::signed(USER),
+                dao_id,
+                TOKEN_ID,
+                AMOUNT
+            ));
             assert_eq!(Balances::free_balance(DAO), 5500);
 
             assert_noop!(

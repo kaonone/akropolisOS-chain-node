@@ -1,7 +1,9 @@
-use frame_support::{decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue};
-use system::ensure_signed;
+use crate::types::{DaoId, Days, Rate, TokenBalance, TokenId};
+use frame_support::{
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue,
+};
 use sp_std::prelude::Vec;
-use crate::types::{DaoId, Days, Rate};
+use system::ensure_signed;
 
 /// The module's configuration trait.
 pub trait Trait: balances::Trait + system::Trait {
@@ -33,18 +35,38 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn propose_to_investment(
+    pub fn propose_investment(
         dao_id: DaoId,
         description: Vec<u8>,
         days: Days,
         rate: Rate,
         value: T::Balance,
     ) -> DispatchResult {
-        Self::deposit_event(RawEvent::ProposeToInvestment(
+        Self::deposit_event(RawEvent::ProposeInvestment(
             dao_id,
             description,
             days,
             rate,
+            value,
+        ));
+        Ok(())
+    }
+    pub fn propose_tokenized_investment(
+        dao_id: DaoId,
+        description: Vec<u8>,
+        days: Days,
+        rate: Rate,
+        token: TokenId,
+        price: TokenBalance,
+        value: T::Balance,
+    ) -> DispatchResult {
+        Self::deposit_event(RawEvent::ProposeTokenizedInvestment(
+            dao_id,
+            description,
+            days,
+            rate,
+            token,
+            price,
             value,
         ));
         Ok(())
@@ -58,7 +80,8 @@ decl_event!(
         Balance = <T as balances::Trait>::Balance,
     {
         NewInvsetment(u64, AccountId),
-        ProposeToInvestment(DaoId, Vec<u8>, Days, Rate, Balance),
+        ProposeInvestment(DaoId, Vec<u8>, Days, Rate, Balance),
+        ProposeTokenizedInvestment(DaoId, Vec<u8>, Days, Rate, TokenId, TokenBalance, Balance),
     }
 );
 
@@ -71,7 +94,11 @@ mod tests {
         assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
     };
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::{IdentityLookup, BlakeTwo256}, Perbill};
+    use sp_runtime::{
+        testing::Header,
+        traits::{BlakeTwo256, IdentityLookup},
+        Perbill,
+    };
     use std::cell::RefCell;
 
     pub type Balance = u128;
@@ -195,6 +222,7 @@ mod tests {
         const DAO_ID: DaoId = 11;
         const DAYS: Days = 181;
         const RATE: Rate = 1000;
+        const TOKEN: TokenId = 0;
         const VALUE: u128 = 42;
 
         ExtBuilder::default().build().execute_with(|| {
@@ -203,6 +231,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN,
                 VALUE
             ));
         });

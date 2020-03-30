@@ -62,6 +62,7 @@ pub enum Action<AccountId, Balance, Timeout> {
     EmptyAction,
     AddMember(AccountId),
     RemoveMember(AccountId),
+    GetTokenizedLoan(Vec<u8>, Days, Rate, TokenId, Balance), //TODO: keep the loan price here?
     GetLoan(Vec<u8>, Days, Rate, Balance),
     Withdraw(AccountId, Balance, Vec<u8>),
     ChangeTimeout(DaoId, Timeout),
