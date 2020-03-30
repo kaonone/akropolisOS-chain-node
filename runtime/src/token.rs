@@ -39,8 +39,8 @@ decl_storage! {
             config.tokens.clone()
         }): Vec<Token>;
         pub TokenMap get(fn token_map) build(|config: &GenesisConfig| {
-            config.tokens.clone().into_iter().enumerate()
-            .map(|(i, t): (usize, Token)| (i as u32, t)).collect::<Vec<_>>()
+            config.tokens.clone().into_iter()
+            .map(|t: Token| (t.id as u32, t)).collect::<Vec<_>>()
         }): map hasher(opaque_blake2_256) TokenId => Token;
         pub TokenIds get(fn token_id_by_symbol) build(|config: &GenesisConfig| {
             config.tokens.clone().into_iter().map(|t: Token| (t.symbol, t.id)).collect::<Vec<_>>()
@@ -64,10 +64,10 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        fn burn(origin, from: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult {
+        fn burn(origin, from: T::AccountId, token_id: TokenId, #[compact] amount: TokenBalance) -> DispatchResult {
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <TokenMap>::get(0);
+            let token = <TokenMap>::get(token_id);
             Self::check_token_exist(&token.symbol)?;
             Self::_burn(0, from.clone(), amount)?;
             Self::deposit_event(RawEvent::Burn(from, amount));
@@ -76,10 +76,10 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        fn mint(origin, to: T::AccountId, #[compact] amount: TokenBalance) -> DispatchResult{
+        fn mint(origin, to: T::AccountId, token_id: TokenId, #[compact] amount: TokenBalance) -> DispatchResult{
             ensure_signed(origin)?;
             // TODO: replace this by adding it to extrinsics call    ^
-            let token = <TokenMap>::get(0);
+            let token = <TokenMap>::get(token_id);
             Self::check_token_exist(&token.symbol)?;
             Self::_mint(token.id, to.clone(), amount)?;
             Self::deposit_event(RawEvent::Mint(to.clone(), amount));
@@ -94,26 +94,26 @@ decl_module! {
 
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
+            token_id: TokenId,
             #[compact] amount: TokenBalance
         ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
             ensure!(!amount.is_zero(), "Transfer Amount should be non-zero");
 
-            let id = <TokenMap>::get(0).id;
-            Self::make_transfer(id, sender, to, amount)?;
+            Self::make_transfer(token_id, sender, to, amount)?;
             Ok(())
         }
 
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
+            token_id: TokenId,
             #[compact] value: TokenBalance
         ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            let id = <TokenMap>::get(0).id;
-            <Allowance<T>>::insert((id,sender.clone(), spender.clone()), value);
+            <Allowance<T>>::insert((token_id, sender.clone(), spender.clone()), value);
 
             Self::deposit_event(RawEvent::Approval(sender, spender, value));
             Ok(())
@@ -122,19 +122,18 @@ decl_module! {
         fn transfer_from(origin,
             from: T::AccountId,
             to: T::AccountId,
+            token_id: TokenId,
             #[compact] value: TokenBalance
         ) -> DispatchResult{
             let sender = ensure_signed(origin)?;
-            let id = <TokenMap>::get(0).id;
-            let allowance = Self::allowance_of((id, from.clone(), sender.clone()));
+            let allowance = Self::allowance_of((token_id, from.clone(), sender.clone()));
 
             let updated_allowance = allowance.checked_sub(value).ok_or("Underflow in calculating allowance")?;
 
 
-            let id = <TokenMap>::get(0).id;
-            Self::make_transfer(id, from.clone(), to.clone(), value)?;
+            Self::make_transfer(token_id, from.clone(), to.clone(), value)?;
 
-            <Allowance<T>>::insert((id, from, sender), updated_allowance);
+            <Allowance<T>>::insert((token_id, from, sender), updated_allowance);
             Ok(())
         }
 
@@ -258,7 +257,11 @@ mod tests {
         assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
     };
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::{IdentityLookup, BlakeTwo256}, Perbill};
+    use sp_runtime::{
+        testing::Header,
+        traits::{BlakeTwo256, IdentityLookup},
+        Perbill,
+    };
     use std::cell::RefCell;
 
     pub type Balance = u128;
