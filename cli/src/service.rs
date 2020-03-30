@@ -1,19 +1,3 @@
-// Copyright 2018-2020 Parity Technologies (UK) Ltd.
-// This file is part of Substrate.
-
-// Substrate is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Substrate is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-
 #![warn(unused_extern_crates)]
 
 //! Service implementation. Specialized wrapper over substrate service.
@@ -46,7 +30,7 @@ use sc_offchain::OffchainWorkers;
 macro_rules! new_full_start {
 	($config:expr) => {{
 		use std::sync::Arc;
-		type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+		// type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 		let mut import_setup = None;
 		let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
@@ -295,7 +279,7 @@ pub fn new_full(config: Configuration)
 /// Builds a new service for a light client.
 pub fn new_light(config: Configuration)
 -> Result<impl AbstractService, ServiceError> {
-	type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+	// type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 	let inherent_data_providers = InherentDataProviders::new();
 
 	let service = ServiceBuilder::new_light::<Block, RuntimeApi, node_executor::Executor>(config)?
