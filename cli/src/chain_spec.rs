@@ -1,10 +1,10 @@
 use akropolisos_runtime::types::Token;
 use akropolisos_runtime::{
-    constants::currency::*, AccountId, AuthorityDiscoveryConfig, BabeConfig, Balance, BridgeConfig,
-    BalancesConfig, Block, ContractsConfig, CouncilConfig, DemocracyConfig, GenesisConfig,
-    GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys, Signature,
-    SocietyConfig, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-    TokenConfig, WASM_BINARY,
+    constants::currency::*, AccountId, AuthorityDiscoveryConfig, BabeConfig, Balance,
+    BalancesConfig, Block, BridgeConfig, ContractsConfig, CouncilConfig, DemocracyConfig,
+    GenesisConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys,
+    Signature, SocietyConfig, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+    TechnicalCommitteeConfig, TokenConfig, WASM_BINARY,
 };
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
@@ -40,10 +40,6 @@ pub struct Extensions {
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
-/// Flaming Fir testnet generator
-pub fn flaming_fir_config() -> Result<ChainSpec, String> {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos.json")[..])
-}
 
 fn session_keys(
     grandpa: GrandpaId,
@@ -59,7 +55,13 @@ fn session_keys(
     }
 }
 
-fn staging_testnet_config_genesis() -> GenesisConfig {
+// generate genesis from file
+#[allow(unused)]
+fn akropolis_genesis() -> Result<ChainSpec, String> {
+    ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos.json")[..])
+}
+
+fn akropolisos_staging_genesis() -> GenesisConfig {
     // stash, controller, session-key
     // generated with secret:
     // for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
@@ -166,7 +168,7 @@ pub fn staging_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Akropolis OS Staging Testnet",
         "akropolisos_staging_testnet",
-        staging_testnet_config_genesis,
+        akropolisos_staging_genesis,
         boot_nodes,
         Some(TelemetryEndpoints::new(vec![(
             STAGING_TELEMETRY_URL.to_string(),
@@ -249,6 +251,16 @@ pub fn testnet_genesis(
             id: 1,
             decimals: 18,
             symbol: Vec::from("cDAI"),
+        },
+        Token {
+            id: 2,
+            decimals: 18,
+            symbol: Vec::from("USDT"),
+        },
+        Token {
+            id: 3,
+            decimals: 18,
+            symbol: Vec::from("USDC"),
         },
     ];
     let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
@@ -383,7 +395,7 @@ fn development_config_genesis() -> GenesisConfig {
 pub fn development_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Development",
-        "dev",
+        "akropolisos_dev",
         development_config_genesis,
         vec![],
         None,
@@ -409,7 +421,7 @@ fn local_testnet_genesis() -> GenesisConfig {
 pub fn local_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Local Testnet",
-        "local_testnet",
+        "akropolisos_local_testnet",
         local_testnet_genesis,
         vec![],
         None,
@@ -489,116 +501,6 @@ pub(crate) mod tests {
     }
 }
 
-// fn testnet_genesis(
-//     initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
-//     root_key: AccountId,
-//     endowed_accounts: Vec<AccountId>,
-//     _enable_println: bool,
-// ) -> GenesisConfig {
-//     let bridge_validators = vec![
-//         get_account_id_from_seed::<sr25519::Public>(
-//             "3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753",
-//         ), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
-//         get_account_id_from_seed::<sr25519::Public>(
-//             "1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77",
-//         ), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
-//         get_account_id_from_seed::<sr25519::Public>(
-//             "2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58",
-//         ), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
-//     ];
-//     let tokens = vec![
-//         Token {
-//             id: 0,
-//             decimals: 18,
-//             symbol: Vec::from("DAI"),
-//         },
-//         Token {
-//             id: 1,
-//             decimals: 18,
-//             symbol: Vec::from("cDAI"),
-//         },
-//     ];
-//     GenesisConfig {
-//         system: Some(SystemConfig {
-//             code: WASM_BINARY.to_vec(),
-//             changes_trie_config: Default::default(),
-//         }),
-//         indices: Some(IndicesConfig {
-//             ids: endowed_accounts.clone(),
-//         }),
-//         balances: Some(BalancesConfig {
-//             balances: endowed_accounts
-//                 .iter()
-//                 .cloned()
-//                 .map(|k| (k, 1 << 60))
-//                 .collect(),
-//             vesting: vec![],
-//         }),
-//         sudo: Some(SudoConfig { key: root_key }),
-//         // session: Some(SessionConfig {
-//         // 	validators: endowed_accounts.clone(),
-//         // 	keys: endowed_accounts.iter().cloned().zip(initial_authorities.clone()).collect(),
-//         // 	session_length: 6
-//         // }),
-//         // staking: Some(StakingConfig {
-//         // 	validator_count: 5, // The ideal number of staking participants.
-//         // 	minimum_validator_count: 1, // Minimum number of staking participants before emergency conditions are imposed
-//         // 	sessions_per_era: 5, // The length of a staking era in sessions.
-//         // 	session_reward: Perbill::from_millionths(10_000), // Maximum reward, per validator, that is provided per acceptable session.
-//         // 	offline_slash: Perbill::from_percent(50_000), // Slash, per validator that is taken for the first time they are found to be offline.
-//         // 	offline_slash_grace: 3, // Number of instances of offline reports before slashing begins for validators.
-//         // 	bonding_duration: 30, // The length of the bonding duration in blocks.
-//         // 	invulnerables: vec![], // Any validators that may never be slashed or forcibly kicked.
-//         // 	stakers: vec![], // This is keyed by the stash account.
-//         // 	current_era: 0, // The current era index.
-//         // 	current_session_reward: 10, // Maximum reward, per validator, that is provided per acceptable session.
-//         // }),
-//         // democracy: Some(DemocracyConfig {
-//         // 	launch_period: 1440, // How often (in blocks) new public referenda are launched.
-//         // 	minimum_deposit: 10_000, // The minimum amount to be used as a deposit for a public referendum proposal.
-//         // 	public_delay: 5, // The delay before enactment for all public referenda.
-//         // 	max_lock_periods: 60, // The maximum number of additional lock periods a voter may offer to strengthen their vote.
-//         // 	voting_period: 144, // How often (in blocks) to check for new votes.
-//         // }),
-//         aura: Some(AuraConfig {
-//             authorities: initial_authorities.iter().map(|x| (x.1.clone())).collect(),
-//         }),
-//         grandpa: Some(GrandpaConfig {
-//             authorities: initial_authorities
-//                 .iter()
-//                 .cloned()
-//                 .map(|x| (x.2, 1))
-//                 .collect(),
-//         }),
-//         // contract: Some(ContractConfig {
-//         // 	transfer_fee: 100, // The fee required to make a transfer.
-//         // 	creation_fee: 100, // The fee required to create an account.
-//         // 	transaction_base_fee: 21, // The fee to be paid for making a transaction; the base.
-//         // 	transaction_byte_fee: 1, // The fee to be paid for making a transaction; the per-byte portion.
-//         // 	contract_fee: 21, // The fee required to create a contract instance.
-//         // 	call_base_fee: 135, // The base fee charged for calling into a contract.
-//         // 	create_base_fee: 175, // The base fee charged for creating a contract.
-//         // 	gas_price: 1, // The price of one unit of gas.
-//         // 	max_depth: 100, // The maximum nesting level of a call/create stack.
-//         // 	block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
-//         // 	current_schedule: Schedule::default(), // Current cost schedule for contracts.
-//         // }),
-//         bridge: Some(BridgeConfig {
-//             validator_accounts: bridge_validators,
-//             validators_count: 3u32,
-//             current_limits: vec![
-//                 100 * 10u128.pow(18),
-//                 200 * 10u128.pow(18),
-//                 50 * 10u128.pow(18),
-//                 400 * 10u128.pow(18),
-//                 10 * 10u128.pow(18),
-//             ],
-//         }),
-//         dao: None,
-//         token: Some(TokenConfig { tokens }),
-//     }
-// }
-
 // // fn akropolis_genesis() -> Result<ChainSpec, String> {
 // // 	ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
 // // }
@@ -641,103 +543,3 @@ pub(crate) mod tests {
 //             "2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58",
 //         ), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
 //     ];
-//     let tokens = vec![
-//         Token {
-//             id: 0,
-//             decimals: 18,
-//             symbol: Vec::from("DAI"),
-//         },
-//         Token {
-//             id: 1,
-//             decimals: 18,
-//             symbol: Vec::from("cDAI"),
-//         },
-//     ];
-
-//     const DEV: u128 = 1_000_000_000_000_000;
-//     const ENDOWMENT: u128 = 4_000_000 * DEV;
-//     const STASH: u128 = 10 * DEV;
-
-//     GenesisConfig {
-//         system: Some(SystemConfig {
-//             code: WASM_BINARY.to_vec(),
-//             changes_trie_config: Default::default(),
-//         }),
-//         indices: Some(IndicesConfig {
-//             ids: endowed_accounts.clone(),
-//         }),
-//         balances: Some(BalancesConfig {
-//             balances: endowed_accounts
-//                 .iter()
-//                 .cloned()
-//                 .map(|x| (x, ENDOWMENT))
-//                 .chain(initial_authorities.iter().cloned().map(|x| (x.0, STASH)))
-//                 .collect(),
-//             vesting: vec![],
-//         }),
-//         sudo: Some(SudoConfig {
-//             key: endowed_accounts[0].clone(),
-//         }),
-//         // session: Some(SessionConfig {
-//         // 	validators: initial_authorities.iter().cloned().map(|x| x.1).collect(),
-//         // 	keys: initial_authorities.iter().cloned().map(|x| (x.1, x.2)).collect(),
-//         // 	session_length: 6
-//         // }),
-//         // staking: Some(StakingConfig {
-//         // 	validator_count: 5, // The ideal number of staking participants.
-//         // 	minimum_validator_count: 1, // Minimum number of staking participants before emergency conditions are imposed
-//         // 	sessions_per_era: 5, // The length of a staking era in sessions.
-//         // 	session_reward: Perbill::from_millionths(10_000), // Maximum reward, per validator, that is provided per acceptable session.
-//         // 	offline_slash: Perbill::from_percent(50_000), // Slash, per validator that is taken for the first time they are found to be offline.
-//         // 	offline_slash_grace: 3, // Number of instances of offline reports before slashing begins for validators.
-//         // 	bonding_duration: 30, // The length of the bonding duration in blocks.
-//         // 	invulnerables: initial_authorities.iter().cloned().map(|x| x.1).collect(), // Any validators that may never be slashed or forcibly kicked.
-//         // 	stakers: initial_authorities.iter().cloned().map(|x| (x.0, x.1, STASH, StakerStatus::Validator)).collect(), // This is keyed by the stash account.
-//         // 	current_era: 0, // The current era index.
-//         // 	current_session_reward: 10, // Maximum reward, per validator, that is provided per acceptable session.
-//         // }),
-//         // democracy: Some(DemocracyConfig {
-//         // 	launch_period: 1440, // How often (in blocks) new public referenda are launched.
-//         // 	minimum_deposit: 10_000, // The minimum amount to be used as a deposit for a public referendum proposal.
-//         // 	public_delay: 5, // The delay before enactment for all public referenda.
-//         // 	max_lock_periods: 60, // The maximum number of additional lock periods a voter may offer to strengthen their vote.
-//         // 	voting_period: 144, // How often (in blocks) to check for new votes.
-//         // }),
-//         aura: Some(AuraConfig {
-//             authorities: initial_authorities.iter().map(|x| x.1.clone()).collect(),
-//         }),
-//         grandpa: Some(GrandpaConfig {
-//             authorities: initial_authorities
-//                 .iter()
-//                 .cloned()
-//                 .map(|x| (x.2, 1))
-//                 .collect(),
-//         }),
-//         // contract: Some(ContractConfig {
-//         // 	transfer_fee: 100, // The fee required to make a transfer.
-//         // 	creation_fee: 100, // The fee required to create an account.
-//         // 	transaction_base_fee: 21, // The fee to be paid for making a transaction; the base.
-//         // 	transaction_byte_fee: 1, // The fee to be paid for making a transaction; the per-byte portion.
-//         // 	contract_fee: 21, // The fee required to create a contract instance.
-//         // 	call_base_fee: 135, // The base fee charged for calling into a contract.
-//         // 	create_base_fee: 175, // The base fee charged for creating a contract.
-//         // 	gas_price: 1, // The price of one unit of gas.
-//         // 	max_depth: 100, // The maximum nesting level of a call/create stack.
-//         // 	block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
-//         // 	current_schedule: Schedule::default(), // Current cost schedule for contracts.
-//         // }),
-//         bridge: Some(BridgeConfig {
-//             validator_accounts: bridge_validators,
-//             validators_count: 3u32,
-//             current_limits: vec![
-//                 100 * 10u128.pow(18),
-//                 200 * 10u128.pow(18),
-//                 50 * 10u128.pow(18),
-//                 400 * 10u128.pow(18),
-//                 10 * 10u128.pow(18),
-//             ],
-//         }),
-//         dao: None,
-//         token: Some(TokenConfig { tokens }),
-//     }
-// }
