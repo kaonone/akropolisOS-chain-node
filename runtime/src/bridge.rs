@@ -1,10 +1,16 @@
-/// runtime module implementing Substrate side of PolkadaiBridge token exchange bridge
+/// Runtime module implementing Substrate side of PolkadaiBridge token exchange bridge
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
 ///
 /// KNOWN BUGS:
 ///     1. Tests can fail with assert_noop! bug: fails through different root hashes
 ///        solution: use assert_eq!(expr, Err("Error string")) explicitly
+///
+/// Conventions:
+///      0 - DAI
+///      1 - cDAI
+///      2 - USDT
+///      3 - USDC
 ///
 use crate::token;
 use crate::types::*;
@@ -41,7 +47,7 @@ decl_event!(
     }
 );
 
-pub trait Trait: token::Trait + system::Trait + timestamp::Trait {
+pub trait Trait: token::Trait + balances::Trait + system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
@@ -64,8 +70,8 @@ decl_storage! {
         }): Limits;
 
         // open transactions
-        CurrentPendingBurn get(fn pending_burn_count): u128;
-        CurrentPendingMint get(fn pending_mint_count): u128;
+        CurrentPendingBurn get(fn pending_burn_count): TokenBalance;
+        CurrentPendingMint get(fn pending_mint_count): TokenBalance;
 
         BridgeTransfers get(fn transfers): map hasher(opaque_blake2_256) ProposalId => BridgeTransfer<T::Hash>;
         BridgeTransfersCount get(fn bridge_transfers_count): ProposalId;
@@ -89,7 +95,7 @@ decl_storage! {
     }
 
     add_extra_genesis{
-        config(current_limits): Vec<u128>;
+        config(current_limits): Vec<TokenBalance>;
     }
 }
 
@@ -710,8 +716,8 @@ impl<T: Trait> Module<T> {
     }
 
     fn check_limits(limits: &Limits) -> Result<()> {
-        let max = u128::max_value();
-        let min = u128::min_value();
+        let max = TokenBalance::max_value();
+        let min = TokenBalance::min_value();
         let passed = limits
             .into_array()
             .iter()
@@ -768,6 +774,7 @@ mod tests {
     };
     use std::cell::RefCell;
 
+    pub type BlockNumber = u64;
     pub type Balance = u128;
 
     thread_local! {
@@ -799,7 +806,7 @@ mod tests {
         type Origin = Origin;
         type Call = ();
         type Index = u64;
-        type BlockNumber = u64;
+        type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
         type AccountId = u64;
