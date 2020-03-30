@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-node'
-version = '0.4.0'
+version = '0.5.0'
 
 [dependencies]
 error-chain = '0.12'
