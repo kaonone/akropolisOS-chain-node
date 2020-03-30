@@ -1,11 +1,9 @@
 [package]
 name = "node-inspect"
 version = "0.8.0-alpha.5"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors = ['Akropolis <admin@akropolis.io>']
 edition = "2018"
-license = "GPL-3.0"
-homepage = "https://substrate.dev"
-repository = "https://github.com/paritytech/substrate/"
+license = "MIT"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.2.0" }
