@@ -4,7 +4,7 @@ version = "2.0.0-alpha.5"
 authors = ['Akropolis <admin@akropolis.io>']
 description = "Test utilities for Substrate node."
 edition = "2018"
-license = "GPL-3.0"
+license = "MIT"
 
 [dependencies]
 pallet-balances = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git'}

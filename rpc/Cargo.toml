@@ -3,7 +3,7 @@ name = "node-rpc"
 version = "2.0.0-alpha.5"
 authors = ['Akropolis <admin@akropolis.io>']
 edition = "2018"
-license = "GPL-3.0"
+license = "MIT"
 
 [dependencies]
 sc-client = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
