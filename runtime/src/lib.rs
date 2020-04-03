@@ -64,7 +64,7 @@ mod marketplace;
 mod token;
 pub use bridge::Call as BridgeCall;
 
-mod price_fetch;
+mod price_oracle;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -688,7 +688,7 @@ impl token::Trait for Runtime {
 
 /// We need to define the Transaction signer for that using the Key definition
 type SubmitPricefetchTransaction = system::offchain::TransactionSubmitter<
-    price_fetch::crypto::Public,
+    price_oracle::crypto::Public,
     Runtime,
     UncheckedExtrinsic,
 >;
@@ -698,7 +698,7 @@ parameter_types! {
     pub const GracePeriod: BlockNumber = 5;
 }
 
-impl price_fetch::Trait for Runtime {
+impl price_oracle::Trait for Runtime {
     type Event = Event;
     type Call = Call;
     type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
@@ -746,7 +746,7 @@ construct_runtime!(
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Config, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-		PriceFetch: price_fetch::{Module, Call, Storage, Event<T>, ValidateUnsigned},
+		PriceOracle: price_oracle::{Module, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
 

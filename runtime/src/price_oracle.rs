@@ -115,7 +115,7 @@ decl_event!(
 
 // This module's storage items.
 decl_storage! {
-  trait Store for Module<T: Trait> as PriceFetch {
+  trait Store for Module<T: Trait> as PriceOracle {
     // mapping of token symbol -> (timestamp, price)
     //   price has been inflated by 10,000, and in USD.
     //   When used, it should be divided by 10,000.
@@ -388,9 +388,7 @@ impl<T: Trait> Module<T> {
     //         core::str::from_utf8(symbol).unwrap(),
     //         core::str::from_utf8(remote_src).unwrap()
     //     );
-
     //     let json = Self::fetch_json(remote_url)?;
-
     //     let price = match remote_src {
     //         src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
     //             .map_err(|_| "fetch_price_from_coingecko error"),
@@ -401,7 +399,6 @@ impl<T: Trait> Module<T> {
     //             .map_err(|_| "fetch_price_from_cryptocompare error"),
     //         _ => Err("Unknown remote source"),
     //     }?;
-
     //     if !T::SubmitSignedTransaction::can_sign() {
     //         debug::error!(
     //             "No local accounts available. Consider adding one via `author_insertKey` RPC."
@@ -411,7 +408,6 @@ impl<T: Trait> Module<T> {
     //             (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
     //             price,
     //         );
-
     //         // Using `SubmitSignedTransaction` associated type we create and submit a transaction
     //         // representing the call, we've just created.
     //         // Submit signed will return a vector of results for all accounts that were found in the
@@ -457,7 +453,7 @@ impl<T: Trait> Module<T> {
             (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
             price,
         );
-        // Unsigned tx
+        
         T::SubmitUnsignedTransaction::submit_unsigned(call)
             .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
         Ok(())
@@ -607,7 +603,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     /// tests for this module
     // Test cases:
     //  1. record_price if called store item in storage
@@ -631,7 +627,7 @@ mod tests {
 
     impl_outer_dispatch! {
       pub enum Call for Test where origin: Origin {
-        price_fetch::PriceFetchModule,
+        price_fetch::PriceOracleModule,
       }
     }
 
@@ -679,7 +675,7 @@ mod tests {
     type SubmitPFTransaction =
         system::offchain::TransactionSubmitter<crypto::Public, Call, Extrinsic>;
 
-    pub type PriceFetchModule = Module<Test>;
+    pub type PriceOracleModule = Module<Test>;
 
     parameter_types! {
         pub const BlockFetchPeriod: BlockNumber = 2;
