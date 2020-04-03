@@ -1,4 +1,4 @@
-/// runtime module implementing the ERC20 token factory API
+/// Runtime module implementing the ERC20 token factory API
 /// You can use mint to create tokens or burn created tokens
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///
@@ -419,7 +419,7 @@ mod tests {
             assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
+            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, TOKEN_ID, 300));
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
         })
@@ -454,12 +454,12 @@ mod tests {
             assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, 300));
+            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, TOKEN_ID, 300));
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
             assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 0);
             assert_noop!(
-                TokenModule::transfer(Origin::signed(USER2), USER1, 1300),
+                TokenModule::transfer(Origin::signed(USER2), USER1, TOKEN_ID, 1300),
                 "User does not have enough tokens"
             );
         })

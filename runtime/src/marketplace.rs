@@ -5,9 +5,7 @@ use frame_support::{
 use sp_std::prelude::Vec;
 use system::ensure_signed;
 
-/// The module's configuration trait.
 pub trait Trait: balances::Trait + system::Trait {
-    /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
@@ -218,20 +216,39 @@ mod tests {
     }
 
     #[test]
-    fn propose_to_investment_should_work() {
+    fn propose_investment_should_work() {
+        const DAO_ID: DaoId = 11;
+        const DAYS: Days = 181;
+        const RATE: Rate = 1000;
+        const VALUE: u128 = 42;
+
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(Marketplace::propose_investment(
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                VALUE
+            ));
+        });
+    }
+    #[test]
+    fn propose_tokenized_investment_should_work() {
         const DAO_ID: DaoId = 11;
         const DAYS: Days = 181;
         const RATE: Rate = 1000;
         const TOKEN: TokenId = 0;
+        const TOKEN_PRICE: TokenBalance = 1;
         const VALUE: u128 = 42;
 
         ExtBuilder::default().build().execute_with(|| {
-            assert_ok!(Marketplace::propose_to_investment(
+            assert_ok!(Marketplace::propose_tokenized_investment(
                 DAO_ID,
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
                 TOKEN,
+                TOKEN_PRICE,
                 VALUE
             ));
         });
