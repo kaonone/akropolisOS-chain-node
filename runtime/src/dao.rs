@@ -15,28 +15,26 @@ use system::ensure_signed;
 use crate::types::{
     Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, TokenId, VotesCount,
 };
-use crate::{marketplace, price_fetch, token};
+use crate::{marketplace, price_oracle, token};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
 const MINIMUM_VOTE_TIOMEOUT: u32 = 30; // ~5 min
 const MAXIMUM_VOTE_TIMEOUT: u32 = 3 * 30 * 24 * 60 * 6; // ~90 days
 
-/// The module's configuration trait.
 pub trait Trait:
     marketplace::Trait
     + token::Trait
     + balances::Trait
     + timestamp::Trait
     + system::Trait
-    + price_fetch::Trait
+    + price_oracle::Trait
 {
-    /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 // This module's storage items.
 decl_storage! {
-    trait Store for Module<T: Trait> as DaoStorage {
+    trait Store for Module<T: Trait> as Dao {
         Daos get(fn daos): map hasher(opaque_blake2_256) DaoId => Dao<T::AccountId>;
         DaosCount get(fn daos_count): Count;
         DaoNames get(fn dao_names): map hasher(opaque_blake2_256) T::Hash => DaoId;
@@ -99,7 +97,6 @@ decl_module! {
             let dao_id = daos_count;
 
             let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
-            // debug::info!("DAO DEPOSIT: {:?}", dao_deposit);
 
             <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, WithdrawReasons::all());
@@ -644,7 +641,7 @@ impl<T: Trait> Module<T> {
     ) -> DispatchResult {
         let token = <token::Module<T>>::token_map(token_id);
         //TODO: take last price instead of average?..
-        let price = <price_fetch::Module<T>>::aggregated_prices(token.symbol)
+        let price = <price_oracle::Module<T>>::aggregated_prices(token.symbol)
             .1
             .into();
         <marketplace::Module<T>>::propose_tokenized_investment(
@@ -776,13 +773,13 @@ mod tests {
     use super::*;
 
     use frame_support::{
-        assert_noop, assert_ok, impl_outer_origin, parameter_types,
+        assert_noop, assert_ok, impl_outer_origin, impl_outer_dispatch,parameter_types,
         traits::{Get, ReservableCurrency},
         weights::Weight,
     };
     use sp_core::H256;
     use sp_runtime::{
-        testing::Header,
+        testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
         Perbill,
     };
@@ -798,6 +795,15 @@ mod tests {
     impl_outer_origin! {
         pub enum Origin for Test {}
     }
+
+    use price_oracle::tests::PriceOracleModule;
+    impl_outer_dispatch! {
+        pub enum Call for Test where origin: Origin {
+        // DaoModule,
+        PriceOracleModule,
+        }
+    }
+
     pub struct ExistentialDeposit;
     impl Get<u128> for ExistentialDeposit {
         fn get() -> u128 {
@@ -810,6 +816,7 @@ mod tests {
     // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
         pub const MaximumBlockWeight: Weight = 1024;
@@ -861,14 +868,26 @@ mod tests {
         type Event = ();
     }
 
-    impl price_fetch::Trait for Runtime {
-        type Event = Event;
-        type Call = Call;
-        type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
-        type BlockFetchPeriod = BlockFetchPeriod;
-        type GracePeriod = GracePeriod;
+    pub type Extrinsic = TestXt<Call, ()>;
+    type SubmitPFTransaction =
+        system::offchain::TransactionSubmitter<price_oracle::crypto::Public, Call, Extrinsic>;
+
+    parameter_types! {
+        pub const BlockFetchPeriod: BlockNumber = 2;
+        pub const GracePeriod: BlockNumber = 5;
     }
-    
+
+    impl price_oracle::Trait for Test {
+        type Event = ();
+        type Call = Call;
+        type SubmitUnsignedTransaction = SubmitPFTransaction;
+
+        // Wait period between automated fetches. Set to 0 disable this feature.
+        //   Then you need to manucally kickoff pricefetch
+        type GracePeriod = GracePeriod;
+        type BlockFetchPeriod = BlockFetchPeriod;
+    }
+
     impl Trait for Test {
         type Event = ();
     }
@@ -1463,7 +1482,6 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
-                TOKEN_ID,
                 VALUE
             ));
             assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
@@ -1483,7 +1501,6 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
-                    TOKEN_ID,
                     VALUE
                 ),
                 "This DAO not exists"
@@ -1511,7 +1528,6 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
-                    TOKEN_ID,
                     VALUE
                 ),
                 "You already are not a member of this DAO"
@@ -1540,7 +1556,6 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
-                TOKEN_ID,
                 VALUE
             ));
             assert_noop!(
@@ -1550,7 +1565,6 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
-                    TOKEN_ID,
                     VALUE
                 ),
                 "This proposal already open"
@@ -1580,7 +1594,6 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
-                TOKEN_ID,
                 VALUE
             ));
             assert_ok!(DaoModule::propose_to_get_loan(
@@ -1589,7 +1602,6 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
-                TOKEN_ID,
                 VALUE
             ));
             assert_noop!(
@@ -1599,10 +1611,174 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    VALUE
+                ),
+                "Maximum number of open proposals is reached for the target block, try later"
+            );
+        })
+    }
+
+    #[test]
+    fn propose_to_get_tokenized_loan_case_maximum_number_of_open_proposals_is_reached() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
+            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
+            assert_ok!(DaoModule::add_member(DAO_ID, USER3));
+            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
+                Origin::signed(USER),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
+                Origin::signed(USER2),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_noop!(
+                DaoModule::propose_to_get_tokenized_loan(
+                    Origin::signed(USER3),
+                    DAO_ID,
+                    DAO_DESC.to_vec(),
+                    DAYS,
+                    RATE,
                     TOKEN_ID,
                     VALUE
                 ),
                 "Maximum number of open proposals is reached for the target block, try later"
+            );
+        })
+    }
+
+    #[test]
+    fn propose_to_get_tokenized_loan_should_work() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 0);
+            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
+                Origin::signed(USER),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
+        })
+    }
+
+    #[test]
+    fn propose_to_get_tokenized_loan_case_this_dao_not_exists() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_noop!(
+                DaoModule::propose_to_get_tokenized_loan(
+                    Origin::signed(USER),
+                    DAO_ID,
+                    DAO_DESC.to_vec(),
+                    DAYS,
+                    RATE,
+                    TOKEN_ID,
+                    VALUE
+                ),
+                "This DAO not exists"
+            );
+        })
+    }
+
+    #[test]
+    fn propose_to_get_tokenized_loan_case_you_already_are_not_member() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+            assert_noop!(
+                DaoModule::propose_to_get_tokenized_loan(
+                    Origin::signed(USER2),
+                    DAO_ID,
+                    DAO_DESC.to_vec(),
+                    DAYS,
+                    RATE,
+                    TOKEN_ID,
+                    VALUE
+                ),
+                "You already are not a member of this DAO"
+            );
+        })
+    }
+
+    #[test]
+    fn propose_to_get_tokenized_loan_case_this_proposal_already_open() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
+            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
+            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
+                Origin::signed(USER),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_noop!(
+                DaoModule::propose_to_get_tokenized_loan(
+                    Origin::signed(USER),
+                    DAO_ID,
+                    DAO_DESC.to_vec(),
+                    DAYS,
+                    RATE,
+                    TOKEN_ID,
+                    VALUE
+                ),
+                "This proposal already open"
             );
         })
     }
