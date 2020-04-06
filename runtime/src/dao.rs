@@ -97,7 +97,7 @@ decl_module! {
             let dao_id = daos_count;
 
             let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
-
+            
             <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, WithdrawReasons::all());
 
@@ -773,7 +773,7 @@ mod tests {
     use super::*;
 
     use frame_support::{
-        assert_noop, assert_ok, impl_outer_origin, impl_outer_dispatch,parameter_types,
+        assert_noop, assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types,
         traits::{Get, ReservableCurrency},
         weights::Weight,
     };
@@ -796,11 +796,10 @@ mod tests {
         pub enum Origin for Test {}
     }
 
-    use price_oracle::tests::PriceOracleModule;
     impl_outer_dispatch! {
         pub enum Call for Test where origin: Origin {
-        // DaoModule,
-        PriceOracleModule,
+        dao::DaoModule,
+        price_oracle::PriceOracleModule,
         }
     }
 
@@ -892,6 +891,7 @@ mod tests {
         type Event = ();
     }
     type Balances = balances::Module<Test>;
+    type PriceOracleModule = price_oracle::Module<Test>;
     type DaoModule = Module<Test>;
 
     const DAO_NAME: &[u8; 10] = b"Name-1234_";
@@ -941,7 +941,7 @@ mod tests {
             let _ = balances::GenesisConfig::<Test> {
                 balances: vec![
                     (USER, 100_000),
-                    (DAO, 500),
+                    (DAO, 0),
                     (NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE),
                     (USER3, 300_000),
                     (EMPTY_USER, 500),
@@ -959,7 +959,7 @@ mod tests {
         ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const MEMBER_ID: MemberId = 0;
-
+            
             assert_eq!(DaoModule::daos_count(), 0);
             assert_eq!(DaoModule::members_count(DAO_ID), 0);
             assert_ne!(DaoModule::members((DAO_ID, MEMBER_ID)), USER);
