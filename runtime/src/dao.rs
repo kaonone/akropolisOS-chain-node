@@ -1,3 +1,18 @@
+/// Pallet implementing DAO module. 
+/// 
+/// Create DAO providing address of a future organization.
+/// Make loans in native currency with voting.
+/// Make loans in other tokens with fetched prices from oracle.
+/// Add\remove members with voting.
+/// 
+/// KNOWN BUGS:
+///     1. Tests can fail with assert_noop! bug: fails through different root hashes
+///        looks like gibberish bytes:
+///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
+///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
+///        solution: Write to storage after check - verify first, write last 
+///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
+///
 use codec::Encode;
 use frame_support::{
     decl_event, decl_module, decl_storage,
@@ -8,6 +23,7 @@ use frame_support::{
     },
     StorageMap, StorageValue,
 };
+use num_traits::ops::checked::CheckedSub;
 use sp_runtime::traits::{Hash, Zero};
 use sp_std::prelude::Vec;
 use system::ensure_signed;
@@ -85,7 +101,6 @@ decl_module! {
             Self::validate_description(&description)?;
             ensure!(!<DaoAddresses<T>>::contains_key(&address), "This DAO address already busy");
             ensure!(!<DaoNames<T>>::contains_key(&name_hash), "This DAO name already exists");
-            ensure!(<balances::Module<T>>::free_balance(&address) == zero, "Free balance of DAO address is not 0");
             ensure!(<balances::Module<T>>::reserved_balance(&address) == zero, "Reserved balance of DAO address is not 0");
 
             let new_dao = Dao {
@@ -97,7 +112,7 @@ decl_module! {
             let dao_id = daos_count;
 
             let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
-            
+
             <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
             <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, WithdrawReasons::all());
 
@@ -468,17 +483,19 @@ decl_module! {
             Ok(())
         }
 
-        pub fn deposit(origin, dao_id: DaoId, token_id: TokenId, value: T::Balance) -> DispatchResult {
+        pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
             ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::contains_key((dao_id, depositor.clone())), "You are not a member of this DAO");
+            ensure!(<balances::Module<T>>::free_balance(&depositor) > value, "Insufficient balance for deposit");
+            
             let dao_address = <Address<T>>::get(dao_id);
+            Self::remove_account_lock(&dao_address);
             <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value, ExistenceRequirement::KeepAlive)?;
-            <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
-            <balances::Module<T>>::set_lock(LOCK_NAME, &dao_address, <balances::Account<T>>::get(&dao_address).free, WithdrawReasons::all());
+            Self::set_account_lock(&dao_address);
 
-            Self::deposit_event(RawEvent::NewDeposit(depositor, dao_address, token_id, value));
+            Self::deposit_event(RawEvent::NewDeposit(depositor, dao_address, value));
 
             Ok(())
         }
@@ -510,7 +527,7 @@ decl_event!(
         AccountId = <T as system::Trait>::AccountId,
         BlockNumber = <T as system::Trait>::BlockNumber,
     {
-        NewDeposit(AccountId, AccountId, TokenId, Balance),
+        NewDeposit(AccountId, AccountId, Balance),
         DaoCreated(AccountId, AccountId, Vec<u8>),
         NewVote(DaoId, ProposalId, AccountId, bool),
         ProposalIsAccepted(DaoId, ProposalId),
@@ -684,8 +701,10 @@ impl<T: Trait> Module<T> {
 
     fn withdraw_from_dao_balance_is_valid(dao_id: DaoId, value: T::Balance) -> DispatchResult {
         let dao_address = <Address<T>>::get(dao_id);
-        let dao_balance = <balances::Account<T>>::get(dao_address).free;
-        let allowed_dao_balance = dao_balance - <T as balances::Trait>::ExistentialDeposit::get();
+        let dao_balance = <balances::Module<T>>::free_balance(dao_address);
+        let allowed_dao_balance = dao_balance
+            .checked_sub(&<T as balances::Trait>::ExistentialDeposit::get())
+            .ok_or("DAO balance is less than existential deposit")?;
         // - <T as balances::Trait>::TransferFee::get();
         ensure!(allowed_dao_balance > value, "DAO balance is not sufficient");
 
@@ -696,19 +715,14 @@ impl<T: Trait> Module<T> {
         Self::withdraw_from_dao_balance_is_valid(dao_id, amount)?;
         let dao_address = <Address<T>>::get(dao_id);
 
-        <balances::Module<T>>::remove_lock(LOCK_NAME, &dao_address);
+        Self::remove_account_lock(&dao_address);
         <balances::Module<T> as Currency<_>>::transfer(
             &dao_address,
             &taker,
             amount,
             ExistenceRequirement::KeepAlive,
         )?;
-        <balances::Module<T>>::set_lock(
-            LOCK_NAME,
-            &dao_address,
-            <balances::Account<T>>::get(&dao_address).free,
-            WithdrawReasons::all(),
-        );
+        Self::set_account_lock(&dao_address);
 
         Ok(())
     }
@@ -765,9 +779,25 @@ impl<T: Trait> Module<T> {
             Action::EmptyAction => Ok(()),
         }
     }
+
+    fn set_account_lock(who: &T::AccountId) {
+        <balances::Module<T>>::set_lock(
+            LOCK_NAME,
+            &who,
+            <balances::Module<T>>::free_balance(who),
+            WithdrawReasons::all(),
+        );
+    }
+
+    fn remove_account_lock(who: &T::AccountId) {
+        <balances::Module<T>>::remove_lock(LOCK_NAME, who);
+    }
 }
 
 /// tests for this module
+///
+/// future memo for how to construct balances pallet error
+/// balances::Error::<Test, _>::InsufficientBalance
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -941,7 +971,7 @@ mod tests {
             let _ = balances::GenesisConfig::<Test> {
                 balances: vec![
                     (USER, 100_000),
-                    (DAO, 0),
+                    (DAO, 500),
                     (NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE),
                     (USER3, 300_000),
                     (EMPTY_USER, 500),
@@ -959,7 +989,7 @@ mod tests {
         ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
             const MEMBER_ID: MemberId = 0;
-            
+
             assert_eq!(DaoModule::daos_count(), 0);
             assert_eq!(DaoModule::members_count(DAO_ID), 0);
             assert_ne!(DaoModule::members((DAO_ID, MEMBER_ID)), USER);
@@ -1125,23 +1155,6 @@ mod tests {
                 "This DAO name already exists"
             );
             assert_eq!(DaoModule::daos_count(), 1);
-        })
-    }
-
-    #[test]
-    fn create_case_free_balance_is_not_0() {
-        ExtBuilder::default().build().execute_with(|| {
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_noop!(
-                DaoModule::create(
-                    Origin::signed(USER),
-                    NOT_EMPTY_DAO,
-                    DAO_NAME.to_vec(),
-                    DAO_DESC.to_vec()
-                ),
-                "Free balance of DAO address is not 0"
-            );
-            assert_eq!(DaoModule::daos_count(), 0);
         })
     }
 
@@ -2172,16 +2185,15 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
             assert_eq!(DaoModule::daos_count(), 1);
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
 
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
 
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
 
@@ -2215,10 +2227,11 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
+
             assert_noop!(
-                DaoModule::deposit(Origin::signed(EMPTY_USER), dao_id, TOKEN_ID, AMOUNT),
-                "balance too low to send value"
+                DaoModule::deposit(Origin::signed(EMPTY_USER), dao_id, AMOUNT),
+                "Insufficient balance for deposit"
             );
         })
     }
@@ -2239,9 +2252,10 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
+
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2259,10 +2273,10 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
+            assert_eq!(Balances::free_balance(DAO) - 3000, 3000);
 
             assert_ok!(DaoModule::propose_to_withdraw(
                 Origin::signed(USER2),
@@ -2278,7 +2292,7 @@ mod tests {
                 YES
             ));
 
-            assert_eq!(Balances::free_balance(DAO), 2500);
+            assert_eq!(Balances::free_balance(DAO), 3000);
         })
     }
 
@@ -2300,7 +2314,7 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2318,10 +2332,9 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
             let old_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
                 Origin::signed(USER2),
@@ -2381,7 +2394,7 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2399,10 +2412,9 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
 
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
@@ -2431,7 +2443,7 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2449,10 +2461,9 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
                     Origin::signed(USER2),
@@ -2480,7 +2491,7 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2498,10 +2509,9 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
                     Origin::signed(USER2),
@@ -2527,7 +2537,7 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             let dao_id = DaoModule::dao_addresses(DAO);
@@ -2580,7 +2590,7 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             let dao_id = DaoModule::dao_addresses(DAO);
@@ -2616,7 +2626,7 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             let dao_id = DaoModule::dao_addresses(DAO);
@@ -2641,7 +2651,7 @@ mod tests {
                 DAO_NAME.to_vec(),
                 DAO_DESC.to_vec()
             ));
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_noop!(
@@ -2666,7 +2676,7 @@ mod tests {
                 DAO_DESC.to_vec()
             ));
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_noop!(
@@ -2698,7 +2708,7 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
 
             assert_ok!(DaoModule::propose_to_add_member(
@@ -2716,10 +2726,9 @@ mod tests {
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
 
             assert_ok!(DaoModule::propose_to_withdraw(
                 Origin::signed(USER2),
@@ -2735,7 +2744,7 @@ mod tests {
             ));
 
             assert_eq!(DaoModule::dao_proposals_count(dao_id), 2);
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
 
@@ -2754,21 +2763,20 @@ mod tests {
             ));
             let dao_id = DaoModule::dao_addresses(DAO);
 
-            assert_eq!(Balances::free_balance(DAO), 500);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
             assert_ok!(DaoModule::deposit(
                 Origin::signed(USER),
                 dao_id,
-                TOKEN_ID,
                 AMOUNT
             ));
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
 
             assert_noop!(
                 Balances::transfer(Origin::signed(DAO), USER, AMOUNT2),
-                "account liquidity restrictions prevent withdrawal"
+                balances::Error::<Test, _>::LiquidityRestrictions
             );
-            assert_eq!(Balances::free_balance(DAO), 5500);
+            assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
 
