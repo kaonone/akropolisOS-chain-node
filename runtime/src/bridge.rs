@@ -1,10 +1,14 @@
-/// Runtime module implementing Substrate side of PolkadaiBridge token exchange bridge
+/// Pallet implementing Substrate side of PolkadaiBridge token exchange bridge
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
 ///
 /// KNOWN BUGS:
 ///     1. Tests can fail with assert_noop! bug: fails through different root hashes
-///        solution: use assert_eq!(expr, Err("Error string")) explicitly
+///        looks like gibberish bytes:
+///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
+///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
+///        solution: Write to storage after check - verify first, write last 
+///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
 ///
 /// Conventions:
 ///      0 - DAI

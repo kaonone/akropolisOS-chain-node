@@ -1,4 +1,4 @@
-/// Runtime module implementing the ERC20 token factory API
+/// Pallet implementing the ERC20 token factory API
 /// You can use mint to create tokens or burn created tokens
 /// and transfer tokens on substrate side freely or operate with total_supply
 ///

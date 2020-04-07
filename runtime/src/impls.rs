@@ -186,7 +186,7 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore]
+	#[ignore] // for it is a time consuming test
 	fn congested_chain_simulation() {
 		// `cargo test congested_chain_simulation -- --nocapture` to get some insight.
 
