@@ -1,18 +1,14 @@
-/// A runtime module template with necessary imports
-
-/// Feel free to remove or edit this file as needed.
-/// If you change the name of this file, make sure to update its references in runtime/src/lib.rs
-/// If you remove this file, you can remove those references
-
+/// Pallet for realworld price oracle requests.
+///
 /// For more guidance on Substrate modules, see the example module
 /// https://github.com/paritytech/substrate/blob/master/srml/example/src/lib.rs
-// This module based on project written by Jimmy Chu
-// https://github.com/jimmychu0807/substrate-offchain-pricefetch
-// and alpha release example-offchain-worker frame
-// https://github.com/paritytech/substrate/blob/master/frame/example-offchain-worker/src/lib.rs
-
-// Heavily depends on substrate commit implementing crucial offchain worker functionality
-// https://github.com/paritytech/substrate/commit/8974349874588de655b7350737bba45032bb2548#diff-7f920cccb57d91272a863f03572e5dee
+///
+/// This module based on project written by Jimmy Chu
+/// https://github.com/jimmychu0807/substrate-offchain-pricefetch
+///
+/// and alpha release example-offchain-worker frame
+/// https://github.com/paritytech/substrate/blob/master/frame/example-offchain-worker/src/lib.rs
+///
 use codec::Encode;
 use frame_support::{
     debug, decl_event, decl_module, decl_storage, dispatch, traits::Get, IterableStorageMap,
@@ -24,8 +20,8 @@ use simple_json::{self, json::JsonValue};
 use sp_core::crypto::KeyTypeId;
 use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
-    offchain::{http, storage::StorageValueRef},
-    traits::Zero,
+    offchain::http,
+    traits::{SaturatedConversion, Zero},
     transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 };
 
@@ -55,11 +51,6 @@ pub mod crypto {
 
 pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 4] = [
     (b"DAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
-    // (
-    //     b"DAI",
-    //     b"cryptocompare",
-    //     b"https://min-api.cryptocompare.com/data/price?fsym=DAI&tsyms=USD",
-    // ),
     (
         b"USDT",
         b"cryptocompare",
@@ -77,19 +68,12 @@ pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 4] = [
     ),
 ];
 
-enum TransactionType {
-    // Signed,
-    Unsigned,
-    None,
-}
-
 /// The module's configuration trait.
-pub trait Trait: timestamp::Trait + system::Trait {
+pub trait Trait: timestamp::Trait + balances::Trait + system::Trait {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
     type Call: From<Call<Self>>;
     type SubmitUnsignedTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
-    // type SubmitSignedTransaction: SubmitSignedTransaction<Self, <Self as Trait>::Call>;
 
     /// A grace period after we send transaction.
     ///
@@ -107,9 +91,10 @@ decl_event!(
     pub enum Event<T>
     where
         Moment = <T as timestamp::Trait>::Moment,
+        Balance = <T as balances::Trait>::Balance,
     {
-        FetchedPrice(Vec<u8>, Vec<u8>, Moment, u64),
-        AggregatedPrice(Vec<u8>, Moment, u64),
+        FetchedPrice(Vec<u8>, Vec<u8>, Moment, Balance),
+        AggregatedPrice(Vec<u8>, Moment, Balance),
     }
 );
 
@@ -121,11 +106,11 @@ decl_storage! {
     //   When used, it should be divided by 10,000.
     // Using linked map for easy traversal from offchain worker or UI
     pub TokenPriceHistory get(fn token_price_history):
-    map hasher(blake2_128_concat) Vec<u8> => Vec<u64>;
+    map hasher(blake2_128_concat) Vec<u8> => Vec<T::Balance>;
 
     // storage about aggregated price points (calculated with our logic)
     pub AggregatedPrices get(fn aggregated_prices):
-    map hasher(blake2_128_concat) Vec<u8> => (T::Moment, u64);
+    map hasher(blake2_128_concat) Vec<u8> => (T::Moment, T::Balance);
   }
 }
 
@@ -137,34 +122,11 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
-    // pub fn record_price(
-    //   origin,
-    //   crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
-    //   price: u64
-    // ) -> dispatch::DispatchResult {
-    //   ensure_signed(origin)?;
-
-    //   let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
-    //   let now = <timestamp::Module<T>>::get();
-
-    //   debug::info!("record_price: {:?}, {:?}, {:?}",
-    //     core::str::from_utf8(&symbol).map_err(|_| "`symbol` conversion error")?,
-    //     core::str::from_utf8(&remote_src).map_err(|_| "`remote_src` conversion error")?,
-    //     price
-    //   );
-
-    //   <TokenPriceHistory>::mutate(&symbol, |prices| prices.push(price));
-
-    //   // Spit out an event and Add to storage
-    //   Self::deposit_event(RawEvent::FetchedPrice(symbol, remote_src, now, price));
-
-    //   Ok(())
-    // }
     pub fn record_price_unsigned(
         origin,
         _block_number: T::BlockNumber,
         crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
-        price: u64
+        price: T::Balance
     ) -> dispatch::DispatchResult {
         ensure_none(origin)?;
 
@@ -178,7 +140,7 @@ decl_module! {
     //     price
     // );
 
-    <TokenPriceHistory>::mutate(&symbol, |prices| prices.push(price));
+    <TokenPriceHistory<T>>::mutate(&symbol, |prices| prices.push(price));
 
       // Spit out an event and Add to storage
       Self::deposit_event(RawEvent::FetchedPrice(symbol, remote_src, now, price));
@@ -186,41 +148,11 @@ decl_module! {
       Ok(())
     }
 
-    // pub fn record_aggregated_price_points(
-    //   origin,
-    //   symbol: Vec<u8>,
-    //   price: u64
-    // ) -> dispatch::DispatchResult {
-    //   debug::info!("record_aggregated_price_points: {}: {:?}",
-    //   core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
-    //   price
-    // );
-    //   ensure_signed(origin)?;
-
-    //   let now = <timestamp::Module<T>>::get();
-
-    //   let price_pt = (now.clone(), price.clone());
-    //   <AggregatedPrices<T>>::insert(&symbol, price_pt);
-
-    //   <TokenPriceHistory>::mutate(&symbol, |vec| {
-    //     let preserve_from_index = if vec.len() < TOKENS_TO_KEEP {
-    //         vec.len()
-    //     }else{
-    //         vec.len().checked_sub(TOKENS_TO_KEEP).unwrap_or(9usize)
-    //     };
-    //     vec.drain(preserve_from_index..).collect::<Vec<u64>>()
-    // });
-
-    //   Self::deposit_event(RawEvent::AggregatedPrice(
-    //     symbol.clone(), now.clone(), price.clone()));
-
-    //   Ok(())
-    // }
     pub fn record_aggregated_price_points_unsigned(
       origin,
       _block: T::BlockNumber,
       symbol: Vec<u8>,
-      price: u64
+      price: T::Balance
     ) -> dispatch::DispatchResult {
     //     //DEBUG
     //     debug::info!("record_aggregated_price_points_unsigned: {}: {:?}",
@@ -235,14 +167,14 @@ decl_module! {
     <AggregatedPrices<T>>::insert(&symbol, price_pt);
 
 
-    let mut old_vec = <TokenPriceHistory>::get(&symbol);
+    let mut old_vec = <TokenPriceHistory<T>>::get(&symbol);
     let new_vec =  if old_vec.len() < TOKENS_TO_KEEP {
         old_vec
     }else{
         let preserve_from_index = &old_vec.len().checked_sub(TOKENS_TO_KEEP).unwrap_or(9usize);
-        old_vec.drain(preserve_from_index..).collect::<Vec<u64>>()
+        old_vec.drain(preserve_from_index..).collect::<Vec<T::Balance>>()
     };
-    <TokenPriceHistory>::insert(&symbol, new_vec);
+    <TokenPriceHistory<T>>::insert(&symbol, new_vec);
 
       Self::deposit_event(RawEvent::AggregatedPrice(
         symbol.clone(), now.clone(), price.clone()));
@@ -252,16 +184,12 @@ decl_module! {
 
     fn offchain_worker(block: T::BlockNumber) {
       let duration = T::BlockFetchPeriod::get();
-      let should_send = Self::choose_transaction_type(block);
 
       // Type I task: fetch price
       if duration > 0.into() && block % duration == 0.into() {
         for (symbol, remote_src, remote_url) in FETCHED_CRYPTOS.iter() {
-          let res = match should_send {
-            // TransactionType::Signed => Self::fetch_price(*symbol, *remote_src, *remote_url),
-            TransactionType::Unsigned => Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url),
-            TransactionType::None => Ok(()),
-          };
+          let res = Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url);
+
           if let Err(e) = res {
             debug::error!("Error fetching: {:?}, {:?}: {:?}",
             core::str::from_utf8(symbol).unwrap(),
@@ -272,15 +200,12 @@ decl_module! {
       }
 
       // Type II task: aggregate price
-      <TokenPriceHistory>::iter()
+      <TokenPriceHistory<T>>::iter()
       // filter those to be updated
       .filter(|(_, vec)| vec.len() > 0)
       .for_each(|(symbol, _)| {
-        let res = match should_send {
-        //   TransactionType::Signed => Self::aggregate_price_points(&symbol),
-          TransactionType::Unsigned => Self::aggregate_price_points_unsigned(block, &symbol),
-          TransactionType::None => Ok(()),
-        };
+        let res = Self::aggregate_price_points_unsigned(block, &symbol);
+
         if let Err(e) = res {
           debug::error!("Error aggregating price of {:?}: {:?}",
           core::str::from_utf8(&symbol).unwrap(), e);
@@ -292,64 +217,6 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    /// Chooses which transaction type to send.
-    /// Returns a type of transaction that should be produced in current run.
-    fn choose_transaction_type(block_number: T::BlockNumber) -> TransactionType {
-        const RECENTLY_SENT: () = ();
-
-        // Start off by creating a reference to Local Storage value.
-        let val = StorageValueRef::persistent(b"example_ocw::last_send");
-        // The Local Storage is persisted and shared between runs of the offchain workers,
-        // and offchain workers may run concurrently. We can use the `mutate` function, to
-        // write a storage entry in an atomic fashion.
-        let res = val.mutate(|last_send: Option<Option<T::BlockNumber>>| {
-            match last_send {
-                // If we already have a value in storage and the block number is recent enough
-                // we avoid sending another transaction at this time.
-                Some(Some(block)) if block + T::GracePeriod::get() < block_number => {
-                    Err(RECENTLY_SENT)
-                }
-                // In every other case we attempt to acquire the lock and send a transaction.
-                _ => Ok(block_number),
-            }
-        });
-
-        // The result of `mutate` call will give us a nested `Result` type.
-        // The first one matches the return of the closure passed to `mutate`, i.e.
-        // if we return `Err` from the closure, we get an `Err` here.
-        // In case we return `Ok`, here we will have another (inner) `Result` that indicates
-        // if the value has been set to the storage correctly - i.e. if it wasn't
-        // written to in the meantime.
-        match res {
-            // The value has been set correctly, which means we can safely send a transaction now.
-            Ok(Ok(block_number)) => {
-                // Depending if the block is even or odd we will send a `Signed` or `Unsigned`
-                // transaction.
-                // Note that this logic doesn't really guarantee that the transactions will be sent
-                // in an alternating fashion (i.e. fairly distributed). Depending on the execution
-                // order and lock acquisition, we may end up for instance sending two `Signed`
-                // transactions in a row. If a strict order is desired, it's better to use
-                // the storage entry for that. (for instance store both block number and a flag
-                // indicating the type of next transaction to send).
-                let send_signed = block_number % 2.into() == Zero::zero();
-                if send_signed {
-                    // TransactionType::Signed
-                    TransactionType::Unsigned
-                } else {
-                    TransactionType::Unsigned
-                }
-            }
-            // We are in the grace period, we should not send a transaction this time.
-            Err(RECENTLY_SENT) => TransactionType::None,
-            // We wanted to send a transaction, but failed to write the block number (acquire a
-            // lock). This indicates that another offchain worker that was running concurrently
-            // most likely executed the same logic and succeeded at writing to storage.
-            // Thus we don't really want to send the transaction, knowing that the other run
-            // already did.
-            Ok(Err(_)) => TransactionType::None,
-        }
-    }
-
     fn fetch_json<'a>(remote_url: &'a [u8]) -> Result<JsonValue> {
         //TODO: add deadline for request
         let remote_url_str = core::str::from_utf8(remote_url)
@@ -382,47 +249,6 @@ impl<T: Trait> Module<T> {
         Ok(json_val)
     }
 
-    // fn fetch_price<'a>(symbol: &'a [u8], remote_src: &'a [u8], remote_url: &'a [u8]) -> Result<()> {
-    //     debug::info!(
-    //         "fetch price signed: {:?}:{:?}",
-    //         core::str::from_utf8(symbol).unwrap(),
-    //         core::str::from_utf8(remote_src).unwrap()
-    //     );
-    //     let json = Self::fetch_json(remote_url)?;
-    //     let price = match remote_src {
-    //         src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
-    //             .map_err(|_| "fetch_price_from_coingecko error"),
-    //         src if src == b"coincap" => {
-    //             Self::fetch_price_from_coincap(json).map_err(|_| "fetch_price_from_coincap error")
-    //         }
-    //         src if src == b"cryptocompare" => Self::fetch_price_from_cryptocompare(json)
-    //             .map_err(|_| "fetch_price_from_cryptocompare error"),
-    //         _ => Err("Unknown remote source"),
-    //     }?;
-    //     if !T::SubmitSignedTransaction::can_sign() {
-    //         debug::error!(
-    //             "No local accounts available. Consider adding one via `author_insertKey` RPC."
-    //         );
-    //     } else {
-    //         let call = Call::record_price(
-    //             (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
-    //             price,
-    //         );
-    //         // Using `SubmitSignedTransaction` associated type we create and submit a transaction
-    //         // representing the call, we've just created.
-    //         // Submit signed will return a vector of results for all accounts that were found in the
-    //         // local keystore with expected `KEY_TYPE`.
-    //         let results = T::SubmitSignedTransaction::submit_signed(call);
-    //         for (acc, res) in &results {
-    //             match res {
-    //                 Ok(()) => debug::info!("[{:?}] Submitted price of {} cents", acc, price),
-    //                 Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc, e),
-    //             }
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
     fn fetch_price_unsigned<'a>(
         block: T::BlockNumber,
         symbol: &'a [u8],
@@ -453,7 +279,7 @@ impl<T: Trait> Module<T> {
             (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
             price,
         );
-        
+
         T::SubmitUnsignedTransaction::submit_unsigned(call)
             .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
         Ok(())
@@ -463,18 +289,21 @@ impl<T: Trait> Module<T> {
         it.clone().into_iter().map(|c| c as u8).collect::<_>()
     }
 
-    fn round_value(v: f64) -> u64 {
-        (v * 1000000.).round() as u64
+    fn round_value(v: f64) -> T::Balance {
+        let mut precisioned: u128 = (v * 1000000000.0).round() as u128;
+        precisioned = precisioned * 1000000000; // saturate to 10^18 precision
+        let balance = precisioned.saturated_into::<T::Balance>();
+        balance
     }
 
-    fn fetch_price_from_cryptocompare(json_val: JsonValue) -> Result<u64> {
+    fn fetch_price_from_cryptocompare(json_val: JsonValue) -> Result<T::Balance> {
         // Expected JSON shape:
         //   r#"{"USD": 7064.16}"#;
         let val_f64: f64 = json_val.get_object()[0].1.get_number_f64();
         Ok(Self::round_value(val_f64))
     }
 
-    fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<u64> {
+    fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<T::Balance> {
         // Expected JSON shape:
         //   r#"{"cdai":{"usd": 7064.16}}"#;
         let val_f64: f64 = json_val.get_object()[0].1.get_object()[0]
@@ -483,7 +312,7 @@ impl<T: Trait> Module<T> {
         Ok(Self::round_value(val_f64))
     }
 
-    fn fetch_price_from_coincap(json_val: JsonValue) -> Result<u64> {
+    fn fetch_price_from_coincap(json_val: JsonValue) -> Result<T::Balance> {
         // Expected JSON shape:
         //   r#"{"data":{"priceUsd":"8172.2628346190447316"}}"#;
 
@@ -507,45 +336,15 @@ impl<T: Trait> Module<T> {
         Ok(Self::round_value(val_f64))
     }
 
-    // fn aggregate_price_points<'a>(symbol: &'a [u8]) -> Result<()> {
-    //     let token_pricepoints_vec = <TokenPriceHistory>::get(symbol);
-    //     let price_sum: u64 = token_pricepoints_vec
-    //         .iter()
-    //         .fold(0, |mem, price| mem + price);
-
-    //     // Avoiding floating-point arithmetic & do integer division
-    //     let price_avg: u64 = price_sum / (token_pricepoints_vec.len() as u64);
-    //     if !T::SubmitSignedTransaction::can_sign() {
-    //         debug::error!(
-    //             "No local accounts available. Consider adding one via `author_insertKey` RPC."
-    //         );
-    //     } else {
-    //         // submit onchain call for aggregating the price
-    //         let call = Call::record_aggregated_price_points(symbol.to_vec(), price_avg);
-
-    //         // Using `SubmitSignedTransaction` associated type we create and submit a transaction
-    //         // representing the call, we've just created.
-    //         // Submit signed will return a vector of results for all accounts that were found in the
-    //         // local keystore with expected `KEY_TYPE`.
-    //         let results = T::SubmitSignedTransaction::submit_signed(call);
-    //         for (acc, res) in &results {
-    //             match res {
-    //                 Ok(()) => debug::info!("[{:?}] Submitted price of {} cents", acc, price_avg),
-    //                 Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc, e),
-    //             }
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
     fn aggregate_price_points_unsigned<'a>(block: T::BlockNumber, symbol: &'a [u8]) -> Result<()> {
-        let token_pricepoints_vec = <TokenPriceHistory>::get(symbol);
-        let price_sum: u64 = token_pricepoints_vec
+        let token_pricepoints_vec = <TokenPriceHistory<T>>::get(symbol);
+        let price_sum: T::Balance = token_pricepoints_vec
             .iter()
-            .fold(0, |mem, price| mem + price);
+            .fold(T::Balance::zero(), |mem, price| mem + *price);
 
         // Avoiding floating-point arithmetic & do integer division
-        let price_avg: u64 = price_sum / (token_pricepoints_vec.len() as u64);
+        let price_avg: T::Balance =
+            price_sum / T::Balance::from(token_pricepoints_vec.len() as u32);
 
         let call = Call::record_aggregated_price_points_unsigned(block, symbol.to_vec(), price_avg);
 
@@ -618,8 +417,14 @@ pub mod tests {
         traits::{BlakeTwo256, IdentityLookup},
         Perbill,
     };
+    use std::cell::RefCell;
 
+    pub type Balance = u128;
     pub type BlockNumber = u64;
+
+    thread_local! {
+        static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
+    }
 
     impl_outer_origin! {
       pub enum Origin for Test {}
@@ -629,6 +434,13 @@ pub mod tests {
       pub enum Call for Test where origin: Origin {
         price_fetch::PriceOracleModule,
       }
+    }
+
+    pub struct ExistentialDeposit;
+    impl Get<u128> for ExistentialDeposit {
+        fn get() -> u128 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+        }
     }
 
     // For testing the module, we construct most of a mock runtime. This means
@@ -665,6 +477,14 @@ pub mod tests {
         type OnKilledAccount = ();
     }
 
+    impl balances::Trait for Test {
+        type Balance = Balance;
+        type DustRemoval = ();
+        type Event = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = system::Module<Test>;
+    }
+
     impl timestamp::Trait for Test {
         type Moment = u64;
         type OnTimestampSet = ();
@@ -686,7 +506,6 @@ pub mod tests {
         type Event = ();
         type Call = Call;
         type SubmitUnsignedTransaction = SubmitPFTransaction;
-        // type SubmitSignedTransaction = ();
 
         // Wait period between automated fetches. Set to 0 disable this feature.
         //   Then you need to manucally kickoff pricefetch

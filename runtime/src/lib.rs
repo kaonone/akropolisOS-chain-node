@@ -702,7 +702,6 @@ impl price_oracle::Trait for Runtime {
     type Event = Event;
     type Call = Call;
     type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
-    // type SubmitSignedTransaction = SubmitPricefetchTransaction;
     type BlockFetchPeriod = BlockFetchPeriod;
     type GracePeriod = GracePeriod;
 }
