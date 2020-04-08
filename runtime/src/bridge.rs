@@ -104,7 +104,7 @@ decl_module! {
 
         // initiate substrate -> ethereum transfer.
         // create transfer and emit the RelayMessage event
-        fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult
+        pub fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult
         {
             let from = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
@@ -133,7 +133,7 @@ decl_module! {
         }
 
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult {
+        pub fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
@@ -161,7 +161,7 @@ decl_module! {
         }
 
         // change maximum tx limit
-        fn update_limits(origin, max_tx_value: T::Balance, day_max_limit: T::Balance, day_max_limit_for_one_address: T::Balance, max_pending_tx_limit: T::Balance,min_tx_value: T::Balance)-> DispatchResult {
+        pub fn update_limits(origin, max_tx_value: T::Balance, day_max_limit: T::Balance, day_max_limit_for_one_address: T::Balance, max_pending_tx_limit: T::Balance,min_tx_value: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
             let limits = Limits{
@@ -190,7 +190,7 @@ decl_module! {
         }
 
         // validator`s response to RelayMessage
-        fn approve_transfer(origin, message_id: T::Hash) -> DispatchResult {
+        pub fn approve_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
             Self::check_validator(validator.clone())?;
@@ -201,7 +201,7 @@ decl_module! {
         }
 
         // each validator calls it to update whole set of validators
-        fn update_validator_list(origin, message_id: T::Hash, quorum: u64, new_validator_list: Vec<T::AccountId>) -> DispatchResult {
+        pub fn update_validator_list(origin, message_id: T::Hash, quorum: u64, new_validator_list: Vec<T::AccountId>) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
@@ -223,7 +223,7 @@ decl_module! {
         }
 
         // each validator calls it to pause the bridge
-        fn pause_bridge(origin) -> DispatchResult {
+        pub fn pause_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
@@ -247,7 +247,7 @@ decl_module! {
         }
 
         // each validator calls it to resume the bridge
-        fn resume_bridge(origin) -> DispatchResult {
+        pub fn resume_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
@@ -270,7 +270,7 @@ decl_module! {
         }
 
         //confirm burn from validator
-        fn confirm_transfer(origin, message_id: T::Hash) -> DispatchResult {
+        pub fn confirm_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
             Self::check_validator(validator.clone())?;
@@ -288,7 +288,7 @@ decl_module! {
         }
 
         //cancel burn from validator
-        fn cancel_transfer(origin, message_id: T::Hash) -> DispatchResult {
+        pub fn cancel_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
