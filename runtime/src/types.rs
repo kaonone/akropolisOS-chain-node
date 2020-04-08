@@ -63,7 +63,6 @@ pub enum Action<AccountId, Balance, Timeout> {
     AddMember(AccountId),
     RemoveMember(AccountId),
     GetLoan(Vec<u8>, Days, Rate, TokenId, Balance),
-    Withdraw(AccountId, Balance, Vec<u8>),
     ChangeTimeout(DaoId, Timeout),
     ChangeMaximumNumberOfMembers(DaoId, MemberId),
 }
