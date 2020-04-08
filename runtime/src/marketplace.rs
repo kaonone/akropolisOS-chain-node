@@ -1,4 +1,4 @@
-use crate::types::{DaoId, Days, Rate, TokenBalance, TokenId};
+use crate::types::{DaoId, Days, Rate, TokenId};
 use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue,
 };
@@ -38,27 +38,12 @@ impl<T: Trait> Module<T> {
         description: Vec<u8>,
         days: Days,
         rate: Rate,
-        value: T::Balance,
-    ) -> DispatchResult {
-        Self::deposit_event(RawEvent::ProposeInvestment(
-            dao_id,
-            description,
-            days,
-            rate,
-            value,
-        ));
-        Ok(())
-    }
-    pub fn propose_tokenized_investment(
-        dao_id: DaoId,
-        description: Vec<u8>,
-        days: Days,
-        rate: Rate,
         token: TokenId,
-        price: TokenBalance,
+        price: T::Balance,
         value: T::Balance,
     ) -> DispatchResult {
-        Self::deposit_event(RawEvent::ProposeTokenizedInvestment(
+        // TODO: do usefull stuff :D
+        Self::deposit_event(RawEvent::ProposeInvestment(
             dao_id,
             description,
             days,
@@ -78,8 +63,7 @@ decl_event!(
         Balance = <T as balances::Trait>::Balance,
     {
         NewInvsetment(u64, AccountId),
-        ProposeInvestment(DaoId, Vec<u8>, Days, Rate, Balance),
-        ProposeTokenizedInvestment(DaoId, Vec<u8>, Days, Rate, TokenId, TokenBalance, Balance),
+        ProposeInvestment(DaoId, Vec<u8>, Days, Rate, TokenId, Balance, Balance),
     }
 );
 
@@ -216,33 +200,16 @@ mod tests {
     }
 
     #[test]
-    fn propose_investment_should_work() {
-        const DAO_ID: DaoId = 11;
-        const DAYS: Days = 181;
-        const RATE: Rate = 1000;
-        const VALUE: u128 = 42;
-
-        ExtBuilder::default().build().execute_with(|| {
-            assert_ok!(Marketplace::propose_investment(
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                VALUE
-            ));
-        });
-    }
-    #[test]
     fn propose_tokenized_investment_should_work() {
         const DAO_ID: DaoId = 11;
         const DAYS: Days = 181;
         const RATE: Rate = 1000;
         const TOKEN: TokenId = 0;
-        const TOKEN_PRICE: TokenBalance = 1;
+        const TOKEN_PRICE: Balance = 1;
         const VALUE: u128 = 42;
 
         ExtBuilder::default().build().execute_with(|| {
-            assert_ok!(Marketplace::propose_tokenized_investment(
+            assert_ok!(Marketplace::propose_investment(
                 DAO_ID,
                 DAO_DESC.to_vec(),
                 DAYS,

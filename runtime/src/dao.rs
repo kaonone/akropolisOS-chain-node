@@ -1,17 +1,9 @@
-/// Pallet implementing DAO module. 
-/// 
+/// Pallet implementing DAO module.
+///
 /// Create DAO providing address of a future organization.
 /// Make loans in native currency with voting.
 /// Make loans in other tokens with fetched prices from oracle.
 /// Add\remove members with voting.
-/// 
-/// KNOWN BUGS:
-///     1. Tests can fail with assert_noop! bug: fails through different root hashes
-///        looks like gibberish bytes:
-///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
-///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
-///        solution: Write to storage after check - verify first, write last 
-///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
 ///
 use codec::Encode;
 use frame_support::{
@@ -29,7 +21,8 @@ use sp_std::prelude::Vec;
 use system::ensure_signed;
 
 use crate::types::{
-    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, TokenId, VotesCount,
+    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, TokenId,
+    VotesCount,
 };
 use crate::{marketplace, price_oracle, token};
 
@@ -114,7 +107,7 @@ decl_module! {
             let dao_deposit = <T as balances::Trait>::ExistentialDeposit::get();
 
             <balances::Module<T> as Currency<_>>::transfer(&founder, &address, dao_deposit, ExistenceRequirement::KeepAlive)?;
-            <balances::Module<T>>::set_lock(LOCK_NAME, &address, dao_deposit, WithdrawReasons::all());
+            Self::set_account_lock(&address);
 
             <Daos<T>>::insert(dao_id, new_dao);
             <DaosCount>::put(new_daos_count);
@@ -218,7 +211,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn propose_to_get_tokenized_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
+        pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
             let proposal_hash = ("propose_to_get_token_loan", &proposer, dao_id, token_id)
@@ -240,7 +233,7 @@ decl_module! {
 
             let proposal = Proposal {
                 dao_id,
-                action: Action::GetTokenizedLoan(description, days, rate, token_id, value),
+                action: Action::GetLoan(description, days, rate, token_id, value),
                 open: true,
                 accepted: false,
                 voting_deadline,
@@ -258,89 +251,6 @@ decl_module! {
             <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
 
             Self::deposit_event(RawEvent::ProposeToGetLoan(dao_id, proposer, days, rate, value, voting_deadline));
-            Ok(())
-        }
-
-        pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, value: T::Balance) -> DispatchResult {
-            let proposer = ensure_signed(origin)?;
-
-            let proposal_hash = ("propose_to_get_loan", &proposer, dao_id)
-                .using_encoded(<T as system::Trait>::Hashing::hash);
-            let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
-            let mut open_proposals = Self::open_dao_proposals(voting_deadline);
-
-            Self::validate_description(&description)?;
-            ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
-            ensure!(<DaoMembers<T>>::contains_key((dao_id, proposer.clone())), "You already are not a member of this DAO");
-            ensure!(!<OpenDaoProposalsHashes<T>>::contains_key(proposal_hash), "This proposal already open");
-            let len = open_proposals.len() as u32;
-            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
-
-            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
-            let new_dao_proposals_count = dao_proposals_count
-                .checked_add(1)
-                .ok_or("Overflow adding a new DAO proposal")?;
-
-            let proposal = Proposal {
-                dao_id,
-                action: Action::GetLoan(description, days, rate, value),
-                open: true,
-                accepted: false,
-                voting_deadline,
-                yes_count: 0,
-                no_count: 0
-            };
-            let proposal_id = dao_proposals_count;
-            open_proposals.push(proposal_id);
-
-            <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex>::insert(proposal_id, dao_id);
-            <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
-            <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
-            <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
-
-            Self::deposit_event(RawEvent::ProposeToGetLoan(dao_id, proposer, days, rate, value, voting_deadline));
-            Ok(())
-        }
-
-        pub fn propose_to_withdraw(origin, dao_id: DaoId, description: Vec<u8>, value: T::Balance) -> DispatchResult {
-            let candidate = ensure_signed(origin)?;
-
-            let proposal_hash = ("propose_to_withdraw", &candidate, dao_id)
-                .using_encoded(<T as system::Trait>::Hashing::hash);
-            let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
-            let mut open_proposals = Self::open_dao_proposals(voting_deadline);
-            ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
-            ensure!(<DaoMembers<T>>::contains_key((dao_id, candidate.clone())), "You are not a member of this DAO");
-            ensure!(!<OpenDaoProposalsHashes<T>>::contains_key(proposal_hash), "This proposal already open");
-            let len = open_proposals.len() as u32;
-            ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
-            Self::withdraw_from_dao_balance_is_valid(dao_id, value)?;
-
-            let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
-            let new_dao_proposals_count = dao_proposals_count
-                .checked_add(1)
-                .ok_or("Overflow adding a new DAO proposal")?;
-
-            let proposal = Proposal {
-                dao_id,
-                action: Action::Withdraw(candidate.clone(), value, description),
-                open: true,
-                accepted: false,
-                voting_deadline,
-                yes_count: 0,
-                no_count: 0
-            };
-            let proposal_id = dao_proposals_count;
-            open_proposals.push(proposal_id);
-            <DaoProposals<T>>::insert((dao_id, proposal_id), proposal);
-            <DaoProposalsCount>::insert(dao_id, new_dao_proposals_count);
-            <DaoProposalsIndex>::insert(proposal_id, dao_id);
-            <OpenDaoProposals<T>>::insert(voting_deadline, open_proposals);
-            <OpenDaoProposalsHashes<T>>::insert(proposal_hash, proposal_id);
-            <OpenDaoProposalsHashesIndex<T>>::insert(proposal_id, proposal_hash);
-            Self::deposit_event(RawEvent::ProposeToWithdraw(dao_id, candidate, voting_deadline, value));
             Ok(())
         }
 
@@ -489,7 +399,7 @@ decl_module! {
             ensure!(<Daos<T>>::contains_key(dao_id), "This DAO not exists");
             ensure!(<DaoMembers<T>>::contains_key((dao_id, depositor.clone())), "You are not a member of this DAO");
             ensure!(<balances::Module<T>>::free_balance(&depositor) > value, "Insufficient balance for deposit");
-            
+
             let dao_address = <Address<T>>::get(dao_id);
             Self::remove_account_lock(&dao_address);
             <balances::Module<T> as Currency<_>>::transfer(&depositor, &dao_address, value, ExistenceRequirement::KeepAlive)?;
@@ -648,7 +558,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn propose_tokenized_investment(
+    fn propose_investment(
         dao_id: DaoId,
         description: Vec<u8>,
         days: Days,
@@ -661,7 +571,8 @@ impl<T: Trait> Module<T> {
         let price = <price_oracle::Module<T>>::aggregated_prices(token.symbol)
             .1
             .into();
-        <marketplace::Module<T>>::propose_tokenized_investment(
+
+        <marketplace::Module<T>>::propose_investment(
             dao_id,
             description,
             days,
@@ -672,14 +583,11 @@ impl<T: Trait> Module<T> {
         )
     }
 
-    fn propose_investment(
-        dao_id: DaoId,
-        description: Vec<u8>,
-        days: Days,
-        rate: Rate,
-        value: T::Balance,
-    ) -> DispatchResult {
-        <marketplace::Module<T>>::propose_investment(dao_id, description, days, rate, value)
+    fn mint_loan_tokens(dao_id: DaoId, token_id: TokenId, value: T::Balance) -> DispatchResult {
+        let address = <Address<T>>::get(dao_id);
+        <token::Module<T>>::_mint(token_id, address, value)?;
+
+        Ok(())
     }
 
     fn change_timeout(dao_id: DaoId, timeout: T::BlockNumber) -> DispatchResult {
@@ -752,23 +660,14 @@ impl<T: Trait> Module<T> {
         match &proposal.action {
             Action::AddMember(member) => Self::add_member(proposal.dao_id, member.clone()),
             Action::RemoveMember(member) => Self::remove_member(proposal.dao_id, member.clone()),
-            Action::GetLoan(description, days, rate, value) => Self::propose_investment(
+            Action::GetLoan(description, days, rate, token, value) => Self::propose_investment(
                 proposal.dao_id,
                 description.to_vec(),
                 *days,
                 *rate,
+                *token,
                 *value,
             ),
-            Action::GetTokenizedLoan(description, days, rate, token, value) => {
-                Self::propose_tokenized_investment(
-                    proposal.dao_id,
-                    description.to_vec(),
-                    *days,
-                    *rate,
-                    *token,
-                    *value,
-                )
-            }
             Action::Withdraw(member, amount, ..) => {
                 Self::withdraw(proposal.dao_id, member.clone(), *amount)
             }
@@ -984,6 +883,14 @@ mod tests {
         }
     }
 
+    /// KNOWN BUGS:
+    ///     1. Tests can fail with assert_noop! bug: fails through different root hashes
+    ///        looks like gibberish bytes:
+    ///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
+    ///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
+    ///        solution: Write to storage after check - verify first, write last © shawntabrizi
+    ///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
+    ///
     #[test]
     fn create_dao_should_work() {
         ExtBuilder::default().build().execute_with(|| {
@@ -1475,6 +1382,55 @@ mod tests {
     }
 
     #[test]
+    fn propose_to_get_loan_case_maximum_number_of_open_proposals_is_reached() {
+        ExtBuilder::default().build().execute_with(|| {
+            const DAO_ID: DaoId = 0;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            assert_eq!(DaoModule::daos_count(), 1);
+            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
+            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
+            assert_ok!(DaoModule::add_member(DAO_ID, USER3));
+            assert_ok!(DaoModule::propose_to_get_loan(
+                Origin::signed(USER),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_ok!(DaoModule::propose_to_get_loan(
+                Origin::signed(USER2),
+                DAO_ID,
+                DAO_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                VALUE
+            ));
+            assert_noop!(
+                DaoModule::propose_to_get_loan(
+                    Origin::signed(USER3),
+                    DAO_ID,
+                    DAO_DESC.to_vec(),
+                    DAYS,
+                    RATE,
+                    TOKEN_ID,
+                    VALUE
+                ),
+                "Maximum number of open proposals is reached for the target block, try later"
+            );
+        })
+    }
+
+    #[test]
     fn propose_to_get_loan_should_work() {
         ExtBuilder::default().build().execute_with(|| {
             const DAO_ID: DaoId = 0;
@@ -1495,6 +1451,7 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
@@ -1514,6 +1471,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "This DAO not exists"
@@ -1541,6 +1499,7 @@ mod tests {
                     DAO_DESC.to_vec(),
                     DAYS,
                     RATE,
+                    TOKEN_ID,
                     VALUE
                 ),
                 "You already are not a member of this DAO"
@@ -1569,220 +1528,11 @@ mod tests {
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN_ID,
                 VALUE
             ));
             assert_noop!(
                 DaoModule::propose_to_get_loan(
-                    Origin::signed(USER),
-                    DAO_ID,
-                    DAO_DESC.to_vec(),
-                    DAYS,
-                    RATE,
-                    VALUE
-                ),
-                "This proposal already open"
-            );
-        })
-    }
-
-    #[test]
-    fn propose_to_get_loan_case_maximum_number_of_open_proposals_is_reached() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            assert_eq!(DaoModule::daos_count(), 1);
-            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
-            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
-            assert_ok!(DaoModule::add_member(DAO_ID, USER3));
-            assert_ok!(DaoModule::propose_to_get_loan(
-                Origin::signed(USER),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                VALUE
-            ));
-            assert_ok!(DaoModule::propose_to_get_loan(
-                Origin::signed(USER2),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                VALUE
-            ));
-            assert_noop!(
-                DaoModule::propose_to_get_loan(
-                    Origin::signed(USER3),
-                    DAO_ID,
-                    DAO_DESC.to_vec(),
-                    DAYS,
-                    RATE,
-                    VALUE
-                ),
-                "Maximum number of open proposals is reached for the target block, try later"
-            );
-        })
-    }
-
-    #[test]
-    fn propose_to_get_tokenized_loan_case_maximum_number_of_open_proposals_is_reached() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            assert_eq!(DaoModule::daos_count(), 1);
-            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
-            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
-            assert_ok!(DaoModule::add_member(DAO_ID, USER3));
-            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
-                Origin::signed(USER),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                TOKEN_ID,
-                VALUE
-            ));
-            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
-                Origin::signed(USER2),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                TOKEN_ID,
-                VALUE
-            ));
-            assert_noop!(
-                DaoModule::propose_to_get_tokenized_loan(
-                    Origin::signed(USER3),
-                    DAO_ID,
-                    DAO_DESC.to_vec(),
-                    DAYS,
-                    RATE,
-                    TOKEN_ID,
-                    VALUE
-                ),
-                "Maximum number of open proposals is reached for the target block, try later"
-            );
-        })
-    }
-
-    #[test]
-    fn propose_to_get_tokenized_loan_should_work() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            assert_eq!(DaoModule::daos_count(), 1);
-
-            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 0);
-            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
-                Origin::signed(USER),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                TOKEN_ID,
-                VALUE
-            ));
-            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
-        })
-    }
-
-    #[test]
-    fn propose_to_get_tokenized_loan_case_this_dao_not_exists() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_noop!(
-                DaoModule::propose_to_get_tokenized_loan(
-                    Origin::signed(USER),
-                    DAO_ID,
-                    DAO_DESC.to_vec(),
-                    DAYS,
-                    RATE,
-                    TOKEN_ID,
-                    VALUE
-                ),
-                "This DAO not exists"
-            );
-        })
-    }
-
-    #[test]
-    fn propose_to_get_tokenized_loan_case_you_already_are_not_member() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            assert_eq!(DaoModule::daos_count(), 1);
-            assert_noop!(
-                DaoModule::propose_to_get_tokenized_loan(
-                    Origin::signed(USER2),
-                    DAO_ID,
-                    DAO_DESC.to_vec(),
-                    DAYS,
-                    RATE,
-                    TOKEN_ID,
-                    VALUE
-                ),
-                "You already are not a member of this DAO"
-            );
-        })
-    }
-
-    #[test]
-    fn propose_to_get_tokenized_loan_case_this_proposal_already_open() {
-        ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            assert_eq!(DaoModule::daos_count(), 1);
-            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
-            assert_ok!(DaoModule::add_member(DAO_ID, USER2));
-            assert_ok!(DaoModule::propose_to_get_tokenized_loan(
-                Origin::signed(USER),
-                DAO_ID,
-                DAO_DESC.to_vec(),
-                DAYS,
-                RATE,
-                TOKEN_ID,
-                VALUE
-            ));
-            assert_noop!(
-                DaoModule::propose_to_get_tokenized_loan(
                     Origin::signed(USER),
                     DAO_ID,
                     DAO_DESC.to_vec(),
@@ -2187,11 +1937,7 @@ mod tests {
             assert_eq!(DaoModule::daos_count(), 1);
             assert_eq!(Balances::free_balance(DAO), 1000);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
 
             assert_eq!(Balances::free_balance(DAO), 6000);
         })
@@ -2240,9 +1986,8 @@ mod tests {
     fn withdraw_should_work() {
         ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
-            const AMOUNT2: u128 = 3000;
+            const TOKEN_AMOUNT: Balance = 3000;
             const ADD_MEMBER1: ProposalId = 0;
-            const WITHDRAW: ProposalId = 1;
             const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -2270,29 +2015,12 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
-            assert_eq!(Balances::free_balance(DAO) - 3000, 3000);
 
-            assert_ok!(DaoModule::propose_to_withdraw(
-                Origin::signed(USER2),
-                dao_id,
-                PROPOSAL_DESC.to_vec(),
-                AMOUNT2
-            ));
-            assert_ok!(DaoModule::vote(Origin::signed(USER), dao_id, WITHDRAW, YES));
-            assert_ok!(DaoModule::vote(
-                Origin::signed(USER2),
-                dao_id,
-                WITHDRAW,
-                YES
-            ));
+            // TODO: imitate withdraw tokens
 
-            assert_eq!(Balances::free_balance(DAO), 3000);
+            assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
 
@@ -2329,11 +2057,7 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
             let old_vote_timeout = DaoModule::dao_timeouts(dao_id);
             assert_ok!(DaoModule::propose_to_change_vote_timeout(
@@ -2409,11 +2133,7 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
 
             assert_noop!(
@@ -2458,11 +2178,7 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
@@ -2506,11 +2222,7 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
             assert_noop!(
                 DaoModule::propose_to_change_vote_timeout(
@@ -2694,9 +2406,8 @@ mod tests {
     fn withdraw_should_not_work_not_enough_votes() {
         ExtBuilder::default().build().execute_with(|| {
             const AMOUNT: u128 = 5000;
-            const AMOUNT2: u128 = 3000;
+            // const TOKEN_AMOUNT: u128 = 3000;
             const ADD_MEMBER: ProposalId = 0;
-            const WITHDRAW: ProposalId = 1;
             const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -2723,27 +2434,11 @@ mod tests {
             ));
             assert_eq!(DaoModule::members_count(dao_id), 2);
 
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
 
-            assert_ok!(DaoModule::propose_to_withdraw(
-                Origin::signed(USER2),
-                dao_id,
-                PROPOSAL_DESC.to_vec(),
-                AMOUNT2
-            ));
-            assert_ok!(DaoModule::vote(
-                Origin::signed(USER2),
-                dao_id,
-                WITHDRAW,
-                YES
-            ));
+            // TODO: imitate failed withdraw tokens
 
-            assert_eq!(DaoModule::dao_proposals_count(dao_id), 2);
             assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
@@ -2765,11 +2460,7 @@ mod tests {
 
             assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::daos_count(), 1);
-            assert_ok!(DaoModule::deposit(
-                Origin::signed(USER),
-                dao_id,
-                AMOUNT
-            ));
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
             assert_eq!(Balances::free_balance(DAO), 6000);
 
             assert_noop!(

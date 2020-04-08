@@ -2,14 +2,6 @@
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
 ///
-/// KNOWN BUGS:
-///     1. Tests can fail with assert_noop! bug: fails through different root hashes
-///        looks like gibberish bytes:
-///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
-///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
-///        solution: Write to storage after check - verify first, write last 
-///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
-///
 /// Conventions:
 ///      0 - DAI
 ///      1 - cDAI
@@ -23,6 +15,8 @@ use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, fail, StorageMap,
     StorageValue,
 };
+use num_traits::ops::checked::{CheckedAdd, CheckedSub, CheckedDiv, CheckedMul};
+use num_traits::Bounded;
 use sp_core::H160;
 use sp_runtime::traits::Hash;
 use sp_std::prelude::Vec;
@@ -39,13 +33,14 @@ decl_event!(
     where
         AccountId = <T as system::Trait>::AccountId,
         Hash = <T as system::Trait>::Hash,
+        Balance = <T as balances::Trait>::Balance,
         Moment = <T as timestamp::Trait>::Moment,
     {
         RelayMessage(Hash),
-        ApprovedRelayMessage(Hash, TokenId, AccountId, H160, TokenBalance),
+        ApprovedRelayMessage(Hash, TokenId, AccountId, H160, Balance),
         CancellationConfirmedMessage(Hash, TokenId),
         MintedMessage(Hash, TokenId),
-        BurnedMessage(Hash, TokenId, AccountId, H160, TokenBalance),
+        BurnedMessage(Hash, TokenId, AccountId, H160, Balance),
         AccountPausedMessage(Hash, AccountId, Moment, TokenId),
         AccountResumedMessage(Hash, AccountId, Moment, TokenId),
     }
@@ -61,7 +56,7 @@ decl_storage! {
         BridgeMessages get(fn bridge_messages): map hasher(opaque_blake2_256) T::Hash  => BridgeMessage<T::AccountId, T::Hash>;
 
         // limits change history
-        LimitMessages get(fn limit_messages): map hasher(opaque_blake2_256) T::Hash  => LimitMessage<T::Hash>;
+        LimitMessages get(fn limit_messages): map hasher(opaque_blake2_256) T::Hash  => LimitMessage<T::Hash, T::Balance>;
         CurrentLimits get(fn current_limits) build(|config: &GenesisConfig<T>| {
             let mut limits_iter = config.current_limits.clone().into_iter();
             Limits {
@@ -71,20 +66,20 @@ decl_storage! {
                 max_pending_tx_limit: limits_iter.next().unwrap(),
                 min_tx_value: limits_iter.next().unwrap(),
             }
-        }): Limits;
+        }): Limits<T::Balance>;
 
         // open transactions
-        CurrentPendingBurn get(fn pending_burn_count): TokenBalance;
-        CurrentPendingMint get(fn pending_mint_count): TokenBalance;
+        CurrentPendingBurn get(fn pending_burn_count): T::Balance;
+        CurrentPendingMint get(fn pending_mint_count): T::Balance;
 
         BridgeTransfers get(fn transfers): map hasher(opaque_blake2_256) ProposalId => BridgeTransfer<T::Hash>;
         BridgeTransfersCount get(fn bridge_transfers_count): ProposalId;
-        TransferMessages get(fn messages): map hasher(opaque_blake2_256) T::Hash  => TransferMessage<T::AccountId, T::Hash>;
+        TransferMessages get(fn messages): map hasher(opaque_blake2_256) T::Hash  => TransferMessage<T::AccountId, T::Hash, T::Balance>;
         TransferId get(fn transfer_id_by_hash): map hasher(opaque_blake2_256) T::Hash  => ProposalId;
         MessageId get(fn message_id_by_transfer_id): map hasher(opaque_blake2_256) ProposalId  => T::Hash;
 
         DailyHolds get(fn daily_holds): map hasher(opaque_blake2_256) T::AccountId  => (T::BlockNumber, T::Hash);
-        DailyLimits get(fn daily_limits_by_account): map hasher(opaque_blake2_256) (TokenId, T::AccountId)  => TokenBalance;
+        DailyLimits get(fn daily_limits_by_account): map hasher(opaque_blake2_256) (TokenId, T::AccountId)  => T::Balance;
         DailyBlocked get(fn daily_blocked): map hasher(opaque_blake2_256) (TokenId, T::Moment)  => Vec<T::AccountId>;
 
         Quorum get(fn quorum): u64 = 2;
@@ -99,7 +94,7 @@ decl_storage! {
     }
 
     add_extra_genesis{
-        config(current_limits): Vec<TokenBalance>;
+        config(current_limits): Vec<T::Balance>;
     }
 }
 
@@ -109,7 +104,7 @@ decl_module! {
 
         // initiate substrate -> ethereum transfer.
         // create transfer and emit the RelayMessage event
-        fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: TokenBalance)-> DispatchResult
+        fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult
         {
             let from = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
@@ -138,7 +133,7 @@ decl_module! {
         }
 
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: TokenBalance)-> DispatchResult {
+        fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
@@ -166,7 +161,7 @@ decl_module! {
         }
 
         // change maximum tx limit
-        fn update_limits(origin, max_tx_value: u128, day_max_limit: u128, day_max_limit_for_one_address: u128, max_pending_tx_limit: u128,min_tx_value: u128)-> DispatchResult {
+        fn update_limits(origin, max_tx_value: T::Balance, day_max_limit: T::Balance, day_max_limit_for_one_address: T::Balance, max_pending_tx_limit: T::Balance,min_tx_value: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
             let limits = Limits{
@@ -395,7 +390,7 @@ impl<T: Trait> Module<T> {
     }
 
     ///execute actual mint
-    fn deposit(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
+    fn deposit(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         Self::sub_pending_mint(message.clone())?;
         let to = message.substrate_address;
         if !<DailyHolds<T>>::contains_key(&to) {
@@ -408,7 +403,7 @@ impl<T: Trait> Module<T> {
         Self::update_status(message.message_id, Status::Confirmed, Kind::Transfer)
     }
 
-    fn withdraw(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
+    fn withdraw(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         Self::check_daily_holds(message.clone())?;
         Self::sub_pending_burn(message.clone())?;
 
@@ -424,7 +419,7 @@ impl<T: Trait> Module<T> {
         ));
         Self::update_status(message.message_id, Status::Approved, Kind::Transfer)
     }
-    fn _cancel_transfer(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
+    fn _cancel_transfer(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         <token::Module<T>>::unlock(message.token, &message.substrate_address, message.amount)?;
         Self::update_status(message.message_id, Status::Canceled, Kind::Transfer)
     }
@@ -438,41 +433,41 @@ impl<T: Trait> Module<T> {
         Self::update_status(message.message_id, Status::Confirmed, Kind::Bridge)
     }
 
-    fn _update_limits(message: LimitMessage<T::Hash>) -> Result<()> {
+    fn _update_limits(message: LimitMessage<T::Hash, T::Balance>) -> Result<()> {
         Self::check_limits(&message.limits)?;
-        <CurrentLimits>::put(message.limits);
+        <CurrentLimits<T>>::put(message.limits);
         Self::update_status(message.id, Status::Confirmed, Kind::Limits)
     }
-    fn add_pending_burn(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
-        let current = <CurrentPendingBurn>::get();
+    fn add_pending_burn(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
+        let current = <CurrentPendingBurn<T>>::get();
         let next = current
-            .checked_add(message.amount)
+            .checked_add(&message.amount)
             .ok_or("Overflow adding to new pending burn volume")?;
-        <CurrentPendingBurn>::put(next);
+        <CurrentPendingBurn<T>>::put(next);
         Ok(())
     }
-    fn add_pending_mint(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
-        let current = <CurrentPendingMint>::get();
+    fn add_pending_mint(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
+        let current = <CurrentPendingMint<T>>::get();
         let next = current
-            .checked_add(message.amount)
+            .checked_add(&message.amount)
             .ok_or("Overflow adding to new pending mint volume")?;
-        <CurrentPendingMint>::put(next);
+        <CurrentPendingMint<T>>::put(next);
         Ok(())
     }
-    fn sub_pending_burn(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
-        let current = <CurrentPendingBurn>::get();
+    fn sub_pending_burn(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
+        let current = <CurrentPendingBurn<T>>::get();
         let next = current
-            .checked_sub(message.amount)
+            .checked_sub(&message.amount)
             .ok_or("Overflow subtracting to new pending burn volume")?;
-        <CurrentPendingBurn>::put(next);
+        <CurrentPendingBurn<T>>::put(next);
         Ok(())
     }
-    fn sub_pending_mint(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
-        let current = <CurrentPendingMint>::get();
+    fn sub_pending_mint(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
+        let current = <CurrentPendingMint<T>>::get();
         let next = current
-            .checked_sub(message.amount)
+            .checked_sub(&message.amount)
             .ok_or("Overflow subtracting to new pending mint volume")?;
-        <CurrentPendingMint>::put(next);
+        <CurrentPendingMint<T>>::put(next);
         Ok(())
     }
 
@@ -499,7 +494,7 @@ impl<T: Trait> Module<T> {
 
     /// lock funds after set_transfer call
     fn lock_for_burn(
-        message: &TransferMessage<T::AccountId, T::Hash>,
+        message: &TransferMessage<T::AccountId, T::Hash, T::Balance>,
         account: T::AccountId,
     ) -> Result<()> {
         <token::Module<T>>::lock(message.token, account, message.amount)?;
@@ -526,7 +521,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn execute_transfer(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
+    fn execute_transfer(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         match message.action {
             Status::Deposit => match message.status {
                 Status::Approved => Self::deposit(message),
@@ -654,10 +649,10 @@ impl<T: Trait> Module<T> {
     fn check_daily_account_volume(
         token_id: TokenId,
         account: T::AccountId,
-        amount: TokenBalance,
+        amount: T::Balance,
     ) -> Result<()> {
         let cur_pending = <DailyLimits<T>>::get((token_id, &account));
-        let cur_pending_account_limit = <CurrentLimits>::get().day_max_limit_for_one_address;
+        let cur_pending_account_limit = <CurrentLimits<T>>::get().day_max_limit_for_one_address;
         let can_burn = cur_pending + amount < cur_pending_account_limit;
 
         //store current day (like 18768)
@@ -686,9 +681,9 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    fn check_amount(amount: TokenBalance) -> Result<()> {
-        let max = <CurrentLimits>::get().max_tx_value;
-        let min = <CurrentLimits>::get().min_tx_value;
+    fn check_amount(amount: T::Balance) -> Result<()> {
+        let max = <CurrentLimits<T>>::get().max_tx_value;
+        let min = <CurrentLimits<T>>::get().min_tx_value;
 
         ensure!(
             amount > min,
@@ -701,28 +696,28 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     //open transactions check
-    fn check_pending_burn(amount: TokenBalance) -> Result<()> {
-        let new_pending_volume = <CurrentPendingBurn>::get()
-            .checked_add(amount)
+    fn check_pending_burn(amount: T::Balance) -> Result<()> {
+        let new_pending_volume = <CurrentPendingBurn<T>>::get()
+            .checked_add(&amount)
             .ok_or("Overflow adding to new pending burn volume")?;
-        let can_burn = new_pending_volume < <CurrentLimits>::get().max_pending_tx_limit;
+        let can_burn = new_pending_volume < <CurrentLimits<T>>::get().max_pending_tx_limit;
         ensure!(can_burn, "Too many pending burn transactions.");
         Ok(())
     }
 
-    fn check_pending_mint(amount: TokenBalance) -> Result<()> {
-        let new_pending_volume = <CurrentPendingMint>::get()
-            .checked_add(amount)
+    fn check_pending_mint(amount: T::Balance) -> Result<()> {
+        let new_pending_volume = <CurrentPendingMint<T>>::get()
+            .checked_add(&amount)
             .ok_or("Overflow adding to new pending mint volume")?;
-        let can_burn = new_pending_volume < <CurrentLimits>::get().max_pending_tx_limit;
+        let can_burn = new_pending_volume < <CurrentLimits<T>>::get().max_pending_tx_limit;
         ensure!(can_burn, "Too many pending mint transactions.");
         Ok(())
     }
 
-    fn check_limits(limits: &Limits) -> Result<()> {
-        let max = TokenBalance::max_value();
-        let min = TokenBalance::min_value();
-        let passed = limits
+    fn check_limits(limits: &Limits<T::Balance>) -> Result<()> {
+        let max = T::Balance::max_value();
+        let min = T::Balance::min_value();
+        let passed =  limits
             .into_array()
             .iter()
             .fold((true, true), |acc, l| match acc {
@@ -736,7 +731,9 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn check_daily_holds(message: TransferMessage<T::AccountId, T::Hash>) -> Result<()> {
+    fn check_daily_holds(
+        message: TransferMessage<T::AccountId, T::Hash, T::Balance>,
+    ) -> Result<()> {
         let from = message.substrate_address;
         let first_tx = <DailyHolds<T>>::get(from.clone());
         let daily_hold = T::BlockNumber::from(DAY_IN_BLOCKS);
@@ -746,9 +743,9 @@ impl<T: Trait> Module<T> {
             let account_balance = <token::Module<T>>::balance_of((message.token, from));
             // 75% of potentially really big numbers
             let allowed_amount = account_balance
-                .checked_div(100)
+                .checked_div(&T::Balance::from(100))
                 .expect("Failed to calculate allowed withdraw amount")
-                .checked_mul(75)
+                .checked_mul(&T::Balance::from(75))
                 .expect("Failed to calculate allowed withdraw amount");
 
             if message.amount > allowed_amount {
@@ -768,12 +765,14 @@ mod tests {
     //TODO: fix limits after adding them into config
     use crate::types::Token;
     use frame_support::{
-        assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::{Get,  OnFinalize}, weights::Weight,
+        assert_noop, assert_ok, impl_outer_origin, parameter_types,
+        traits::{Get, OnFinalize},
+        weights::Weight,
     };
     use sp_core::{H160, H256};
     use sp_runtime::{
         testing::Header,
-        traits::{IdentityLookup, BlakeTwo256},
+        traits::{BlakeTwo256, IdentityLookup},
         DispatchError, Perbill,
     };
     use std::cell::RefCell;
@@ -944,6 +943,14 @@ mod tests {
         }
     }
 
+    /// KNOWN BUGS:
+    ///     1. Tests can fail with assert_noop! bug: fails through different root hashes
+    ///        looks like gibberish bytes:
+    ///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
+    ///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
+    ///        solution: Write to storage after check - verify first, write last
+    ///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
+    ///
     #[test]
     fn token_eth2sub_mint_works() {
         ExtBuilder::default().build().execute_with(|| {

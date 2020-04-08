@@ -62,15 +62,13 @@ pub enum Action<AccountId, Balance, Timeout> {
     EmptyAction,
     AddMember(AccountId),
     RemoveMember(AccountId),
-    GetTokenizedLoan(Vec<u8>, Days, Rate, TokenId, Balance), //TODO: keep the loan price here?
-    GetLoan(Vec<u8>, Days, Rate, Balance),
+    GetLoan(Vec<u8>, Days, Rate, TokenId, Balance),
     Withdraw(AccountId, Balance, Vec<u8>),
     ChangeTimeout(DaoId, Timeout),
     ChangeMaximumNumberOfMembers(DaoId, MemberId),
 }
 
 //token factory
-pub type TokenBalance = u128;
 pub type TokenId = u32;
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
@@ -82,14 +80,14 @@ pub struct Token {
 }
 
 //bridge
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[derive(Encode, Decode, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct Limits {
-    pub max_tx_value: u128,
-    pub day_max_limit: u128,
-    pub day_max_limit_for_one_address: u128,
-    pub max_pending_tx_limit: u128,
-    pub min_tx_value: u128,
+pub struct Limits<Balance> {
+    pub max_tx_value: Balance,
+    pub day_max_limit: Balance,
+    pub day_max_limit_for_one_address: Balance,
+    pub max_pending_tx_limit: Balance,
+    pub min_tx_value: Balance,
 }
 
 // bridge types
@@ -130,21 +128,21 @@ pub enum Kind {
 
 #[derive(Encode, Decode, Clone)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct TransferMessage<AccountId, Hash> {
+pub struct TransferMessage<AccountId, Hash, Balance> {
     pub message_id: Hash,
     pub token: TokenId,
     pub eth_address: H160,
     pub substrate_address: AccountId,
-    pub amount: TokenBalance,
+    pub amount: Balance,
     pub status: Status,
     pub action: Status,
 }
 
 #[derive(Encode, Decode, Clone)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct LimitMessage<Hash> {
+pub struct LimitMessage<Hash, Balance> {
     pub id: Hash,
-    pub limits: Limits,
+    pub limits: Limits<Balance>,
     pub status: Status,
 }
 
@@ -167,10 +165,11 @@ pub struct ValidatorMessage<AccountId, Hash> {
     pub status: Status,
 }
 
-impl<A, H> Default for TransferMessage<A, H>
+impl<A, H, B> Default for TransferMessage<A, H, B>
 where
     A: Default,
     H: Default,
+    B: Default,
 {
     fn default() -> Self {
         TransferMessage {
@@ -178,16 +177,17 @@ where
             token: TokenId::default(),
             eth_address: H160::default(),
             substrate_address: A::default(),
-            amount: TokenBalance::default(),
+            amount: B::default(),
             status: Status::Withdraw,
             action: Status::Withdraw,
         }
     }
 }
 
-impl<H> Default for LimitMessage<H>
+impl<H, B> Default for LimitMessage<H, B>
 where
     H: Default,
+    B: Default,
 {
     fn default() -> Self {
         LimitMessage {
@@ -244,14 +244,33 @@ where
     }
 }
 
-impl Limits {
-    pub fn into_array(&self) -> [u128; 5] {
+impl<B> Default for Limits<B>
+where
+    B: Default,
+{
+    fn default() -> Self {
+        Limits {
+            max_tx_value: B::default(),
+            day_max_limit: B::default(),
+            day_max_limit_for_one_address: B::default(),
+            max_pending_tx_limit: B::default(),
+            min_tx_value: B::default(),
+        }
+    }
+}
+
+pub trait IntoArray<T> {
+    fn into_array(&self) -> [T; 5];
+}
+
+impl<B: Clone> IntoArray<B> for Limits<B> {
+    fn into_array(&self) -> [B; 5] {
         [
-            self.max_tx_value,
-            self.day_max_limit,
-            self.day_max_limit_for_one_address,
-            self.max_pending_tx_limit,
-            self.min_tx_value,
+            self.max_tx_value.clone(),
+            self.day_max_limit.clone(),
+            self.day_max_limit_for_one_address.clone(),
+            self.max_pending_tx_limit.clone(),
+            self.min_tx_value.clone(),
         ]
     }
 }
