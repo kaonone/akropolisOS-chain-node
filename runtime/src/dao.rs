@@ -20,10 +20,7 @@ use sp_runtime::traits::{Hash, Zero};
 use sp_std::prelude::Vec;
 use system::ensure_signed;
 
-use crate::types::{
-    Action, Count, Dao, DaoId, Days, MemberId, Proposal, ProposalId, Rate, TokenId,
-    VotesCount,
-};
+use crate::types::*;
 use crate::{marketplace, price_oracle, token};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
@@ -214,7 +211,7 @@ decl_module! {
         pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
-            let proposal_hash = ("propose_to_get_token_loan", &proposer, dao_id, token_id)
+            let proposal_hash = ("propose_to_get_loan", &proposer, dao_id, token_id)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
             let voting_deadline = <system::Module<T>>::block_number() + <DaoTimeouts<T>>::get(dao_id);
             let mut open_proposals = Self::open_dao_proposals(voting_deadline);
@@ -225,6 +222,7 @@ decl_module! {
             ensure!(!<OpenDaoProposalsHashes<T>>::contains_key(proposal_hash), "This proposal already open");
             let len = open_proposals.len() as u32;
             ensure!(len < Self::open_proposals_per_block(), "Maximum number of open proposals is reached for the target block, try later");
+            Self::withdraw_from_dao_balance_is_valid(dao_id, value)?;
 
             let dao_proposals_count = <DaoProposalsCount>::get(dao_id);
             let new_dao_proposals_count = dao_proposals_count
@@ -446,7 +444,6 @@ decl_event!(
         ProposeToAddMember(DaoId, AccountId, BlockNumber),
         ProposeToRemoveMember(DaoId, AccountId, BlockNumber),
         ProposeToGetLoan(DaoId, AccountId, Days, Rate, Balance, BlockNumber),
-        ProposeToWithdraw(DaoId, AccountId, BlockNumber, Balance),
         ProposeToChangeTimeout(DaoId, BlockNumber),
         ProposeToChangeMaximumNumberOfMembers(DaoId, MemberId),
     }
@@ -572,6 +569,8 @@ impl<T: Trait> Module<T> {
             .1
             .into();
 
+        Self::mint_loan_tokens(dao_id, token_id, price, value)?;
+
         <marketplace::Module<T>>::propose_investment(
             dao_id,
             description,
@@ -583,9 +582,15 @@ impl<T: Trait> Module<T> {
         )
     }
 
-    fn mint_loan_tokens(dao_id: DaoId, token_id: TokenId, value: T::Balance) -> DispatchResult {
+    fn mint_loan_tokens(
+        dao_id: DaoId,
+        token_id: TokenId,
+        price: T::Balance,
+        value: T::Balance,
+    ) -> DispatchResult {
         let address = <Address<T>>::get(dao_id);
-        <token::Module<T>>::_mint(token_id, address, value)?;
+        let tokens_amount = value / price;
+        <token::Module<T>>::_mint(token_id, address, tokens_amount)?;
 
         Ok(())
     }
@@ -613,24 +618,8 @@ impl<T: Trait> Module<T> {
         let allowed_dao_balance = dao_balance
             .checked_sub(&<T as balances::Trait>::ExistentialDeposit::get())
             .ok_or("DAO balance is less than existential deposit")?;
-        // - <T as balances::Trait>::TransferFee::get();
+
         ensure!(allowed_dao_balance > value, "DAO balance is not sufficient");
-
-        Ok(())
-    }
-
-    fn withdraw(dao_id: DaoId, taker: T::AccountId, amount: T::Balance) -> DispatchResult {
-        Self::withdraw_from_dao_balance_is_valid(dao_id, amount)?;
-        let dao_address = <Address<T>>::get(dao_id);
-
-        Self::remove_account_lock(&dao_address);
-        <balances::Module<T> as Currency<_>>::transfer(
-            &dao_address,
-            &taker,
-            amount,
-            ExistenceRequirement::KeepAlive,
-        )?;
-        Self::set_account_lock(&dao_address);
 
         Ok(())
     }
@@ -668,9 +657,6 @@ impl<T: Trait> Module<T> {
                 *token,
                 *value,
             ),
-            Action::Withdraw(member, amount, ..) => {
-                Self::withdraw(proposal.dao_id, member.clone(), *amount)
-            }
             Action::ChangeTimeout(dao_id, value) => Self::change_timeout(*dao_id, *value),
             Action::ChangeMaximumNumberOfMembers(dao_id, value) => {
                 Self::change_maximum_number_of_members(*dao_id, *value)
@@ -701,12 +687,13 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
 
+    use crate::bridge;
     use frame_support::{
         assert_noop, assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types,
         traits::{Get, ReservableCurrency},
         weights::Weight,
     };
-    use sp_core::H256;
+    use sp_core::{H160, H256};
     use sp_runtime::{
         testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
@@ -714,8 +701,8 @@ mod tests {
     };
     use std::cell::RefCell;
 
-    pub type BlockNumber = u64;
     pub type Balance = u128;
+    pub type BlockNumber = u64;
 
     thread_local! {
         static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
@@ -795,6 +782,9 @@ mod tests {
     impl token::Trait for Test {
         type Event = ();
     }
+    impl bridge::Trait for Test {
+        type Event = ();
+    }
 
     pub type Extrinsic = TestXt<Call, ()>;
     type SubmitPFTransaction =
@@ -820,9 +810,12 @@ mod tests {
         type Event = ();
     }
     type Balances = balances::Module<Test>;
+    type BridgeModule = bridge::Module<Test>;
+    type TokenModule = token::Module<Test>;
     type PriceOracleModule = price_oracle::Module<Test>;
     type DaoModule = Module<Test>;
 
+    const DAO_ID: DaoId = 0;
     const DAO_NAME: &[u8; 10] = b"Name-1234_";
     const DAO_NAME2: &[u8; 10] = b"Name-5678_";
     const DAO_DESC: &[u8; 10] = b"Desc-1234_";
@@ -832,6 +825,9 @@ mod tests {
     const USER3: u64 = 3;
     const USER4: u64 = 4;
     const USER5: u64 = 5;
+    const V1: u64 = 1876;
+    const V2: u64 = 2873;
+    const V3: u64 = 3346;
     const EMPTY_USER: u64 = 6;
     const DAO: u64 = 11;
     const DAO2: u64 = 12;
@@ -839,11 +835,18 @@ mod tests {
     const NOT_EMPTY_DAO_BALANCE: u128 = 1000;
     const DAYS: Days = 365;
     const RATE: Rate = 1000;
-    const VALUE: u128 = 1_000_000;
+    const VALUE: u128 = 10_000_000_000_000_000_000; // 10 unit tokens with 18 precision
+    const VALUE2: u128 = 100_000_000_000_000_000_000; // 100 unit tokens with 18 precision
     const VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT + 1;
     const VERY_SMALL_VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT - 1;
     const VERY_BIG_VOTE_TIMEOUT: u32 = MAXIMUM_VOTE_TIMEOUT + 1;
     const TOKEN_ID: TokenId = 0;
+    const PROPOSAL_ID: ProposalId = 0;
+    const YES: bool = true;
+    const NO: bool = false;
+    const AMOUNT: u128 = 5000;
+    const AMOUNT2: u128 = 100;
+    const ADD_MEMBER1: ProposalId = 0;
 
     pub struct ExtBuilder {
         existential_deposit: u128,
@@ -869,11 +872,27 @@ mod tests {
 
             let _ = balances::GenesisConfig::<Test> {
                 balances: vec![
-                    (USER, 100_000),
+                    (USER, VALUE2 + 100_000_000),
+                    (V1, 100000),
+                    (V2, 100000),
+                    (V3, 100000),
                     (DAO, 500),
                     (NOT_EMPTY_DAO, NOT_EMPTY_DAO_BALANCE),
                     (USER3, 300_000),
                     (EMPTY_USER, 500),
+                ],
+            }
+            .assimilate_storage(&mut storage);
+
+            let _ = bridge::GenesisConfig::<Test> {
+                validators_count: 3u32,
+                validator_accounts: vec![V1, V2, V3],
+                current_limits: vec![
+                    100 * 10u128.pow(18),
+                    200 * 10u128.pow(18),
+                    50 * 10u128.pow(18),
+                    400 * 10u128.pow(18),
+                    10 * 10u128.pow(18),
                 ],
             }
             .assimilate_storage(&mut storage);
@@ -894,7 +913,6 @@ mod tests {
     #[test]
     fn create_dao_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
             const MEMBER_ID: MemberId = 0;
 
             assert_eq!(DaoModule::daos_count(), 0);
@@ -1086,8 +1104,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1108,8 +1124,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_this_dao_not_exists() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::propose_to_add_member(Origin::signed(USER), DAO_ID),
@@ -1121,8 +1135,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_you_already_are_a_member_of_this_dao() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1142,9 +1154,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_dao_can_not_be_a_member_of_other_dao() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const DAO_ID2: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1160,9 +1169,9 @@ mod tests {
             ));
             assert_eq!(DaoModule::daos_count(), 2);
             assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
-            assert_eq!(DaoModule::members((DAO_ID2, 0)), USER);
+            assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
             assert_noop!(
-                DaoModule::propose_to_add_member(Origin::signed(DAO), DAO_ID2),
+                DaoModule::propose_to_add_member(Origin::signed(DAO), DAO_ID),
                 "A DAO can not be a member of other DAO"
             );
         })
@@ -1171,8 +1180,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_maximum_number_of_members_is_reached() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1195,8 +1202,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_this_proposal_already_open() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1220,8 +1225,6 @@ mod tests {
     #[test]
     fn propose_to_add_member_case_maximum_number_of_open_proposals_is_reached() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1249,8 +1252,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1273,8 +1274,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_case_this_dao_not_exists() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::propose_to_remove_member(Origin::signed(USER), DAO_ID),
@@ -1286,8 +1285,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_case_you_already_are_not_member() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1306,8 +1303,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_case_you_are_the_latest_member() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1326,8 +1321,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_case_this_proposal_already_open() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1352,8 +1345,6 @@ mod tests {
     #[test]
     fn propose_to_remove_member_case_maximum_number_of_open_proposals_is_reached() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1384,8 +1375,6 @@ mod tests {
     #[test]
     fn propose_to_get_loan_case_maximum_number_of_open_proposals_is_reached() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1400,30 +1389,30 @@ mod tests {
             assert_ok!(DaoModule::propose_to_get_loan(
                 Origin::signed(USER),
                 DAO_ID,
-                DAO_DESC.to_vec(),
+                PROPOSAL_DESC.to_vec(),
                 DAYS,
                 RATE,
                 TOKEN_ID,
-                VALUE
+                AMOUNT2
             ));
             assert_ok!(DaoModule::propose_to_get_loan(
                 Origin::signed(USER2),
                 DAO_ID,
-                DAO_DESC.to_vec(),
+                PROPOSAL_DESC.to_vec(),
                 DAYS,
                 RATE,
                 TOKEN_ID,
-                VALUE
+                AMOUNT2
             ));
             assert_noop!(
                 DaoModule::propose_to_get_loan(
                     Origin::signed(USER3),
                     DAO_ID,
-                    DAO_DESC.to_vec(),
+                    PROPOSAL_DESC.to_vec(),
                     DAYS,
                     RATE,
                     TOKEN_ID,
-                    VALUE
+                    AMOUNT2
                 ),
                 "Maximum number of open proposals is reached for the target block, try later"
             );
@@ -1433,8 +1422,6 @@ mod tests {
     #[test]
     fn propose_to_get_loan_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1448,11 +1435,11 @@ mod tests {
             assert_ok!(DaoModule::propose_to_get_loan(
                 Origin::signed(USER),
                 DAO_ID,
-                DAO_DESC.to_vec(),
+                PROPOSAL_DESC.to_vec(),
                 DAYS,
                 RATE,
                 TOKEN_ID,
-                VALUE
+                AMOUNT2
             ));
             assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
         })
@@ -1461,18 +1448,16 @@ mod tests {
     #[test]
     fn propose_to_get_loan_case_this_dao_not_exists() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_noop!(
                 DaoModule::propose_to_get_loan(
                     Origin::signed(USER),
                     DAO_ID,
-                    DAO_DESC.to_vec(),
+                    PROPOSAL_DESC.to_vec(),
                     DAYS,
                     RATE,
                     TOKEN_ID,
-                    VALUE
+                    AMOUNT2
                 ),
                 "This DAO not exists"
             );
@@ -1482,8 +1467,6 @@ mod tests {
     #[test]
     fn propose_to_get_loan_case_you_already_are_not_member() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1496,11 +1479,11 @@ mod tests {
                 DaoModule::propose_to_get_loan(
                     Origin::signed(USER2),
                     DAO_ID,
-                    DAO_DESC.to_vec(),
+                    PROPOSAL_DESC.to_vec(),
                     DAYS,
                     RATE,
                     TOKEN_ID,
-                    VALUE
+                    AMOUNT2
                 ),
                 "You already are not a member of this DAO"
             );
@@ -1510,8 +1493,6 @@ mod tests {
     #[test]
     fn propose_to_get_loan_case_this_proposal_already_open() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1520,26 +1501,27 @@ mod tests {
                 DAO_DESC.to_vec()
             ));
             assert_eq!(DaoModule::daos_count(), 1);
+            assert_eq!(Balances::free_balance(DAO), 1000);
             assert_eq!(DaoModule::members((DAO_ID, 0)), USER);
             assert_ok!(DaoModule::add_member(DAO_ID, USER2));
             assert_ok!(DaoModule::propose_to_get_loan(
                 Origin::signed(USER),
                 DAO_ID,
-                DAO_DESC.to_vec(),
+                PROPOSAL_DESC.to_vec(),
                 DAYS,
                 RATE,
                 TOKEN_ID,
-                VALUE
+                AMOUNT2
             ));
             assert_noop!(
                 DaoModule::propose_to_get_loan(
                     Origin::signed(USER),
                     DAO_ID,
-                    DAO_DESC.to_vec(),
+                    PROPOSAL_DESC.to_vec(),
                     DAYS,
                     RATE,
                     TOKEN_ID,
-                    VALUE
+                    AMOUNT2
                 ),
                 "This proposal already open"
             );
@@ -1549,10 +1531,6 @@ mod tests {
     #[test]
     fn vote_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1586,10 +1564,6 @@ mod tests {
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_yes() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1647,10 +1621,6 @@ mod tests {
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_no() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const NO: bool = false;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1708,11 +1678,6 @@ mod tests {
     #[test]
     fn vote_should_work_early_ending_of_voting_case_all_members_voted() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const NO: bool = false;
-            const YES: bool = true;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -1772,9 +1737,6 @@ mod tests {
     #[test]
     fn vote_case_you_are_not_member_of_this_dao() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1794,9 +1756,6 @@ mod tests {
     #[test]
     fn vote_case_this_proposal_not_exists() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1816,9 +1775,6 @@ mod tests {
     #[test]
     fn vote_case_you_voted_already() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1848,9 +1804,6 @@ mod tests {
     #[test]
     fn vote_case_this_proposal_is_not_open() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1880,9 +1833,6 @@ mod tests {
     #[test]
     fn vote_case_maximum_number_of_members_is_reached() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1924,7 +1874,6 @@ mod tests {
     #[test]
     fn deposit_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1946,9 +1895,6 @@ mod tests {
     #[test]
     fn deposit_should_fail_not_enough() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -1983,55 +1929,10 @@ mod tests {
     }
 
     #[test]
-    fn withdraw_should_work() {
-        ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const TOKEN_AMOUNT: Balance = 3000;
-            const ADD_MEMBER1: ProposalId = 0;
-            const YES: bool = true;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-
-            let dao_id = DaoModule::dao_addresses(DAO);
-
-            assert_eq!(Balances::free_balance(DAO), 1000);
-            assert_eq!(DaoModule::daos_count(), 1);
-
-            assert_ok!(DaoModule::propose_to_add_member(
-                Origin::signed(USER2),
-                dao_id
-            ));
-            assert_ok!(DaoModule::vote(
-                Origin::signed(USER),
-                dao_id,
-                ADD_MEMBER1,
-                YES
-            ));
-            assert_eq!(DaoModule::members_count(dao_id), 2);
-
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
-            assert_eq!(Balances::free_balance(DAO), 6000);
-
-            // TODO: imitate withdraw tokens
-
-            assert_eq!(Balances::free_balance(DAO), 6000);
-        })
-    }
-
-    #[test]
     fn change_vote_timeout_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const ADD_MEMBER1: ProposalId = 0;
             const CHANGE_TIMEOUT: ProposalId = 1;
             const CHANGE_TIMEOUT2: ProposalId = 2;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2105,9 +2006,6 @@ mod tests {
     #[test]
     fn change_vote_timeout_case_new_vote_timeout_equal_current_vote_timeout() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const ADD_MEMBER1: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2150,9 +2048,6 @@ mod tests {
     #[test]
     fn change_vote_timeout_case_new_voting_timeout_is_very_small() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const ADD_MEMBER1: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2194,9 +2089,6 @@ mod tests {
     #[test]
     fn change_vote_timeout_case_new_voting_timeout_is_very_big() {
         ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const ADD_MEMBER1: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2238,9 +2130,7 @@ mod tests {
     #[test]
     fn change_maximum_number_of_members_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const PROPOSAL_ID: ProposalId = 0;
             const PROPOSAL_ID2: ProposalId = 1;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2292,8 +2182,6 @@ mod tests {
     fn change_maximum_number_of_members_case_current_number_of_members_more_than_new_maximum_number_of_members(
     ) {
         ExtBuilder::default().build().execute_with( || {
-            const PROPOSAL_ID: ProposalId = 0;
-            const YES: bool = true;
 
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
@@ -2403,79 +2291,8 @@ mod tests {
     }
 
     #[test]
-    fn withdraw_should_not_work_not_enough_votes() {
-        ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            // const TOKEN_AMOUNT: u128 = 3000;
-            const ADD_MEMBER: ProposalId = 0;
-            const YES: bool = true;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            let dao_id = DaoModule::dao_addresses(DAO);
-
-            assert_eq!(Balances::free_balance(DAO), 1000);
-            assert_eq!(DaoModule::daos_count(), 1);
-
-            assert_ok!(DaoModule::propose_to_add_member(
-                Origin::signed(USER2),
-                dao_id
-            ));
-            assert_ok!(DaoModule::vote(
-                Origin::signed(USER),
-                dao_id,
-                ADD_MEMBER,
-                YES
-            ));
-            assert_eq!(DaoModule::members_count(dao_id), 2);
-
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
-            assert_eq!(Balances::free_balance(DAO), 6000);
-
-            // TODO: imitate failed withdraw tokens
-
-            assert_eq!(Balances::free_balance(DAO), 6000);
-        })
-    }
-
-    #[test]
-    fn withdraw_case_direct_withdraw_forbidden() {
-        ExtBuilder::default().build().execute_with(|| {
-            const AMOUNT: u128 = 5000;
-            const AMOUNT2: u128 = AMOUNT - 1000;
-
-            assert_eq!(DaoModule::daos_count(), 0);
-            assert_ok!(DaoModule::create(
-                Origin::signed(USER),
-                DAO,
-                DAO_NAME.to_vec(),
-                DAO_DESC.to_vec()
-            ));
-            let dao_id = DaoModule::dao_addresses(DAO);
-
-            assert_eq!(Balances::free_balance(DAO), 1000);
-            assert_eq!(DaoModule::daos_count(), 1);
-            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
-            assert_eq!(Balances::free_balance(DAO), 6000);
-
-            assert_noop!(
-                Balances::transfer(Origin::signed(DAO), USER, AMOUNT2),
-                balances::Error::<Test, _>::LiquidityRestrictions
-            );
-            assert_eq!(Balances::free_balance(DAO), 6000);
-        })
-    }
-
-    #[test]
     fn remove_member_should_work() {
         ExtBuilder::default().build().execute_with(|| {
-            const DAO_ID: DaoId = 0;
-
             assert_eq!(DaoModule::daos_count(), 0);
             assert_ok!(DaoModule::create(
                 Origin::signed(USER),
@@ -2509,6 +2326,153 @@ mod tests {
             assert_ok!(DaoModule::remove_member(DAO_ID, USER4));
             assert_eq!(DaoModule::members((DAO_ID, 0)), USER3);
             assert_eq!(DaoModule::members_count(DAO_ID), 1);
+        })
+    }
+
+    #[test]
+    fn withdraw_case_direct_withdraw_forbidden() {
+        ExtBuilder::default().build().execute_with(|| {
+            const AMOUNT2: u128 = AMOUNT - 1000;
+
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+            let dao_id = DaoModule::dao_addresses(DAO);
+
+            assert_eq!(Balances::free_balance(DAO), 1000);
+            assert_eq!(DaoModule::daos_count(), 1);
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), dao_id, AMOUNT));
+            assert_eq!(Balances::free_balance(DAO), 6000);
+
+            assert_noop!(
+                Balances::transfer(Origin::signed(DAO), USER, AMOUNT2),
+                balances::Error::<Test, _>::LiquidityRestrictions
+            );
+            assert_eq!(Balances::free_balance(DAO), 6000);
+        })
+    }
+
+    #[test]
+    fn withdraw_should_work() {
+        ExtBuilder::default().build().execute_with(|| {
+            const GET_LOAN: ProposalId = 1;
+            const ETH_ADDRESS: &[u8; 20] = b"0x00b46c2526ebb8f4c9";
+            
+            let min_limit = 10 * 10u128.pow(18);
+            let value = 15 * 10u128.pow(18);
+            assert_eq!(BridgeModule::current_limits().min_tx_value, min_limit);
+
+            // create dao
+            assert_eq!(DaoModule::daos_count(), 0);
+            assert_ok!(DaoModule::create(
+                Origin::signed(USER),
+                DAO,
+                DAO_NAME.to_vec(),
+                DAO_DESC.to_vec()
+            ));
+
+            assert_eq!(Balances::free_balance(DAO), 1000);
+            assert_eq!(DaoModule::daos_count(), 1);
+
+            // add someone
+            assert_ok!(DaoModule::propose_to_add_member(
+                Origin::signed(USER2),
+                DAO_ID
+            ));
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER),
+                DAO_ID,
+                ADD_MEMBER1,
+                YES
+            ));
+            assert_eq!(DaoModule::members_count(DAO_ID), 2);
+            // deposit some amount
+            assert_ok!(DaoModule::deposit(Origin::signed(USER), DAO_ID, value));
+            assert_eq!(Balances::free_balance(DAO), value + 1000);
+
+            // create loan proposal
+            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 1);
+            assert_ok!(DaoModule::propose_to_get_loan(
+                Origin::signed(USER),
+                DAO_ID,
+                PROPOSAL_DESC.to_vec(),
+                DAYS,
+                RATE,
+                TOKEN_ID,
+                value
+            ));
+            assert_eq!(DaoModule::dao_proposals_count(DAO_ID), 2);
+            assert_ok!(DaoModule::vote(
+                Origin::signed(USER2),
+                DAO_ID,
+                GET_LOAN,
+                YES
+            ));
+            let token_amount = TokenModule::balance_of((TOKEN_ID, USER));
+
+            // withdraw
+            let eth_address = H160::from(ETH_ADDRESS);
+            let amount1 = 600;
+
+            // substrate ----> ETH
+            assert_ok!(BridgeModule::set_transfer(
+                Origin::signed(USER2),
+                eth_address,
+                TOKEN_ID,
+                token_amount
+            ));
+            // RelayMessage(message_id) event emitted
+
+            let sub_message_id = BridgeModule::message_id_by_transfer_id(0);
+            let get_message = || BridgeModule::messages(sub_message_id);
+
+            let mut message = get_message();
+            assert_eq!(message.status, Status::Withdraw);
+
+            // approval
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
+            assert_ok!(BridgeModule::approve_transfer(
+                Origin::signed(V1),
+                sub_message_id
+            ));
+            assert_ok!(BridgeModule::approve_transfer(
+                Origin::signed(V2),
+                sub_message_id
+            ));
+
+            message = get_message();
+            assert_eq!(message.status, Status::Approved);
+
+            // at this point transfer is in Approved status and are waiting for confirmation
+            // from ethereum side to burn. Funds are locked.
+            assert_eq!(TokenModule::locked((0, USER2)), token_amount);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 0);
+            // once it happends, validators call confirm_transfer
+
+            assert_ok!(BridgeModule::confirm_transfer(
+                Origin::signed(V2),
+                sub_message_id
+            ));
+
+            message = get_message();
+            let transfer = BridgeModule::transfers(1);
+            assert_eq!(message.status, Status::Confirmed);
+            assert_eq!(transfer.open, true);
+            assert_ok!(BridgeModule::confirm_transfer(
+                Origin::signed(V1),
+                sub_message_id
+            ));
+            // assert_ok!(BridgeModule::confirm_transfer(Origin::signed(USER1), sub_message_id));
+            //BurnedMessage(Hash, AccountId, H160, u64) event emitted
+            let tokens_left = amount1 - token_amount;
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), tokens_left);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), tokens_left);
+
+            assert_eq!(Balances::free_balance(DAO), 6000);
         })
     }
 }
