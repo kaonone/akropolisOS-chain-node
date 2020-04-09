@@ -63,7 +63,7 @@ fn akropolis_genesis() -> Result<ChainSpec, String> {
 }
 
 fn akropolis_syracuse_genesis() -> Result<ChainSpec, String> {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/akropolis_syracuse.json")[..])
+    ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos_syracuse.json")[..])
 }
 
 fn akropolisos_staging_genesis() -> GenesisConfig {
