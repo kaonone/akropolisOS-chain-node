@@ -39,6 +39,8 @@ pub enum ChainSpec {
     LocalTestnet,
     /// Whatever the current runtime is with the "global testnet" defaults.
     AkropolisOSStaging,
+    /// Syracuse testnet
+    AkropolisOSSyracuse,
     /// Akropolis OS Mainnet
     AkropolisOS,
 }
@@ -49,6 +51,7 @@ impl ChainSpec {
         Ok(match self {
             ChainSpec::Development => chain_spec::development_config(),
             ChainSpec::LocalTestnet => chain_spec::local_testnet_config(),
+            ChainSpec::AkropolisOSSyracuse => chain_spec::syracuse_testnet_config(),
             ChainSpec::AkropolisOSStaging => chain_spec::staging_testnet_config(),
             ChainSpec::AkropolisOS => chain_spec::staging_testnet_config(),
         })
@@ -58,6 +61,7 @@ impl ChainSpec {
         match s {
             "dev" => Some(ChainSpec::Development),
             "local" => Some(ChainSpec::LocalTestnet),
+            "syracuse" => Some(ChainSpec::AkropolisOSSyracuse),
             "" | "akro" | "akropolisos" => Some(ChainSpec::AkropolisOS),
             "staging" => Some(ChainSpec::AkropolisOSStaging),
             _ => None,

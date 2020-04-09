@@ -27,7 +27,7 @@ async fn start_inner(chain_spec: String, log_level: String) -> Result<Client, Bo
 
 	info!("Akropolis OS browser node");
 	info!("  version {}", config.full_version());
-	info!("  by Akropolis LTD, 2017-2020");
+	info!("  by Akropolis Decentralized LTD, 2017-2020");
 	info!("Chain specification: {}", config.expect_chain_spec().name());
 	info!("Node name: {}", config.name);
 	info!("Roles: {:?}", config.roles);
