@@ -125,15 +125,6 @@ fn akropolisos_staging_genesis() -> GenesisConfig {
             // 5C4vDQxA8LTck2xJEy4Yg1hM9qjDt4LvTQaMo4Y8ne43aU6x
             hex!["00299981a2b92f878baaf5dbeba5c18d4e70f2a1fcd9c61b32ea18daf38f4378"].unchecked_into(),
         )];
-        
-        let bridge_validators: Vec<AccountId> = vec![
-            hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
-            // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
-            hex!("80133ea92f48aa928119aaaf524bc75e436a5c9eb24878a9e28ac7b0b37aa81a").into(), 
-            // 5CqXmy44eTwGQCX8GaLrUfTAyEswGSd4PgSKMgUdLfDLBhZZ
-            hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(), 
-            // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
-        ];
 
     // generated with secret: subkey inspect "$secret"/fir
     let root_key: AccountId = hex![
@@ -244,16 +235,13 @@ pub fn testnet_genesis(
     endowed_accounts: Option<Vec<AccountId>>,
     enable_println: bool,
 ) -> GenesisConfig {
-    let bridge_validators = vec![
-        get_account_id_from_seed::<sr25519::Public>(
-            "3a495ac93eca02fa4f64bcc99b2f950b7df8d866b4b107596a0ea7a547b48753",
-        ), // 5DP8Rd8jUQD9oukZduPSMxdrH8g3r4mzS1zXLZCS6qDissTm
-        get_account_id_from_seed::<sr25519::Public>(
-            "1450cad95384831a1b267f2d18273b83b77aaee8555a23b7f1abbb48b5af8e77",
-        ), // 5CXLpEbkeqp475Y8p7uMeiimgKXX6haZ1fCT4jzyry26CPxp
-        get_account_id_from_seed::<sr25519::Public>(
-            "2452305cbdb33a55de1bc46f6897fd96d724d8bccc5ca4783f6f654af8582d58",
-        ), // 5CtKzjXcWrD8GRQqorFiwHF9oUbx2wHpf43erxB2u7dpfCq9
+    let bridge_validators: Vec<AccountId> = vec![
+        hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
+        // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
+        hex!("80133ea92f48aa928119aaaf524bc75e436a5c9eb24878a9e28ac7b0b37aa81a").into(), 
+        // 5CqXmy44eTwGQCX8GaLrUfTAyEswGSd4PgSKMgUdLfDLBhZZ
+        hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(), 
+        // 5DnUF5fQ6KNYPWRAcHYpMu32pUtdLv6ksRcSLeuofrxmPsTU
     ];
     let tokens = vec![
         Token {
