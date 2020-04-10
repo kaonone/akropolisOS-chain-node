@@ -30,6 +30,8 @@ browser-utils = { package = "substrate-browser-utils", git = 'https://github.com
 node-executor = { path = "../executor" }
 node-rpc = { path = "../rpc" }
 
+node-transaction-factory = { optional = true, path = "../transaction-factory" }
+node-inspect = { optional = true, path = "../inspect" }
 frame-benchmarking-cli = {version = '2.0.0-alpha.5', git = 'https://github.com/paritytech/substrate.git', optional = true}
 akropolisos-runtime = { version = '0.5.0', path = '../runtime' }
 
