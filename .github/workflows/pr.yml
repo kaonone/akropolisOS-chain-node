@@ -8,8 +8,6 @@ jobs:
     - uses: actions/checkout@v1
     - name: Install latest nightly and wasm utils
       run: sh scripts/init.sh
-    - name: Build WASM
-      run: sh scripts/build.sh
     - name: Build runtime
       run: cargo build --verbose
     - name: Runtime tests
