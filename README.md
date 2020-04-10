@@ -97,109 +97,110 @@ This guide will walk you through how to create account and how to connect to Akr
 ```bash
 
 {
-  "Count": "u64",
-  "DaoId": "u64",
-  "MemberId": "u64",
-  "ProposalId": "u64",
-  "TokenBalance": "u128",
-  "VotesCount": "MemberId",
-  "TokenId": "u32",
-  "Days": "u32",
-  "Rate": "u32",
-  "Dao": {
-    "address": "AccountId",
-    "name": "Text",
-    "description": "Bytes",
-    "founder": "AccountId"
-  },
-  "Action": {
-    "_enum": {
-      "EmptyAction": null,
-      "AddMember": "AccountId",
-      "RemoveMember": "AccountId",
-      "GetLoan": "(Vec<u8>, Days, Rate, Balance)",
-      "Withdraw": "(AccountId, Balance, Vec<u8>)",
-      "ChangeTimeout": "(DaoId, BlockNumber)",
-      "ChangeMaximumNumberOfMembers": "(DaoId, MemberId)"
-    }
-  },
-  "Proposal": {
-    "dao_id": "DaoId",
-    "action": "Action",
-    "open": "bool",
-    "accepted": "bool",
-    "voting_deadline": "BlockNumber",
-    "yes_count": "VotesCount",
-    "no_count": "VotesCount"
-  },
-  "Token": {
-    "token_id": "u32",
-    "decimals": "u16",
-    "symbol": "Vec<u8>"
-  },
-  "Limits": {
-    "max_tx_value": "u128",
-    "day_max_limit": "u128",
-    "day_max_limit_for_one_address": "u128",
-    "max_pending_tx_limit": "u128",
-    "min_tx_value": "u128",
-  },
-  "Status": {
+    "Count": "u64",
+    "DaoId": "u64",
+    "MemberId": "u64",
+    "ProposalId": "u64",
+    "TokenBalance": "u128",
+    "VotesCount": "MemberId",
+    "TokenId": "u32",
+    "Days": "u32",
+    "Rate": "u32",
+    "Dao": {
+      "address": "AccountId",
+      "name": "Text",
+      "description": "Bytes",
+      "founder": "AccountId"
+    },
+    "Action": {
+      "_enum": {
+        "EmptyAction": null,
+        "AddMember": "AccountId",
+        "RemoveMember": "AccountId",
+        "GetLoan": "(Vec<u8>, Days, Rate, Balance)",
+        "Withdraw": "(AccountId, Balance, Vec<u8>)",
+        "ChangeTimeout": "(DaoId, BlockNumber)",
+        "ChangeMaximumNumberOfMembers": "(DaoId, MemberId)"
+      }
+    },
+    "Proposal": {
+      "dao_id": "DaoId",
+      "action": "Action",
+      "open": "bool",
+      "accepted": "bool",
+      "voting_deadline": "BlockNumber",
+      "yes_count": "VotesCount",
+      "no_count": "VotesCount"
+    },
+    "Token": {
+      "token_id": "u32",
+      "decimals": "u16",
+      "symbol": "Vec<u8>"
+    },
+    "Limits": {
+      "max_tx_value": "u128",
+      "day_max_limit": "u128",
+      "day_max_limit_for_one_address": "u128",
+      "max_pending_tx_limit": "u128",
+      "min_tx_value": "u128"
+    },
+    "Status": {
+        "_enum":[
+          "Revoked",
+          "Pending",
+          "PauseTheBridge",
+          "ResumeTheBridge",
+          "UpdateValidatorSet",
+          "UpdateLimits",
+          "Deposit",
+          "Withdraw",
+          "Approved",
+          "Canceled",
+          "Confirmed"
+        ]
+    },
+    "Kind" :{
       "_enum":[
-        "Revoked",
-        "Pending",
-        "PauseTheBridge",
-        "ResumeTheBridge",
-        "UpdateValidatorSet",
-        "UpdateLimits",
-        "Deposit",
-        "Withdraw",
-        "Approved",
-        "Canceled",
-        "Confirmed"
+      "Transfer",
+      "Limits",
+      "Validator",
+      "Bridge"
       ]
-  },
-  "Kind" :{
-    "_enum":[
-    "Transfer",
-    "Limits",
-    "Validator",
-    "Bridge",
-  },
-    "TransferMessage": {
+    },
+      "TransferMessage": {
+        "message_id": "H256",
+        "eth_address": "H160",
+        "substrate_address": "AccountId",
+        "amount": "TokenBalance",
+        "status": "Status",
+        "direction": "Status"
+    },
+      "LimitMessage": {
+        "id": "H256",
+        "limits": "Limits",
+        "status": "Status"
+    },
+      "BridgeMessage": {
+        "message_id": "H256",
+        "account": "AccountId",
+        "status": "Status",
+        "action": "Status"
+    },
+      "ValidatorMessage": {
+        "message_id": "H256",
+        "quorum":"u64",
+        "accounts": "Vec<AccountId>",
+        "status": "Status",
+        "action": "Status"
+    },
+    "BridgeTransfer": {
+      "transfer_id": "ProposalId",
       "message_id": "H256",
-      "eth_address": "H160",
-      "substrate_address": "AccountId",
-      "amount": "TokenBalance",
-      "status": "Status",
-      "direction": "Status"
-  },
-    "LimitMessage": {
-      "id": "H256",
-      "limits": "Limits",
-      "status": "Status",
-  },
-    "BridgeMessage": {
-      "message_id": "H256",
-      "account": "AccountId",
-      "status": "Status",
-      "action": "Status"
-  },
-    "ValidatorMessage": {
-      "message_id": "H256",
-      "quorum":"u64",
-      "accounts": "Vec<AccountId>",
-      "status": "Status",
-      "action": "Status"
-  },
-  "BridgeTransfer": {
-    "transfer_id": "ProposalId",
-    "message_id": "H256",
-    "open": "bool",
-    "votes": "MemberId"
-    "kind": "Kind"
+      "open": "bool",
+      "votes": "MemberId",
+      "kind": "Kind"
+    }
   }
-}
 
 
 

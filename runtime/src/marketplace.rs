@@ -1,13 +1,11 @@
-use support::{decl_event, decl_module, decl_storage, dispatch::Result, StorageValue};
+use crate::types::{DaoId, Days, Rate, TokenId};
+use frame_support::{
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue,
+};
+use sp_std::prelude::Vec;
 use system::ensure_signed;
 
-use rstd::prelude::Vec;
-
-use crate::types::{DaoId, Days, Rate};
-
-/// The module's configuration trait.
 pub trait Trait: balances::Trait + system::Trait {
-    /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
@@ -21,12 +19,12 @@ decl_storage! {
 decl_module! {
     /// The module declaration.
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
-        fn make_investment(origin, proposal_id: u64) -> Result {
+        fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            <Something<T>>::put(proposal_id);
+            <Something>::put(proposal_id);
 
             Self::deposit_event(RawEvent::NewInvsetment(proposal_id, who));
             Ok(())
@@ -35,18 +33,23 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn propose_to_investment(
+    pub fn propose_investment(
         dao_id: DaoId,
         description: Vec<u8>,
         days: Days,
         rate: Rate,
+        token: TokenId,
+        price: T::Balance,
         value: T::Balance,
-    ) -> Result {
-        Self::deposit_event(RawEvent::ProposeToInvestment(
+    ) -> DispatchResult {
+        // TODO: do usefull stuff :D
+        Self::deposit_event(RawEvent::ProposeInvestment(
             dao_id,
             description,
             days,
             rate,
+            token,
+            price,
             value,
         ));
         Ok(())
@@ -60,7 +63,7 @@ decl_event!(
         Balance = <T as balances::Trait>::Balance,
     {
         NewInvsetment(u64, AccountId),
-        ProposeToInvestment(DaoId, Vec<u8>, Days, Rate, Balance),
+        ProposeInvestment(DaoId, Vec<u8>, Days, Rate, TokenId, Balance, Balance),
     }
 );
 
@@ -69,17 +72,31 @@ decl_event!(
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
-    use runtime_io::with_externalities;
-    use runtime_primitives::{
-        testing::{Digest, DigestItem, Header},
-        traits::{BlakeTwo256, IdentityLookup},
-        BuildStorage,
+    use frame_support::{
+        assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
     };
-    use support::{assert_ok, impl_outer_origin};
+    use sp_core::H256;
+    use sp_runtime::{
+        testing::Header,
+        traits::{BlakeTwo256, IdentityLookup},
+        Perbill,
+    };
+    use std::cell::RefCell;
+
+    pub type Balance = u128;
+
+    thread_local! {
+        static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
+    }
 
     impl_outer_origin! {
         pub enum Origin for Test {}
+    }
+    pub struct ExistentialDeposit;
+    impl Get<u128> for ExistentialDeposit {
+        fn get() -> u128 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+        }
     }
 
     // For testing the module, we construct most of a mock runtime. This means
@@ -87,28 +104,42 @@ mod tests {
     // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type Digest = Digest;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
-        type Log = DigestItem;
-    }
-    impl balances::Trait for Test {
-        type Balance = u128;
-        type OnFreeBalanceZero = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+        type ModuleToIndex = ();
+        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
-        type TransactionPayment = ();
-        type TransferPayment = ();
+        type OnKilledAccount = ();
+    }
+
+    impl balances::Trait for Test {
+        type Balance = Balance;
         type DustRemoval = ();
         type Event = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = system::Module<Test>;
     }
+
     impl Trait for Test {
         type Event = ();
     }
@@ -116,37 +147,75 @@ mod tests {
 
     const DAO_DESC: &[u8; 10] = b"Desc-1234_";
 
-    // This function basically just builds a genesis storage key/value store according to
-    // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        system::GenesisConfig::<Test>::default()
-            .build_storage()
-            .unwrap()
-            .0
-            .into()
+    pub struct ExtBuilder {
+        existential_deposit: u128,
+    }
+
+    impl Default for ExtBuilder {
+        fn default() -> Self {
+            Self {
+                existential_deposit: 500,
+            }
+        }
+    }
+
+    impl ExtBuilder {
+        pub fn set_associated_consts(&self) {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
+        }
+        pub fn build(self) -> sp_io::TestExternalities {
+            self.set_associated_consts();
+            let mut storage = system::GenesisConfig::default()
+                .build_storage::<Test>()
+                .unwrap();
+
+            let _ = balances::GenesisConfig::<Test> {
+                balances: vec![
+                    (2, 20000),
+                    (3, 30000),
+                    (4, 400000),
+                    (11, 500),
+                    (21, 2000),
+                    (31, 2000),
+                    (41, 2000),
+                    (100, 2000),
+                    (101, 2000),
+                    // This allow us to have a total_payout different from 0.
+                    (999, 1_000_000_000_000),
+                ],
+            }
+            .assimilate_storage(&mut storage);
+
+            let ext = sp_io::TestExternalities::from(storage);
+            ext
+        }
     }
 
     #[test]
     fn make_investment_should_work() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(Marketplace::make_investment(Origin::signed(1), 42));
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(Marketplace::make_investment(Origin::signed(31), 42));
             assert_eq!(Marketplace::something(), Some(42));
         });
     }
 
     #[test]
-    fn propose_to_investment_should_work() {
-        const DAO_ID: DaoId = 0;
+    fn propose_tokenized_investment_should_work() {
+        const DAO_ID: DaoId = 11;
         const DAYS: Days = 181;
         const RATE: Rate = 1000;
+        const TOKEN: TokenId = 0;
+        const TOKEN_PRICE: Balance = 1;
         const VALUE: u128 = 42;
 
-        with_externalities(&mut new_test_ext(), || {
-            assert_ok!(Marketplace::propose_to_investment(
+        ExtBuilder::default().build().execute_with(|| {
+            assert_ok!(Marketplace::propose_investment(
                 DAO_ID,
                 DAO_DESC.to_vec(),
                 DAYS,
                 RATE,
+                TOKEN,
+                TOKEN_PRICE,
                 VALUE
             ));
         });

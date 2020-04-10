@@ -1,57 +1,63 @@
-/// runtime module implementing Substrate side of PolkadaiBridge token exchange bridge
+/// Pallet implementing Substrate side of PolkadaiBridge token exchange bridge
 /// You can use mint to create tokens backed by locked funds on Ethereum side
 /// and transfer tokens on substrate side freely
 ///
-/// KNOWN BUGS:
-///     1. Tests can fail with assert_noop! bug: fails through different root hashes
-///        solution: use assert_eq!(expr, Err("Error string")) explicitly
+/// Conventions:
+///      0 - DAI
+///      1 - cDAI
+///      2 - USDT
+///      3 - USDC
 ///
 use crate::token;
-use crate::types::{
-    BridgeMessage, BridgeTransfer, Kind, LimitMessage, Limits, MemberId, ProposalId, Status,
-    TokenBalance, TransferMessage, ValidatorsMessage,
+use crate::types::*;
+use codec::Encode;
+use frame_support::{
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, fail, StorageMap,
+    StorageValue,
 };
-use parity_codec::Encode;
-use primitives::H160;
-use rstd::prelude::Vec;
-use runtime_primitives::traits::{As, Hash};
-use support::{
-    decl_event, decl_module, decl_storage, dispatch::Result, ensure, fail, StorageMap, StorageValue,
-};
+use num_traits::ops::checked::{CheckedAdd, CheckedSub, CheckedDiv, CheckedMul};
+use num_traits::Bounded;
+use sp_core::H160;
+use sp_runtime::traits::Hash;
+use sp_std::prelude::Vec;
 use system::{self, ensure_signed};
 
+type Result<T> = core::result::Result<T, &'static str>;
+
 const MAX_VALIDATORS: u32 = 100_000;
-const DAY_IN_BLOCKS: u64 = 14_400;
-const DAY: u64 = 86_400;
+const DAY_IN_BLOCKS: u32 = 14_400;
+const DAY: u32 = 86_400;
 
 decl_event!(
     pub enum Event<T>
     where
         AccountId = <T as system::Trait>::AccountId,
         Hash = <T as system::Trait>::Hash,
+        Balance = <T as balances::Trait>::Balance,
+        Moment = <T as timestamp::Trait>::Moment,
     {
         RelayMessage(Hash),
-        ApprovedRelayMessage(Hash, AccountId, H160, TokenBalance),
-        CancellationConfirmedMessage(Hash),
-        MintedMessage(Hash),
-        BurnedMessage(Hash, AccountId, H160, TokenBalance),
-        AccountPausedMessage(Hash, AccountId),
-        AccountResumedMessage(Hash, AccountId),
+        ApprovedRelayMessage(Hash, TokenId, AccountId, H160, Balance),
+        CancellationConfirmedMessage(Hash, TokenId),
+        MintedMessage(Hash, TokenId),
+        BurnedMessage(Hash, TokenId, AccountId, H160, Balance),
+        AccountPausedMessage(Hash, AccountId, Moment, TokenId),
+        AccountResumedMessage(Hash, AccountId, Moment, TokenId),
     }
 );
 
-pub trait Trait: token::Trait + system::Trait + timestamp::Trait {
+pub trait Trait: token::Trait + balances::Trait + system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 decl_storage! {
     trait Store for Module<T: Trait> as Bridge {
-        BridgeIsOperational get(bridge_is_operational): bool = true;
-        BridgeMessages get(bridge_messages): map T::Hash  => BridgeMessage<T::AccountId, T::Hash>;
+        BridgeIsOperational get(fn bridge_is_operational): bool = true;
+        BridgeMessages get(fn bridge_messages): map hasher(opaque_blake2_256) T::Hash  => BridgeMessage<T::AccountId, T::Hash>;
 
         // limits change history
-        LimitMessages get(limit_messages): map T::Hash  => LimitMessage<T::Hash>;
-        CurrentLimits get(current_limits) build(|config: &GenesisConfig<T>| {
+        LimitMessages get(fn limit_messages): map hasher(opaque_blake2_256) T::Hash  => LimitMessage<T::Hash, T::Balance>;
+        CurrentLimits get(fn current_limits) build(|config: &GenesisConfig<T>| {
             let mut limits_iter = config.current_limits.clone().into_iter();
             Limits {
                 max_tx_value: limits_iter.next().unwrap(),
@@ -60,52 +66,52 @@ decl_storage! {
                 max_pending_tx_limit: limits_iter.next().unwrap(),
                 min_tx_value: limits_iter.next().unwrap(),
             }
-        }): Limits;
+        }): Limits<T::Balance>;
 
         // open transactions
-        CurrentPendingBurn get(pending_burn_count): u128;
-        CurrentPendingMint get(pending_mint_count): u128;
+        CurrentPendingBurn get(fn pending_burn_count): T::Balance;
+        CurrentPendingMint get(fn pending_mint_count): T::Balance;
 
-        BridgeTransfers get(transfers): map ProposalId => BridgeTransfer<T::Hash>;
-        BridgeTransfersCount get(bridge_transfers_count): ProposalId;
-        TransferMessages get(messages): map T::Hash  => TransferMessage<T::AccountId, T::Hash>;
-        TransferId get(transfer_id_by_hash): map T::Hash  => ProposalId;
-        MessageId get(message_id_by_transfer_id): map ProposalId  => T::Hash;
+        BridgeTransfers get(fn transfers): map hasher(opaque_blake2_256) ProposalId => BridgeTransfer<T::Hash>;
+        BridgeTransfersCount get(fn bridge_transfers_count): ProposalId;
+        TransferMessages get(fn messages): map hasher(opaque_blake2_256) T::Hash  => TransferMessage<T::AccountId, T::Hash, T::Balance>;
+        TransferId get(fn transfer_id_by_hash): map hasher(opaque_blake2_256) T::Hash  => ProposalId;
+        MessageId get(fn message_id_by_transfer_id): map hasher(opaque_blake2_256) ProposalId  => T::Hash;
 
-        DailyHolds get(daily_holds): map T::AccountId  => (T::BlockNumber, T::Hash);
-        DailyLimits get(daily_limits_by_account): map T::AccountId  => TokenBalance;
-        DailyBlocked get(daily_blocked): map T::Moment  => Vec<T::AccountId>;
+        DailyHolds get(fn daily_holds): map hasher(opaque_blake2_256) T::AccountId  => (T::BlockNumber, T::Hash);
+        DailyLimits get(fn daily_limits_by_account): map hasher(opaque_blake2_256) (TokenId, T::AccountId)  => T::Balance;
+        DailyBlocked get(fn daily_blocked): map hasher(opaque_blake2_256) (TokenId, T::Moment)  => Vec<T::AccountId>;
 
-        Quorum get(quorum): u64 = 2;
-        ValidatorsCount get(validators_count) config(): u32 = 3;
-        ValidatorVotes get(validator_votes): map(ProposalId, T::AccountId) => bool;
-        ValidatorHistory get(validator_history): map T::Hash  => ValidatorsMessage<T::AccountId, T::Hash>;
-        Validators get(validators) build(|config: &GenesisConfig<T>| {
+        Quorum get(fn quorum): u64 = 2;
+        ValidatorsCount get(fn validators_count) config(): u32 = 3;
+        ValidatorVotes get(fn validator_votes): map hasher(opaque_blake2_256) (ProposalId, T::AccountId) => bool;
+        ValidatorHistory get(fn validator_history): map hasher(opaque_blake2_256) T::Hash  => ValidatorMessage<T::AccountId, T::Hash>;
+        Validators get(fn validators) build(|config: &GenesisConfig<T>| {
             config.validator_accounts.clone().into_iter()
             .map(|acc: T::AccountId| (acc, true)).collect::<Vec<_>>()
-        }): map T::AccountId  => bool;
-        ValidatorAccounts get(validator_accounts) config(): Vec<T::AccountId>;
+        }): map hasher(opaque_blake2_256) T::AccountId  => bool;
+        ValidatorAccounts get(fn validator_accounts) config(): Vec<T::AccountId>;
     }
+
     add_extra_genesis{
-        config(current_limits): Vec<u128>;
-}
+        config(current_limits): Vec<T::Balance>;
+    }
 }
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
         // initiate substrate -> ethereum transfer.
-        // create proposition and emit the RelayMessage event
-        fn set_transfer(origin, to: H160, #[compact] amount: TokenBalance)-> Result
+        // create transfer and emit the RelayMessage event
+        pub fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult
         {
             let from = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
-
             Self::check_amount(amount)?;
             Self::check_pending_burn(amount)?;
-            Self::check_daily_account_volume(from.clone(), amount)?;
+            Self::check_daily_account_volume(token_id, from.clone(), amount)?;
 
             let transfer_hash = (&from, &to, amount, <timestamp::Module<T>>::get()).using_encoded(<T as system::Trait>::Hashing::hash);
 
@@ -114,19 +120,20 @@ decl_module! {
                 eth_address: to,
                 substrate_address: from.clone(),
                 amount,
+                token: token_id,
                 status: Status::Withdraw,
                 action: Status::Withdraw,
             };
             Self::get_transfer_id_checked(transfer_hash, Kind::Transfer)?;
             Self::deposit_event(RawEvent::RelayMessage(transfer_hash));
 
-            <DailyLimits<T>>::mutate(from, |a| *a += amount);
+            <DailyLimits<T>>::mutate((token_id, from), |a| *a += amount);
             <TransferMessages<T>>::insert(transfer_hash, message);
             Ok(())
         }
 
         // ethereum-side multi-signed mint operation
-        fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, #[compact] amount: TokenBalance)-> Result {
+        pub fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
 
@@ -134,12 +141,13 @@ decl_module! {
             Self::check_pending_mint(amount)?;
             Self::check_amount(amount)?;
 
-            if !<TransferMessages<T>>::exists(message_id) {
+            if !<TransferMessages<T>>::contains_key(message_id) {
                 let message = TransferMessage{
                     message_id,
                     eth_address: from,
                     substrate_address: to,
                     amount,
+                    token: token_id,
                     status: Status::Deposit,
                     action: Status::Deposit,
                 };
@@ -148,11 +156,12 @@ decl_module! {
             }
 
             let transfer_id = <TransferId<T>>::get(message_id);
-            Self::_sign(validator, transfer_id)
+            Self::_sign(validator, transfer_id)?;
+            Ok(())
         }
 
         // change maximum tx limit
-        fn update_limits(origin, max_tx_value: u128, day_max_limit: u128, day_max_limit_for_one_address: u128, max_pending_tx_limit: u128,min_tx_value: u128)-> Result {
+        pub fn update_limits(origin, max_tx_value: T::Balance, day_max_limit: T::Balance, day_max_limit_for_one_address: T::Balance, max_pending_tx_limit: T::Balance,min_tx_value: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
             let limits = Limits{
@@ -163,9 +172,9 @@ decl_module! {
                 min_tx_value,
             };
             Self::check_limits(&limits)?;
-            let id = (limits.clone(), T::BlockNumber::sa(0)).using_encoded(<T as system::Trait>::Hashing::hash);
+            let id = (limits.clone(), T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<LimitMessages<T>>::exists(id) {
+            if !<LimitMessages<T>>::contains_key(id) {
                 let message = LimitMessage {
                     id,
                     limits,
@@ -176,26 +185,28 @@ decl_module! {
             }
 
             let transfer_id = <TransferId<T>>::get(id);
-            Self::_sign(validator, transfer_id)
+            Self::_sign(validator, transfer_id)?;
+            Ok(())
         }
 
         // validator`s response to RelayMessage
-        fn approve_transfer(origin, message_id: T::Hash) -> Result {
+        pub fn approve_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
             Self::check_validator(validator.clone())?;
 
             let id = <TransferId<T>>::get(message_id);
-            Self::_sign(validator, id)
+            Self::_sign(validator, id)?;
+            Ok(())
         }
 
         // each validator calls it to update whole set of validators
-        fn update_validator_list(origin, message_id: T::Hash, quorum: u64, new_validator_list: Vec<T::AccountId>) -> Result {
+        pub fn update_validator_list(origin, message_id: T::Hash, quorum: u64, new_validator_list: Vec<T::AccountId>) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
-            if !<ValidatorHistory<T>>::exists(message_id) {
-                let message = ValidatorsMessage {
+            if !<ValidatorHistory<T>>::contains_key(message_id) {
+                let message = ValidatorMessage {
                     message_id,
                     quorum,
                     accounts: new_validator_list,
@@ -207,18 +218,19 @@ decl_module! {
             }
 
             let id = <TransferId<T>>::get(message_id);
-            Self::_sign(validator, id)
+            Self::_sign(validator, id)?;
+            Ok(())
         }
 
         // each validator calls it to pause the bridge
-        fn pause_bridge(origin) -> Result {
+        pub fn pause_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
             ensure!(Self::bridge_is_operational(), "Bridge is not operational already");
-            let hash = ("pause", T::BlockNumber::sa(0)).using_encoded(<T as system::Trait>::Hashing::hash);
+            let hash = ("pause", T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<BridgeMessages<T>>::exists(hash) {
+            if !<BridgeMessages<T>>::contains_key(hash) {
                 let message = BridgeMessage {
                     message_id: hash,
                     account: validator.clone(),
@@ -230,17 +242,18 @@ decl_module! {
             }
 
             let id = <TransferId<T>>::get(hash);
-            Self::_sign(validator, id)
+            Self::_sign(validator, id)?;
+            Ok(())
         }
 
         // each validator calls it to resume the bridge
-        fn resume_bridge(origin) -> Result {
+        pub fn resume_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
-            let hash = ("resume", T::BlockNumber::sa(0)).using_encoded(<T as system::Trait>::Hashing::hash);
+            let hash = ("resume", T::BlockNumber::from(0)).using_encoded(<T as system::Trait>::Hashing::hash);
 
-            if !<BridgeMessages<T>>::exists(hash) {
+            if !<BridgeMessages<T>>::contains_key(hash) {
                 let message = BridgeMessage {
                     message_id: hash,
                     account: validator.clone(),
@@ -252,11 +265,12 @@ decl_module! {
             }
 
             let id = <TransferId<T>>::get(hash);
-            Self::_sign(validator, id)
+            Self::_sign(validator, id)?;
+            Ok(())
         }
 
         //confirm burn from validator
-        fn confirm_transfer(origin, message_id: T::Hash) -> Result {
+        pub fn confirm_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
             Self::check_validator(validator.clone())?;
@@ -270,23 +284,21 @@ decl_module! {
             Self::update_status(message_id, Status::Confirmed, Kind::Transfer)?;
             Self::reopen_for_burn_confirmation(message_id)?;
             Self::_sign(validator, id)?;
-
             Ok(())
         }
 
         //cancel burn from validator
-        fn cancel_transfer(origin, message_id: T::Hash) -> Result {
+        pub fn cancel_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
 
-            let has_burned = <TransferMessages<T>>::exists(message_id) && <TransferMessages<T>>::get(message_id).status == Status::Confirmed;
+            let has_burned = <TransferMessages<T>>::contains_key(message_id) && <TransferMessages<T>>::get(message_id).status == Status::Confirmed;
             ensure!(!has_burned, "Failed to cancel. This transfer is already executed.");
 
             let id = <TransferId<T>>::get(message_id);
             Self::update_status(message_id, Status::Canceled, Kind::Transfer)?;
             Self::reopen_for_burn_confirmation(message_id)?;
             Self::_sign(validator, id)?;
-
             Ok(())
         }
 
@@ -295,22 +307,26 @@ decl_module! {
             // clear accounts blocked day earlier (e.g. 18759 - 1)
             let yesterday = Self::get_day_pair().0;
             let is_first_day = Self::get_day_pair().1 == yesterday;
-            if <DailyBlocked<T>>::exists(&yesterday) && !is_first_day {
-                let blocked_yesterday = <DailyBlocked<T>>::get(&yesterday);
-                blocked_yesterday.iter().for_each(|a| <DailyLimits<T>>::remove(a));
+            let tokens = <token::Module<T>>::tokens();
+            for t in tokens {
+                if <DailyBlocked<T>>::contains_key((t.id, yesterday)) && !is_first_day {
+                    let blocked_yesterday = <DailyBlocked<T>>::get((t.id, yesterday));
+                blocked_yesterday.iter().for_each(|a| <DailyLimits<T>>::remove((t.id, a)));
                 blocked_yesterday.iter().for_each(|a|{
-                    let hash = (<timestamp::Module<T>>::get(), a.clone()).using_encoded(<T as system::Trait>::Hashing::hash);
-                    Self::deposit_event(RawEvent::AccountResumedMessage(hash, a.clone()));
+                    let now = <timestamp::Module<T>>::get();
+                    let hash = (now.clone(), a.clone()).using_encoded(<T as system::Trait>::Hashing::hash);
+                    Self::deposit_event(RawEvent::AccountResumedMessage(hash, a.clone(), now, t.id));
                 }
                 );
-                <DailyBlocked<T>>::remove(&yesterday);
+                    <DailyBlocked<T>>::remove((t.id, yesterday));
             }
         }
     }
 }
+}
 
 impl<T: Trait> Module<T> {
-    fn _sign(validator: T::AccountId, transfer_id: ProposalId) -> Result {
+    fn _sign(validator: T::AccountId, transfer_id: ProposalId) -> Result<()> {
         let mut transfer = <BridgeTransfers<T>>::get(transfer_id);
 
         let mut message = <TransferMessages<T>>::get(transfer.message_id);
@@ -355,114 +371,115 @@ impl<T: Trait> Module<T> {
     ///get (yesterday,today) pair
     fn get_day_pair() -> (T::Moment, T::Moment) {
         let now = <timestamp::Module<T>>::get();
-        let day = T::Moment::sa(DAY);
-        let today = <timestamp::Module<T>>::get() / T::Moment::sa(DAY);
+        let day = T::Moment::from(DAY);
+        let today = <timestamp::Module<T>>::get() / T::Moment::from(DAY);
         let yesterday = if now < day {
-            T::Moment::sa(0)
+            T::Moment::from(0)
         } else {
-            <timestamp::Module<T>>::get() / day - T::Moment::sa(1)
+            <timestamp::Module<T>>::get() / day - T::Moment::from(1)
         };
         (yesterday, today)
     }
 
     ///ensure that such transfer exist
-    fn get_transfer_id_checked(transfer_hash: T::Hash, kind: Kind) -> Result {
-        if !<TransferId<T>>::exists(transfer_hash) {
+    fn get_transfer_id_checked(transfer_hash: T::Hash, kind: Kind) -> Result<()> {
+        if !<TransferId<T>>::contains_key(transfer_hash) {
             Self::create_transfer(transfer_hash, kind)?;
         }
         Ok(())
     }
 
     ///execute actual mint
-    fn deposit(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn deposit(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         Self::sub_pending_mint(message.clone())?;
         let to = message.substrate_address;
-        if !<DailyHolds<T>>::exists(&to) {
-            <DailyHolds<T>>::insert(to.clone(), (T::BlockNumber::sa(0), message.message_id));
+        if !<DailyHolds<T>>::contains_key(&to) {
+            <DailyHolds<T>>::insert(to.clone(), (T::BlockNumber::from(0), message.message_id));
         }
 
-        <token::Module<T>>::_mint(to, message.amount)?;
+        <token::Module<T>>::_mint(message.token, to, message.amount)?;
 
-        Self::deposit_event(RawEvent::MintedMessage(message.message_id));
+        Self::deposit_event(RawEvent::MintedMessage(message.message_id, message.token));
         Self::update_status(message.message_id, Status::Confirmed, Kind::Transfer)
     }
 
-    fn withdraw(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn withdraw(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         Self::check_daily_holds(message.clone())?;
         Self::sub_pending_burn(message.clone())?;
 
         let to = message.eth_address;
-        let from = message.substrate_address;
-        Self::lock_for_burn(from.clone(), message.amount)?;
+        let from = message.substrate_address.clone();
+        Self::lock_for_burn(&message, from.clone())?;
         Self::deposit_event(RawEvent::ApprovedRelayMessage(
             message.message_id,
+            message.token,
             from,
             to,
             message.amount,
         ));
         Self::update_status(message.message_id, Status::Approved, Kind::Transfer)
     }
-    fn _cancel_transfer(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
-        <token::Module<T>>::unlock(&message.substrate_address, message.amount)?;
+    fn _cancel_transfer(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
+        <token::Module<T>>::unlock(message.token, &message.substrate_address, message.amount)?;
         Self::update_status(message.message_id, Status::Canceled, Kind::Transfer)
     }
-    fn pause_the_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result {
-        <BridgeIsOperational<T>>::mutate(|x| *x = false);
+    fn pause_the_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result<()> {
+        <BridgeIsOperational>::mutate(|x| *x = false);
         Self::update_status(message.message_id, Status::Confirmed, Kind::Bridge)
     }
 
-    fn resume_the_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result {
-        <BridgeIsOperational<T>>::mutate(|x| *x = true);
+    fn resume_the_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result<()> {
+        <BridgeIsOperational>::mutate(|x| *x = true);
         Self::update_status(message.message_id, Status::Confirmed, Kind::Bridge)
     }
 
-    fn _update_limits(message: LimitMessage<T::Hash>) -> Result {
+    fn _update_limits(message: LimitMessage<T::Hash, T::Balance>) -> Result<()> {
         Self::check_limits(&message.limits)?;
         <CurrentLimits<T>>::put(message.limits);
         Self::update_status(message.id, Status::Confirmed, Kind::Limits)
     }
-    fn add_pending_burn(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn add_pending_burn(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         let current = <CurrentPendingBurn<T>>::get();
         let next = current
-            .checked_add(message.amount)
+            .checked_add(&message.amount)
             .ok_or("Overflow adding to new pending burn volume")?;
         <CurrentPendingBurn<T>>::put(next);
         Ok(())
     }
-    fn add_pending_mint(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn add_pending_mint(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         let current = <CurrentPendingMint<T>>::get();
         let next = current
-            .checked_add(message.amount)
+            .checked_add(&message.amount)
             .ok_or("Overflow adding to new pending mint volume")?;
         <CurrentPendingMint<T>>::put(next);
         Ok(())
     }
-    fn sub_pending_burn(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn sub_pending_burn(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         let current = <CurrentPendingBurn<T>>::get();
         let next = current
-            .checked_sub(message.amount)
+            .checked_sub(&message.amount)
             .ok_or("Overflow subtracting to new pending burn volume")?;
         <CurrentPendingBurn<T>>::put(next);
         Ok(())
     }
-    fn sub_pending_mint(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn sub_pending_mint(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         let current = <CurrentPendingMint<T>>::get();
         let next = current
-            .checked_sub(message.amount)
+            .checked_sub(&message.amount)
             .ok_or("Overflow subtracting to new pending mint volume")?;
         <CurrentPendingMint<T>>::put(next);
         Ok(())
     }
 
     /// update validators list
-    fn manage_validator_list(info: ValidatorsMessage<T::AccountId, T::Hash>) -> Result {
-        let new_count = u32::sa(info.accounts.clone().len());
+    fn manage_validator_list(info: ValidatorMessage<T::AccountId, T::Hash>) -> Result<()> {
+        let new_count = info.accounts.clone().len() as u32;
         ensure!(
             new_count < MAX_VALIDATORS,
             "New validator list is exceeding allowed length."
         );
-        <Quorum<T>>::put(info.quorum);
-        <ValidatorsCount<T>>::put(new_count);
+        <Quorum>::put(info.quorum);
+        <ValidatorsCount>::put(new_count);
         info.accounts
             .clone()
             .iter()
@@ -476,23 +493,27 @@ impl<T: Trait> Module<T> {
     }
 
     /// lock funds after set_transfer call
-    fn lock_for_burn(account: T::AccountId, amount: TokenBalance) -> Result {
-        <token::Module<T>>::lock(account, amount)?;
+    fn lock_for_burn(
+        message: &TransferMessage<T::AccountId, T::Hash, T::Balance>,
+        account: T::AccountId,
+    ) -> Result<()> {
+        <token::Module<T>>::lock(message.token, account, message.amount)?;
 
         Ok(())
     }
 
-    fn execute_burn(message_id: T::Hash) -> Result {
+    fn execute_burn(message_id: T::Hash) -> Result<()> {
         let message = <TransferMessages<T>>::get(message_id);
         let from = message.substrate_address.clone();
         let to = message.eth_address;
 
-        <token::Module<T>>::unlock(&from, message.amount)?;
-        <token::Module<T>>::_burn(from.clone(), message.amount)?;
-        <DailyLimits<T>>::mutate(from.clone(), |a| *a -= message.amount);
+        <token::Module<T>>::unlock(message.token, &from, message.amount)?;
+        <token::Module<T>>::_burn(message.token, from.clone(), message.amount)?;
+        <DailyLimits<T>>::mutate((message.token, from.clone()), |a| *a -= message.amount);
 
         Self::deposit_event(RawEvent::BurnedMessage(
             message_id,
+            message.token,
             from,
             to,
             message.amount,
@@ -500,7 +521,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn execute_transfer(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn execute_transfer(message: TransferMessage<T::AccountId, T::Hash, T::Balance>) -> Result<()> {
         match message.action {
             Status::Deposit => match message.status {
                 Status::Approved => Self::deposit(message),
@@ -517,7 +538,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn manage_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result {
+    fn manage_bridge(message: BridgeMessage<T::AccountId, T::Hash>) -> Result<()> {
         match message.action {
             Status::PauseTheBridge => match message.status {
                 Status::Approved => Self::pause_the_bridge(message),
@@ -531,14 +552,14 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn create_transfer(transfer_hash: T::Hash, kind: Kind) -> Result {
+    fn create_transfer(transfer_hash: T::Hash, kind: Kind) -> Result<()> {
         ensure!(
-            !<TransferId<T>>::exists(transfer_hash),
+            !<TransferId<T>>::contains_key(transfer_hash),
             "This transfer already open"
         );
 
-        let transfer_id = <BridgeTransfersCount<T>>::get();
-        let bridge_transfers_count = <BridgeTransfersCount<T>>::get();
+        let transfer_id = <BridgeTransfersCount>::get();
+        let bridge_transfers_count = <BridgeTransfersCount>::get();
         let new_bridge_transfers_count = bridge_transfers_count
             .checked_add(1)
             .ok_or("Overflow adding a new bridge transfer")?;
@@ -551,14 +572,14 @@ impl<T: Trait> Module<T> {
         };
 
         <BridgeTransfers<T>>::insert(transfer_id, transfer);
-        <BridgeTransfersCount<T>>::mutate(|count| *count = new_bridge_transfers_count);
+        <BridgeTransfersCount>::mutate(|count| *count = new_bridge_transfers_count);
         <TransferId<T>>::insert(transfer_hash, transfer_id);
         <MessageId<T>>::insert(transfer_id, transfer_hash);
 
         Ok(())
     }
 
-    fn set_pending(transfer_id: ProposalId, kind: Kind) -> Result {
+    fn set_pending(transfer_id: ProposalId, kind: Kind) -> Result<()> {
         let message_id = <MessageId<T>>::get(transfer_id);
         match kind {
             Kind::Transfer => {
@@ -574,7 +595,7 @@ impl<T: Trait> Module<T> {
         Self::update_status(message_id, Status::Pending, kind)
     }
 
-    fn update_status(id: T::Hash, status: Status, kind: Kind) -> Result {
+    fn update_status(id: T::Hash, status: Status, kind: Kind) -> Result<()> {
         match kind {
             Kind::Transfer => {
                 let mut message = <TransferMessages<T>>::get(id);
@@ -601,7 +622,7 @@ impl<T: Trait> Module<T> {
     }
 
     // needed because @message_id will be the same as initial
-    fn reopen_for_burn_confirmation(message_id: T::Hash) -> Result {
+    fn reopen_for_burn_confirmation(message_id: T::Hash) -> Result<()> {
         let message = <TransferMessages<T>>::get(message_id);
         let transfer_id = <TransferId<T>>::get(message_id);
         let mut transfer = <BridgeTransfers<T>>::get(transfer_id);
@@ -618,29 +639,38 @@ impl<T: Trait> Module<T> {
         }
         Ok(())
     }
-    fn check_validator(validator: T::AccountId) -> Result {
-        let is_trusted = <Validators<T>>::exists(validator);
+    fn check_validator(validator: T::AccountId) -> Result<()> {
+        let is_trusted = <Validators<T>>::contains_key(validator);
         ensure!(is_trusted, "Only validators can call this function");
 
         Ok(())
     }
 
-    fn check_daily_account_volume(account: T::AccountId, amount: TokenBalance) -> Result {
-        let cur_pending = <DailyLimits<T>>::get(&account);
+    fn check_daily_account_volume(
+        token_id: TokenId,
+        account: T::AccountId,
+        amount: T::Balance,
+    ) -> Result<()> {
+        let cur_pending = <DailyLimits<T>>::get((token_id, &account));
         let cur_pending_account_limit = <CurrentLimits<T>>::get().day_max_limit_for_one_address;
         let can_burn = cur_pending + amount < cur_pending_account_limit;
 
         //store current day (like 18768)
         let today = Self::get_day_pair().1;
-        let user_blocked = <DailyBlocked<T>>::get(&today).iter().any(|a| *a == account);
+        let user_blocked = <DailyBlocked<T>>::get((token_id, today))
+            .iter()
+            .any(|a| *a == account);
 
         if !can_burn {
-            <DailyBlocked<T>>::mutate(today, |v| {
+            <DailyBlocked<T>>::mutate((token_id, today), |v| {
                 if !v.contains(&account) {
                     v.push(account.clone());
-                    let hash = (<timestamp::Module<T>>::get(), account.clone())
+                    let now = <timestamp::Module<T>>::get();
+                    let hash = (now.clone(), account.clone())
                         .using_encoded(<T as system::Trait>::Hashing::hash);
-                    Self::deposit_event(RawEvent::AccountPausedMessage(hash, account))
+                    Self::deposit_event(RawEvent::AccountPausedMessage(
+                        hash, account, now, token_id,
+                    ))
                 }
             });
         }
@@ -651,7 +681,7 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
-    fn check_amount(amount: TokenBalance) -> Result {
+    fn check_amount(amount: T::Balance) -> Result<()> {
         let max = <CurrentLimits<T>>::get().max_tx_value;
         let min = <CurrentLimits<T>>::get().min_tx_value;
 
@@ -666,28 +696,28 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     //open transactions check
-    fn check_pending_burn(amount: TokenBalance) -> Result {
+    fn check_pending_burn(amount: T::Balance) -> Result<()> {
         let new_pending_volume = <CurrentPendingBurn<T>>::get()
-            .checked_add(amount)
+            .checked_add(&amount)
             .ok_or("Overflow adding to new pending burn volume")?;
         let can_burn = new_pending_volume < <CurrentLimits<T>>::get().max_pending_tx_limit;
         ensure!(can_burn, "Too many pending burn transactions.");
         Ok(())
     }
 
-    fn check_pending_mint(amount: TokenBalance) -> Result {
+    fn check_pending_mint(amount: T::Balance) -> Result<()> {
         let new_pending_volume = <CurrentPendingMint<T>>::get()
-            .checked_add(amount)
+            .checked_add(&amount)
             .ok_or("Overflow adding to new pending mint volume")?;
         let can_burn = new_pending_volume < <CurrentLimits<T>>::get().max_pending_tx_limit;
         ensure!(can_burn, "Too many pending mint transactions.");
         Ok(())
     }
 
-    fn check_limits(limits: &Limits) -> Result {
-        let max = u128::max_value();
-        let min = u128::min_value();
-        let passed = limits
+    fn check_limits(limits: &Limits<T::Balance>) -> Result<()> {
+        let max = T::Balance::max_value();
+        let min = T::Balance::min_value();
+        let passed =  limits
             .into_array()
             .iter()
             .fold((true, true), |acc, l| match acc {
@@ -701,19 +731,21 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn check_daily_holds(message: TransferMessage<T::AccountId, T::Hash>) -> Result {
+    fn check_daily_holds(
+        message: TransferMessage<T::AccountId, T::Hash, T::Balance>,
+    ) -> Result<()> {
         let from = message.substrate_address;
         let first_tx = <DailyHolds<T>>::get(from.clone());
-        let daily_hold = T::BlockNumber::sa(DAY_IN_BLOCKS);
-        let day_passed = first_tx.0 + daily_hold < T::BlockNumber::sa(0);
+        let daily_hold = T::BlockNumber::from(DAY_IN_BLOCKS);
+        let day_passed = first_tx.0 + daily_hold < T::BlockNumber::from(0);
 
         if !day_passed {
-            let account_balance = <token::Module<T>>::balance_of(from);
+            let account_balance = <token::Module<T>>::balance_of((message.token, from));
             // 75% of potentially really big numbers
             let allowed_amount = account_balance
-                .checked_div(100)
+                .checked_div(&T::Balance::from(100))
                 .expect("Failed to calculate allowed withdraw amount")
-                .checked_mul(75)
+                .checked_mul(&T::Balance::from(75))
                 .expect("Failed to calculate allowed withdraw amount");
 
             if message.amount > allowed_amount {
@@ -731,17 +763,35 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
     //TODO: fix limits after adding them into config
-    use primitives::{Blake2Hasher, H160, H256};
-    use runtime_io::with_externalities;
-    use runtime_primitives::{
-        testing::{Digest, DigestItem, Header},
-        traits::{BlakeTwo256, IdentityLookup, OnFinalize},
-        BuildStorage,
+    use crate::types::Token;
+    use frame_support::{
+        assert_noop, assert_ok, impl_outer_origin, parameter_types,
+        traits::{Get, OnFinalize},
+        weights::Weight,
     };
-    use support::{assert_noop, assert_ok, impl_outer_origin};
+    use sp_core::{H160, H256};
+    use sp_runtime::{
+        testing::Header,
+        traits::{BlakeTwo256, IdentityLookup},
+        DispatchError, Perbill,
+    };
+    use std::cell::RefCell;
+
+    pub type BlockNumber = u64;
+    pub type Balance = u128;
+
+    thread_local! {
+        static EXISTENTIAL_DEPOSIT: RefCell<u128> = RefCell::new(500);
+    }
 
     impl_outer_origin! {
         pub enum Origin for Test {}
+    }
+    pub struct ExistentialDeposit;
+    impl Get<u128> for ExistentialDeposit {
+        fn get() -> u128 {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+        }
     }
 
     // For testing the module, we construct most of a mock runtime. This means
@@ -749,31 +799,49 @@ mod tests {
     // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
-        type BlockNumber = u64;
+        type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type Digest = Digest;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
-        type Log = DigestItem;
-    }
-    impl balances::Trait for Test {
-        type Balance = u128;
-        type OnFreeBalanceZero = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+        type ModuleToIndex = ();
+        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
-        type TransactionPayment = ();
-        type TransferPayment = ();
+        type OnKilledAccount = ();
+    }
+
+    impl balances::Trait for Test {
+        type Balance = Balance;
         type DustRemoval = ();
         type Event = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = system::Module<Test>;
+    }
+
+    parameter_types! {
+        pub const MinimumPeriod: u64 = 5;
     }
     impl timestamp::Trait for Test {
         type Moment = u64;
         type OnTimestampSet = ();
+        type MinimumPeriod = MinimumPeriod;
     }
     impl token::Trait for Test {
         type Event = ();
@@ -810,6 +878,61 @@ mod tests {
     const USER7: u64 = 11;
     const USER8: u64 = 12;
     const USER9: u64 = 13;
+    const TOKEN_ID: u32 = 0;
+
+    pub struct ExtBuilder {
+        existential_deposit: u128,
+    }
+
+    impl Default for ExtBuilder {
+        fn default() -> Self {
+            Self {
+                existential_deposit: 500,
+            }
+        }
+    }
+
+    impl ExtBuilder {
+        pub fn set_associated_consts(&self) {
+            EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
+        }
+        pub fn build(self) -> sp_io::TestExternalities {
+            self.set_associated_consts();
+            let mut storage = system::GenesisConfig::default()
+                .build_storage::<Test>()
+                .unwrap();
+
+            let _ = balances::GenesisConfig::<Test> {
+                balances: vec![
+                    (V1, 100000),
+                    (V2, 100000),
+                    (V3, 100000),
+                    (USER1, 100000),
+                    (USER2, 300000),
+                ],
+            }
+            .assimilate_storage(&mut storage);
+
+            let _ = token::GenesisConfig {
+                tokens: vec![Token {
+                    id: 0,
+                    decimals: 18,
+                    symbol: Vec::from("TOKEN"),
+                }],
+            }
+            .assimilate_storage(&mut storage);
+
+            let _ = GenesisConfig::<Test> {
+                validators_count: 3u32,
+                validator_accounts: vec![V1, V2, V3],
+                current_limits: vec![100, 200, 50, 400, 1],
+            }
+            .assimilate_storage(&mut storage);
+
+            let ext = sp_io::TestExternalities::from(storage);
+            ext
+        }
+    }
 
     //fast forward approximately
     fn run_to_block(n: u64) {
@@ -820,56 +943,23 @@ mod tests {
         }
     }
 
-    // This function basically just builds a genesis storage key/value store according to
-    // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        let mut r = system::GenesisConfig::<Test>::default()
-            .build_storage()
-            .unwrap()
-            .0;
-
-        //specify balances chain_spec configuration
-        r.extend(
-            balances::GenesisConfig::<Test> {
-                balances: vec![
-                    (V1, 100000),
-                    (V2, 100000),
-                    (V3, 100000),
-                    (USER1, 100000),
-                    (USER2, 300000),
-                ],
-                vesting: vec![],
-                transaction_base_fee: 0,
-                transaction_byte_fee: 0,
-                existential_deposit: 500,
-                transfer_fee: 0,
-                creation_fee: 0,
-            }
-            .build_storage()
-            .unwrap()
-            .0,
-        );
-        //specify bridge chain_spec configuration
-        r.extend(
-            GenesisConfig::<Test> {
-                validators_count: 3u32,
-                validator_accounts: vec![V1, V2, V3],
-                current_limits: vec![100, 200, 50, 400, 1],
-            }
-            .build_storage()
-            .unwrap()
-            .0,
-        );
-
-        r.into()
-    }
-
+    /// KNOWN BUGS:
+    ///     1. Tests can fail with assert_noop! bug: fails through different root hashes
+    ///        looks like gibberish bytes:
+    ///           left: `[165, 194, 103, 240, 170, 69, 230, 138, 137, 91, 252, 136, 82, 107, 223, 18, 184, 66, 180, 85, 190, 250, 56, 101, 20, 16, 197, 49, 183, 246, 12, 130]`,
+    ///           right: `[60, 139, 20, 240, 52, 18, 65, 144, 55, 126, 157, 163, 147, 251, 22, 66, 21, 36, 34, 104, 183, 147, 220, 11, 145, 2, 1, 202, 170, 51, 82, 133]
+    ///        solution: Write to storage after check - verify first, write last
+    ///                 (or use assert_eq!(expr, Err("Error string")) explicitly)
+    ///
     #[test]
     fn token_eth2sub_mint_works() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let message_id = H256::from(ETH_MESSAGE_ID);
             let eth_address = H160::from(ETH_ADDRESS);
             let amount = 99;
+
+            let token = TokenModule::token_map(0);
+            println!("{:?}", token);
 
             //substrate <----- ETH
             assert_ok!(BridgeModule::multi_signed_mint(
@@ -877,6 +967,7 @@ mod tests {
                 message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount
             ));
             let mut message = BridgeModule::messages(message_id);
@@ -887,6 +978,7 @@ mod tests {
                 message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount
             ));
             message = BridgeModule::messages(message_id);
@@ -895,13 +987,13 @@ mod tests {
             let transfer = BridgeModule::transfers(0);
             assert_eq!(transfer.open, false);
 
-            assert_eq!(TokenModule::balance_of(USER2), amount);
-            assert_eq!(TokenModule::total_supply(), amount);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), amount);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), amount);
         })
     }
     #[test]
     fn token_eth2sub_closed_transfer_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let message_id = H256::from(ETH_MESSAGE_ID);
             let eth_address = H160::from(ETH_ADDRESS);
             let amount = 99;
@@ -912,6 +1004,7 @@ mod tests {
                 message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount
             ));
             assert_ok!(BridgeModule::multi_signed_mint(
@@ -919,6 +1012,7 @@ mod tests {
                 message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount
             ));
             assert_noop!(
@@ -927,12 +1021,13 @@ mod tests {
                     message_id,
                     eth_address,
                     USER2,
+                    TOKEN_ID,
                     amount
                 ),
                 "This transfer is not open"
             );
-            assert_eq!(TokenModule::balance_of(USER2), amount);
-            assert_eq!(TokenModule::total_supply(), amount);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), amount);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), amount);
             let transfer = BridgeModule::transfers(0);
             assert_eq!(transfer.open, false);
 
@@ -943,17 +1038,18 @@ mod tests {
 
     #[test]
     fn token_sub2eth_burn_works() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             //RelayMessage(message_id) event emitted
@@ -965,7 +1061,7 @@ mod tests {
             assert_eq!(message.status, Status::Withdraw);
 
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
@@ -980,8 +1076,8 @@ mod tests {
 
             // at this point transfer is in Approved status and are waiting for confirmation
             // from ethereum side to burn. Funds are locked.
-            assert_eq!(TokenModule::locked(USER2), amount2);
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
+            assert_eq!(TokenModule::locked((0, USER2)), amount2);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), amount1);
             // once it happends, validators call confirm_transfer
 
             assert_ok!(BridgeModule::confirm_transfer(
@@ -1000,26 +1096,27 @@ mod tests {
             // assert_ok!(BridgeModule::confirm_transfer(Origin::signed(USER1), sub_message_id));
             //BurnedMessage(Hash, AccountId, H160, u64) event emitted
             let tokens_left = amount1 - amount2;
-            assert_eq!(TokenModule::balance_of(USER2), tokens_left);
-            assert_eq!(TokenModule::total_supply(), tokens_left);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), tokens_left);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), tokens_left);
         })
     }
     #[test]
     fn token_sub2eth_burn_skipped_approval_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
 
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
-            assert_eq!(TokenModule::total_supply(), amount1);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), amount1);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             //RelayMessage(message_id) event emitted
@@ -1028,7 +1125,7 @@ mod tests {
             let message = BridgeModule::messages(sub_message_id);
             assert_eq!(message.status, Status::Withdraw);
 
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             // lets say validators blacked out and we
             // try to confirm without approval anyway
             assert_noop!(
@@ -1039,17 +1136,18 @@ mod tests {
     }
     #[test]
     fn token_sub2eth_burn_cancel_works() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
 
@@ -1079,17 +1177,18 @@ mod tests {
     }
     #[test]
     fn burn_cancel_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
 
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
 
@@ -1100,7 +1199,7 @@ mod tests {
             assert_eq!(message.status, Status::Withdraw);
 
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
@@ -1115,8 +1214,8 @@ mod tests {
 
             // at this point transfer is in Approved status and are waiting for confirmation
             // from ethereum side to burn. Funds are locked.
-            assert_eq!(TokenModule::locked(USER2), amount2);
-            assert_eq!(TokenModule::balance_of(USER2), amount1);
+            assert_eq!(TokenModule::locked((0, USER2)), amount2);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), amount1);
             // once it happends, validators call confirm_transfer
 
             assert_ok!(BridgeModule::confirm_transfer(
@@ -1135,8 +1234,8 @@ mod tests {
             // assert_ok!(BridgeModule::confirm_transfer(Origin::signed(USER1), sub_message_id));
             //BurnedMessage(Hash, AccountId, H160, u64) event emitted
             let tokens_left = amount1 - amount2;
-            assert_eq!(TokenModule::balance_of(USER2), tokens_left);
-            assert_eq!(TokenModule::total_supply(), tokens_left);
+            assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), tokens_left);
+            assert_eq!(TokenModule::total_supply(TOKEN_ID), tokens_left);
             assert_noop!(
                 BridgeModule::cancel_transfer(Origin::signed(V2), sub_message_id),
                 "Failed to cancel. This transfer is already executed."
@@ -1145,7 +1244,7 @@ mod tests {
     }
     #[test]
     fn update_validator_list_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_message_id = H256::from(ETH_MESSAGE_ID);
             const QUORUM: u64 = 3;
 
@@ -1172,7 +1271,7 @@ mod tests {
     }
     #[test]
     fn pause_the_bridge_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V2)));
 
             assert_eq!(BridgeModule::bridge_transfers_count(), 1);
@@ -1189,7 +1288,7 @@ mod tests {
     }
     #[test]
     fn extrinsics_restricted_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_message_id = H256::from(ETH_MESSAGE_ID);
             let eth_address = H160::from(ETH_ADDRESS);
 
@@ -1203,6 +1302,7 @@ mod tests {
                     eth_message_id,
                     eth_address,
                     USER2,
+                    TOKEN_ID,
                     1000
                 ),
                 "Bridge is not operational"
@@ -1211,7 +1311,7 @@ mod tests {
     }
     #[test]
     fn double_pause_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(BridgeModule::bridge_is_operational(), true);
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V2)));
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V1)));
@@ -1224,7 +1324,7 @@ mod tests {
     }
     #[test]
     fn pause_and_resume_the_bridge_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(BridgeModule::bridge_is_operational(), true);
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V2)));
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V1)));
@@ -1236,7 +1336,7 @@ mod tests {
     }
     #[test]
     fn double_vote_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             assert_eq!(BridgeModule::bridge_is_operational(), true);
             assert_ok!(BridgeModule::pause_bridge(Origin::signed(V2)));
             assert_noop!(
@@ -1247,7 +1347,7 @@ mod tests {
     }
     #[test]
     fn instant_withdraw_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_message_id = H256::from(ETH_MESSAGE_ID);
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 99;
@@ -1259,6 +1359,7 @@ mod tests {
                 eth_message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount1
             ));
             assert_ok!(BridgeModule::multi_signed_mint(
@@ -1266,12 +1367,14 @@ mod tests {
                 eth_message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount1
             ));
             //substrate ----> ETH
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             //RelayMessage(message_id) event emitted
@@ -1280,16 +1383,19 @@ mod tests {
             let mut message = get_message();
             assert_eq!(message.status, Status::Withdraw);
             //approval
-            assert_eq!(TokenModule::locked(USER2), 0);
+            assert_eq!(TokenModule::locked((0, USER2)), 0);
             assert_ok!(BridgeModule::approve_transfer(
                 Origin::signed(V1),
                 sub_message_id
             ));
             // assert_noop BUG: fails through different root hashes
-            // solution: use assert_eq!(expr, Err("Error string")) explicitly
+            // solution: use assert_eq!(expr, Err(DispatchError::Other("Error string")) explicitly
+
             assert_eq!(
                 BridgeModule::approve_transfer(Origin::signed(V2), sub_message_id),
-                Err("Cannot withdraw more that 75% of first day deposit.")
+                Err(DispatchError::Other(
+                    "Cannot withdraw more that 75% of first day deposit."
+                ))
             );
 
             message = get_message();
@@ -1298,7 +1404,7 @@ mod tests {
     }
     #[test]
     fn change_limits_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let max_tx_value = 10;
             let day_max_limit = 20;
             let day_max_limit_for_one_address = 5;
@@ -1328,7 +1434,7 @@ mod tests {
     }
     #[test]
     fn change_limits_should_fail() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let day_max_limit = 20;
             let day_max_limit_for_one_address = 5;
             let max_pending_tx_limit = 40;
@@ -1350,24 +1456,25 @@ mod tests {
     }
     #[test]
     fn pending_burn_limit_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 60;
             let amount2 = 49;
             //TODO: pending transactions volume never reached if daily limit is lower
-            let _ = TokenModule::_mint(USER1, amount1);
-            let _ = TokenModule::_mint(USER2, amount1);
-            let _ = TokenModule::_mint(USER3, amount1);
-            let _ = TokenModule::_mint(USER4, amount1);
-            let _ = TokenModule::_mint(USER5, amount1);
-            let _ = TokenModule::_mint(USER6, amount1);
-            let _ = TokenModule::_mint(USER7, amount1);
-            let _ = TokenModule::_mint(USER8, amount1);
-            let _ = TokenModule::_mint(USER9, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER1, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER3, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER4, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER5, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER6, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER7, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER8, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER9, amount1);
             //1
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(0);
@@ -1378,6 +1485,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER3),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(1);
@@ -1388,6 +1496,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER4),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(2);
@@ -1398,6 +1507,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER5),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(3);
@@ -1408,6 +1518,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER6),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(4);
@@ -1418,6 +1529,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER7),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(5);
@@ -1428,6 +1540,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER8),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(6);
@@ -1438,6 +1551,7 @@ mod tests {
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER9),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(7);
@@ -1448,14 +1562,14 @@ mod tests {
 
             assert_eq!(BridgeModule::pending_burn_count(), amount2 * 8);
             assert_noop!(
-                BridgeModule::set_transfer(Origin::signed(USER1), eth_address, amount2),
+                BridgeModule::set_transfer(Origin::signed(USER1), eth_address, TOKEN_ID, amount2),
                 "Too many pending burn transactions."
             );
         })
     }
     #[test]
     fn pending_mint_limit_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_message_id = H256::from(ETH_MESSAGE_ID);
             let eth_message_id1 = H256::from(ETH_MESSAGE_ID1);
             let eth_message_id2 = H256::from(ETH_MESSAGE_ID2);
@@ -1474,6 +1588,7 @@ mod tests {
                 eth_message_id,
                 eth_address,
                 USER2,
+                TOKEN_ID,
                 amount1
             ));
 
@@ -1483,6 +1598,7 @@ mod tests {
                 eth_message_id2,
                 eth_address,
                 USER3,
+                TOKEN_ID,
                 amount1
             ));
 
@@ -1492,6 +1608,7 @@ mod tests {
                 eth_message_id3,
                 eth_address,
                 USER4,
+                TOKEN_ID,
                 amount1
             ));
 
@@ -1501,6 +1618,7 @@ mod tests {
                 eth_message_id4,
                 eth_address,
                 USER5,
+                TOKEN_ID,
                 amount1
             ));
             //substrate <----- ETH
@@ -1509,6 +1627,7 @@ mod tests {
                 eth_message_id5,
                 eth_address,
                 USER6,
+                TOKEN_ID,
                 amount1
             ));
             //substrate <----- ETH
@@ -1517,6 +1636,7 @@ mod tests {
                 eth_message_id6,
                 eth_address,
                 USER7,
+                TOKEN_ID,
                 amount1
             ));
             //substrate <----- ETH
@@ -1525,6 +1645,7 @@ mod tests {
                 eth_message_id7,
                 eth_address,
                 USER8,
+                TOKEN_ID,
                 amount1
             ));
             //substrate <----- ETH
@@ -1533,6 +1654,7 @@ mod tests {
                 eth_message_id8,
                 eth_address,
                 USER9,
+                TOKEN_ID,
                 amount1
             ));
             assert_eq!(BridgeModule::pending_mint_count(), amount1 * 8);
@@ -1544,6 +1666,7 @@ mod tests {
                     eth_message_id1,
                     eth_address,
                     USER1,
+                    TOKEN_ID,
                     amount1 + 5
                 ),
                 "Too many pending mint transactions."
@@ -1552,14 +1675,15 @@ mod tests {
     }
     #[test]
     fn blocking_account_by_volume_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(0);
@@ -1573,23 +1697,26 @@ mod tests {
             ));
 
             assert_eq!(
-                BridgeModule::set_transfer(Origin::signed(USER2), eth_address, amount2),
-                Err("Transfer declined, user blocked due to daily volume limit.")
+                BridgeModule::set_transfer(Origin::signed(USER2), eth_address, TOKEN_ID, amount2),
+                Err(DispatchError::Other(
+                    "Transfer declined, user blocked due to daily volume limit."
+                ))
             );
         })
     }
     #[test]
     fn blocked_account_unblocked_next_day_should_work() {
-        with_externalities(&mut new_test_ext(), || {
+        ExtBuilder::default().build().execute_with(|| {
             let eth_address = H160::from(ETH_ADDRESS);
             let amount1 = 600;
             let amount2 = 49;
-            run_to_block(DAY_IN_BLOCKS);
+            run_to_block(DAY_IN_BLOCKS.into());
 
-            let _ = TokenModule::_mint(USER2, amount1);
+            let _ = TokenModule::_mint(TOKEN_ID, USER2, amount1);
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
             let sub_message_id = BridgeModule::message_id_by_transfer_id(0);
@@ -1602,21 +1729,24 @@ mod tests {
                 sub_message_id
             ));
             assert_eq!(
-                BridgeModule::set_transfer(Origin::signed(USER2), eth_address, amount2),
-                Err("Transfer declined, user blocked due to daily volume limit.")
+                BridgeModule::set_transfer(Origin::signed(USER2), eth_address, TOKEN_ID, amount2),
+                Err(DispatchError::Other(
+                    "Transfer declined, user blocked due to daily volume limit."
+                ))
             );
 
             //user added to blocked vec
             let blocked_vec: Vec<u64> = vec![USER2];
-            assert_eq!(BridgeModule::daily_blocked(1), blocked_vec);
+            assert_eq!(BridgeModule::daily_blocked((TOKEN_ID, 1)), blocked_vec);
 
-            run_to_block(DAY_IN_BLOCKS * 2);
-            run_to_block(DAY_IN_BLOCKS * 3);
+            run_to_block((DAY_IN_BLOCKS * 2).into());
+            run_to_block((DAY_IN_BLOCKS * 3).into());
 
             //try again
             assert_ok!(BridgeModule::set_transfer(
                 Origin::signed(USER2),
                 eth_address,
+                TOKEN_ID,
                 amount2
             ));
         })

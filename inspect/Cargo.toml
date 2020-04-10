@@ -1,0 +1,18 @@
+[package]
+name = "node-inspect"
+version = "0.3.0"
+authors = ['Akropolis <admin@akropolis.io>']
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "1.2.0" }
+derive_more = "0.99"
+log = "0.4.8"
+sc-cli = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sc-client-api = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sc-service = { version = "0.8.0-alpha.5", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
+sp-blockchain = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sp-core = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sp-runtime = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+structopt = "0.3.8"

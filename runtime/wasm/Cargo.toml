@@ -3,10 +3,11 @@ crate-type = ['cdylib']
 
 [features]
 default = []
-std = ['akropolisos-substrate-node-runtime/std']
+std = ['akropolisos-runtime/std']
 
 [workspace]
 members = []
+
 [profile.release]
 lto = true
 panic = 'abort'
@@ -14,8 +15,9 @@ panic = 'abort'
 [package]
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
-name = 'akropolisos-substrate-node-runtime-wasm'
+name = 'akropolisos-runtime-wasm'
 version = '1.0.0'
-[dependencies.akropolisos-substrate-node-runtime]
+
+[dependencies.akropolisos-runtime]
 default-features = false
 path = '..'
