@@ -62,7 +62,7 @@ fn akropolis_genesis() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos.json")[..])
 }
 
-fn akropolis_syracuse_genesis() -> Result<ChainSpec, String> {
+fn akropolisos_syracuse_genesis() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos_syracuse.json")[..])
 }
 
@@ -170,7 +170,7 @@ pub fn syracuse_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Akropolis OS Syracuse Testnet",
         "akropolisos_syracuse_testnet",
-        akropolisos_staging_genesis,
+        akropolisos_syracuse_genesis,
         boot_nodes,
         Some(TelemetryEndpoints::new(vec![(
             STAGING_TELEMETRY_URL.to_string(),
