@@ -65,7 +65,7 @@ dependencies = [
 name = "akropolisos-node"
 version = "0.5.0"
 dependencies = [
- "akropolisos-runtime 0.5.0",
+ "akropolisos-runtime 0.5.1",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "exit-future 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -76,7 +76,7 @@ dependencies = [
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "node-cli 0.8.0-alpha.5",
+ "node-cli 0.3.1",
  "node-transaction-factory 0.8.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-contracts 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-im-online 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "akropolisos-runtime"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "frame-executive 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -3079,9 +3079,9 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.8.0-alpha.5"
+version = "0.3.1"
 dependencies = [
- "akropolisos-runtime 0.5.0",
+ "akropolisos-runtime 0.5.1",
  "assert_cmd 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 3.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3093,10 +3093,10 @@ dependencies = [
  "jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "node-executor 2.0.0-alpha.5",
- "node-inspect 0.8.0-alpha.5",
- "node-rpc 2.0.0-alpha.5",
- "node-transaction-factory 0.8.0-alpha.5",
+ "node-executor 0.3.0",
+ "node-inspect 0.3.0",
+ "node-rpc 0.3.0",
+ "node-transaction-factory 0.3.0",
  "pallet-contracts 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-im-online 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-indices 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -3150,14 +3150,14 @@ dependencies = [
 
 [[package]]
 name = "node-executor"
-version = "2.0.0-alpha.5"
+version = "0.3.0"
 dependencies = [
- "akropolisos-runtime 0.5.0",
+ "akropolisos-runtime 0.5.1",
  "criterion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-benchmarking 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "frame-support 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "frame-system 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
- "node-testing 2.0.0-alpha.5",
+ "node-testing 0.3.0",
  "pallet-balances 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-contracts 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-grandpa 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -3183,7 +3183,7 @@ dependencies = [
 
 [[package]]
 name = "node-inspect"
-version = "0.8.0-alpha.5"
+version = "0.3.0"
 dependencies = [
  "derive_more 0.99.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3199,9 +3199,9 @@ dependencies = [
 
 [[package]]
 name = "node-rpc"
-version = "2.0.0-alpha.5"
+version = "0.3.0"
 dependencies = [
- "akropolisos-runtime 0.5.0",
+ "akropolisos-runtime 0.5.1",
  "jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-contracts-rpc 0.8.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-transaction-payment-rpc 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -3223,15 +3223,15 @@ dependencies = [
 
 [[package]]
 name = "node-testing"
-version = "2.0.0-alpha.5"
+version = "0.3.0"
 dependencies = [
- "akropolisos-runtime 0.5.0",
+ "akropolisos-runtime 0.5.1",
  "criterion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-support 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "frame-system 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "node-executor 2.0.0-alpha.5",
+ "node-executor 0.3.0",
  "pallet-balances 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-contracts 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
  "pallet-grandpa 2.0.0-alpha.5 (git+https://github.com/paritytech/substrate.git)",
@@ -3268,8 +3268,7 @@ dependencies = [
 
 [[package]]
 name = "node-transaction-factory"
-version = "0.8.0-alpha.5"
-source = "git+https://github.com/paritytech/substrate.git#6ce091737dc7f114dd420f8b879f8a467c1d501b"
+version = "0.3.0"
 dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3289,6 +3288,7 @@ dependencies = [
 [[package]]
 name = "node-transaction-factory"
 version = "0.8.0-alpha.5"
+source = "git+https://github.com/paritytech/substrate.git#6ce091737dc7f114dd420f8b879f8a467c1d501b"
 dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",

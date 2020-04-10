@@ -1,6 +1,6 @@
 [package]
 name = "node-testing"
-version = "2.0.0-alpha.5"
+version = "0.3.0"
 authors = ['Akropolis <admin@akropolis.io>']
 description = "Test utilities for Substrate node."
 edition = "2018"
@@ -16,7 +16,7 @@ pallet-contracts = { version = "2.0.0-alpha.5", git = 'https://github.com/parity
 pallet-grandpa = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
 pallet-indices = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
 sp-keyring = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-node-executor = { version = "2.0.0-alpha.5", path = "../executor" }
+node-executor = { path = "../executor" }
 akropolisos-runtime = { path = "../runtime" }
 sp-core = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
 sp-io = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }

@@ -1,6 +1,6 @@
 [package]
 name = "node-transaction-factory"
-version = "0.8.0-alpha.5"
+version = "0.3.0"
 authors = ['Akropolis <admin@akropolis.io>']
 edition = "2018"
 license = "MIT"

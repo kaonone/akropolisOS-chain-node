@@ -27,11 +27,9 @@ wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
 browser-utils = { package = "substrate-browser-utils", git = 'https://github.com/paritytech/substrate.git', optional = true, version = "0.8.0-alpha.5"}
 
-node-executor = { version = "2.0.0-alpha.5", path = "../executor" }
-node-rpc = { version = "2.0.0-alpha.5", path = "../rpc" }
+node-executor = { path = "../executor" }
+node-rpc = { path = "../rpc" }
 
-node-transaction-factory = { version = "0.8.0-alpha.5", optional = true, path = "../transaction-factory" }
-node-inspect = { version = "0.8.0-alpha.5", optional = true, path = "../inspect" }
 frame-benchmarking-cli = {version = '2.0.0-alpha.5', git = 'https://github.com/paritytech/substrate.git', optional = true}
 akropolisos-runtime = { version = '0.5.0', path = '../runtime' }
 
@@ -208,8 +206,8 @@ chrono = '0.4.10'
 vergen = {version = '3.0.4', optional = true}
 structopt = { version = "0.3.8", optional = true }
 sc-cli = { version = "0.8.0-alpha.5", optional = true, git = 'https://github.com/paritytech/substrate.git'}
-node-transaction-factory = { version = "0.8.0-alpha.5", optional = true, path = "../transaction-factory" }
-node-inspect = { version = "0.8.0-alpha.5", optional = true, path = "../inspect" }
+node-transaction-factory = { optional = true, path = "../transaction-factory" }
+node-inspect = { optional = true, path = "../inspect" }
 frame-benchmarking-cli = {version = '2.0.0-alpha.5', git = 'https://github.com/paritytech/substrate.git', optional = true}
 
 
