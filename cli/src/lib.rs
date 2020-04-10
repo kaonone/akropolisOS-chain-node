@@ -51,9 +51,9 @@ impl ChainSpec {
         Ok(match self {
             ChainSpec::Development => chain_spec::development_config(),
             ChainSpec::LocalTestnet => chain_spec::local_testnet_config(),
-            ChainSpec::AkropolisOSSyracuse => chain_spec::syracuse_testnet_config(),
+            ChainSpec::AkropolisOSSyracuse => chain_spec::syracuse_testnet_config()?,
             ChainSpec::AkropolisOSStaging => chain_spec::staging_testnet_config(),
-            ChainSpec::AkropolisOS => chain_spec::staging_testnet_config(),
+            ChainSpec::AkropolisOS => chain_spec::akropolisos_config()?,
         })
     }
 
@@ -88,7 +88,7 @@ pub fn run_cli() -> sc_cli::Result<()> {
         author: "Akropolis",
         description: "Akropolis OS Node",
         support_url: "admin@akropolis.io",
-        copyright_start_year: 2017,
+        copyright_start_year: 2019,
     };
 
     crate::run(env::args(), version)

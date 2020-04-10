@@ -58,11 +58,11 @@ fn session_keys(
 
 // generate genesis from file
 #[allow(unused)]
-fn akropolis_genesis() -> Result<ChainSpec, String> {
+pub fn akropolisos_config() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos.json")[..])
 }
 
-fn akropolisos_syracuse_genesis() -> Result<ChainSpec, String> {
+pub fn syracuse_testnet_config() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(&include_bytes!("../res/akropolisos_syracuse.json")[..])
 }
 
@@ -148,29 +148,6 @@ pub fn staging_testnet_config() -> ChainSpec {
         "Akropolis OS Staging Testnet",
         "akropolisos_staging_testnet",
         akropolisos_staging_genesis,
-        boot_nodes,
-        Some(TelemetryEndpoints::new(vec![(
-            STAGING_TELEMETRY_URL.to_string(),
-            0,
-        ),
-        (AKROPOLIS_TELEMETRY_URL.to_string(), 0)
-        ])),
-        None,
-        None,
-        Default::default(),
-    )
-}
-
-/// Syracuse testnet config.
-pub fn syracuse_testnet_config() -> ChainSpec {
-    let boot_nodes = vec![
-        "/ip4/178.128.225.241/tcp/30353/p2p/QmYdDmRbpyjjM1M4aLS1btAMq4ouopsQLnHjp8imodomZa".to_string(),
-        "/ip4/157.230.35.215/tcp/30353/p2p/QmdRRSjFmwQxrzDTih6c6di3W1oCf8BjELYF783hji4ZsA".to_string()
-    ];
-    ChainSpec::from_genesis(
-        "Akropolis OS Syracuse Testnet",
-        "akropolisos_syracuse_testnet",
-        akropolisos_syracuse_genesis,
         boot_nodes,
         Some(TelemetryEndpoints::new(vec![(
             STAGING_TELEMETRY_URL.to_string(),
