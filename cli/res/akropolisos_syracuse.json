@@ -1,10 +1,7 @@
 {
   "name": "Akropolis OS Syracuse Testnet",
   "id": "akropolisos_syracuse_testnet",
-  "bootNodes": [
-    "/ip4/178.128.225.241/tcp/30333/p2p/QmYdDmRbpyjjM1M4aLS1btAMq4ouopsQLnHjp8imodomZa",
-    "/ip4/157.230.35.215/tcp/30334/p2p/QmdRRSjFmwQxrzDTih6c6di3W1oCf8BjELYF783hji4ZsA"
-  ],
+  "bootNodes": [],
   "telemetryEndpoints": [
     [
       "wss://telemetry.polkadot.io/submit/",

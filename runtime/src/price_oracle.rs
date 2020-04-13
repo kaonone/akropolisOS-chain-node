@@ -10,7 +10,7 @@
 /// https://github.com/paritytech/substrate/blob/master/frame/example-offchain-worker/src/lib.rs
 ///
 use codec::Encode;
-use frame_support::{
+use frame_support::{ weights::SimpleDispatchInfo,
     debug, decl_event, decl_module, decl_storage, dispatch, traits::Get, IterableStorageMap,
 };
 #[cfg(not(feature = "std"))]
@@ -122,6 +122,7 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
     pub fn record_price_unsigned(
         origin,
         _block_number: T::BlockNumber,
@@ -148,6 +149,7 @@ decl_module! {
       Ok(())
     }
 
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
     pub fn record_aggregated_price_points_unsigned(
       origin,
       _block: T::BlockNumber,

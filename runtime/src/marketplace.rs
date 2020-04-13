@@ -1,6 +1,7 @@
 use crate::types::{DaoId, Days, Rate, TokenId};
 use frame_support::{
-    decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageValue,
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, weights::SimpleDispatchInfo,
+    StorageValue,
 };
 use sp_std::prelude::Vec;
 use system::ensure_signed;
@@ -21,6 +22,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
