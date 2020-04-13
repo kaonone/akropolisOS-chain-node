@@ -140,15 +140,15 @@ fn akropolisos_staging_genesis() -> GenesisConfig {
 
 /// Staging testnet config.
 pub fn staging_testnet_config() -> ChainSpec {
-    let boot_nodes = vec![
-        "/ip4/178.128.225.241/tcp/30353/p2p/QmYdDmRbpyjjM1M4aLS1btAMq4ouopsQLnHjp8imodomZa".to_string(),
-        "/ip4/157.230.35.215/tcp/30353/p2p/QmdRRSjFmwQxrzDTih6c6di3W1oCf8BjELYF783hji4ZsA".to_string()
-    ];
+    // let boot_nodes = vec![
+    //     "/ip4/178.128.225.241/tcp/30353/p2p/QmYdDmRbpyjjM1M4aLS1btAMq4ouopsQLnHjp8imodomZa".to_string(),
+    //     "/ip4/157.230.35.215/tcp/30353/p2p/QmdRRSjFmwQxrzDTih6c6di3W1oCf8BjELYF783hji4ZsA".to_string()
+    // ];
     ChainSpec::from_genesis(
         "Akropolis OS Staging Testnet",
         "akropolisos_staging_testnet",
         akropolisos_staging_genesis,
-        boot_nodes,
+        vec![],
         Some(TelemetryEndpoints::new(vec![(
             STAGING_TELEMETRY_URL.to_string(),
             0,
