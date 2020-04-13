@@ -4,12 +4,13 @@
 ///
 use crate::types::{Token, TokenId};
 use frame_support::{
-    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
+    weights::SimpleDispatchInfo, StorageMap,
 };
+use num_traits::ops::checked::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{StaticLookup, Zero};
 use sp_std::prelude::Vec;
 use system::{self, ensure_signed};
-use num_traits::ops::checked::{CheckedAdd, CheckedSub};
 
 type Result<T> = core::result::Result<T, &'static str>;
 
@@ -66,6 +67,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn burn(origin, from: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult {
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -77,6 +79,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn mint(origin, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult{
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -91,7 +94,7 @@ decl_module! {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
         // }
-
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -105,6 +108,7 @@ decl_module! {
             Ok(())
         }
 
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -119,6 +123,7 @@ decl_module! {
             Ok(())
         }
 
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn transfer_from(origin,
             from: T::AccountId,
             to: T::AccountId,
@@ -421,7 +426,12 @@ mod tests {
             assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, TOKEN_ID, 300));
+            assert_ok!(TokenModule::transfer(
+                Origin::signed(USER2),
+                USER1,
+                TOKEN_ID,
+                300
+            ));
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
         })
@@ -456,7 +466,12 @@ mod tests {
             assert_ok!(TokenModule::_mint(TOKEN_ID, USER2, 1000));
 
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 1000);
-            assert_ok!(TokenModule::transfer(Origin::signed(USER2), USER1, TOKEN_ID, 300));
+            assert_ok!(TokenModule::transfer(
+                Origin::signed(USER2),
+                USER1,
+                TOKEN_ID,
+                300
+            ));
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER2)), 700);
             assert_eq!(TokenModule::balance_of((TOKEN_ID, USER1)), 300);
             assert_eq!(TokenModule::locked((TOKEN_ID, USER2)), 0);
