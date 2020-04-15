@@ -3,7 +3,7 @@ authors = ['Akropolis <admin@akropolis.io>']
 build = 'build.rs'
 edition = '2018'
 name = 'node-cli'
-version = '0.3.1'
+version = '0.3.2'
 
 [package.metadata.wasm-pack.profile.release]
 # `wasm-opt` has some problems on linux, see
@@ -150,8 +150,10 @@ git = 'https://github.com/paritytech/substrate.git'
 version = '0.8.0-alpha.6'
 
 [dependencies.sc-service]
+default-features = false
+features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.6'
+version = '0.8.0-dev'
 
 [dependencies.sc-tracing]
 git = 'https://github.com/paritytech/substrate.git'
@@ -196,7 +198,7 @@ version = '2.0.0-alpha.6'
 sc-keystore = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git'}
 sc-consensus-babe = { version = "0.8.0-alpha.6", features = ["test-helpers"], git = 'https://github.com/paritytech/substrate.git' }
 sc-consensus-epochs = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sc-service-test = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git' }
+sc-service-test = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git'}
 futures = "0.3.1"
 tempfile = "3.1.0"
 assert_cmd = "0.12"
@@ -211,13 +213,13 @@ sc-cli = { version = "0.8.0-alpha.6", optional = true, git = 'https://github.com
 node-transaction-factory = { optional = true, path = "../transaction-factory" }
 node-inspect = { optional = true, path = "../inspect" }
 frame-benchmarking-cli = {version = '2.0.0-alpha.6', git = 'https://github.com/paritytech/substrate.git', optional = true}
-substrate-build-script-utils = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+substrate-build-script-utils = { version = "2.0.0-alpha.6", optional = true, git = 'https://github.com/paritytech/substrate.git' }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["cli", "wasmtime"]
+default = [ "cli" ]
 browser = [
 	"browser-utils",
 	"wasm-bindgen",
@@ -229,14 +231,11 @@ cli = [
 	"node-transaction-factory",
 	"sc-cli",
 	"frame-benchmarking-cli",
-	"sc-service/rocksdb",
+	"sc-service/db",
 	"structopt",
-	"vergen",
+	"substrate-build-script-utils",
 ]
-wasmtime = [
-	"cli",
-	"node-executor/wasmtime",
-	"sc-cli/wasmtime",
-	"sc-service/wasmtime",
+runtime-benchmarks = [
+	"akropolisos-runtime/runtime-benchmarks",
+	"frame-benchmarking-cli",
 ]
-runtime-benchmarks = [ "akropolisos-runtime/runtime-benchmarks" ]

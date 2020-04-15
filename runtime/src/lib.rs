@@ -60,10 +60,10 @@ pub use constants::{currency::*, time::*};
 pub mod types;
 pub use types::*;
 
-pub mod bridge;
 mod dao;
-mod marketplace;
 mod token;
+mod marketplace;
+pub mod bridge;
 pub use bridge::Call as BridgeCall;
 
 mod price_oracle;

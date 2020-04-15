@@ -248,7 +248,7 @@ version = '2.0.0-alpha.6'
 [dependencies.pallet-scheduler]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sudo]
 default-features = false
