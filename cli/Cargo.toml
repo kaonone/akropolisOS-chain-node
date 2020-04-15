@@ -25,17 +25,17 @@ tracing = "0.1.10"
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
-browser-utils = { package = "substrate-browser-utils", git = 'https://github.com/paritytech/substrate.git', optional = true, version = "0.8.0-alpha.5"}
+browser-utils = { package = "substrate-browser-utils", git = 'https://github.com/paritytech/substrate.git', optional = true, version = "0.8.0-alpha.6"}
 
 node-executor = { path = "../executor" }
 node-rpc = { path = "../rpc" }
 
 node-transaction-factory = { optional = true, path = "../transaction-factory" }
 node-inspect = { optional = true, path = "../inspect" }
-frame-benchmarking-cli = {version = '2.0.0-alpha.5', git = 'https://github.com/paritytech/substrate.git', optional = true}
+frame-benchmarking-cli = {version = '2.0.0-alpha.6', git = 'https://github.com/paritytech/substrate.git', optional = true}
 akropolisos-runtime = { version = '0.5.0', path = '../runtime' }
 
-sp-blockchain = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sp-blockchain = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 
 [dependencies.ctrlc]
 features = ['termination']
@@ -47,155 +47,155 @@ version = '0.1.29'
 
 [dependencies.sp-authority-discovery]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-consensus-babe]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.grandpa-primitives]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sp-finality-grandpa'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-core]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-runtime]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-timestamp]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-finality-tracker]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-inherents]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-keyring]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-io]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sp-consensus]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.grandpa]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sc-finality-grandpa'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-authority-discovery]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-consensus-babe]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-client-db]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-client-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sc-offchain]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sc-rpc]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sc-cli]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-client]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-chain-spec]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sc-executor]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-network]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-service]
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.5'
+version = '0.8.0-alpha.6'
 
 [dependencies.sc-tracing]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.sc-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.telemetry]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'sc-telemetry'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.pallet-indices]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.pallet-contracts]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.pallet-transaction-payment]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.pallet-im-online]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dependencies.system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'frame-system'
-version = '2.0.0-alpha.5'
+version = '2.0.0-alpha.6'
 
 [dev-dependencies]
-sc-keystore = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git'}
-sc-consensus-babe = { version = "0.8.0-alpha.5", features = ["test-helpers"], git = 'https://github.com/paritytech/substrate.git' }
-sc-consensus-epochs = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sc-keystore = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git'}
+sc-consensus-babe = { version = "0.8.0-alpha.6", features = ["test-helpers"], git = 'https://github.com/paritytech/substrate.git' }
+sc-consensus-epochs = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 sc-service-test = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git' }
 futures = "0.3.1"
 tempfile = "3.1.0"
@@ -207,16 +207,11 @@ serde_json = "1.0"
 chrono = '0.4.10'
 vergen = {version = '3.0.4', optional = true}
 structopt = { version = "0.3.8", optional = true }
-sc-cli = { version = "0.8.0-alpha.5", optional = true, git = 'https://github.com/paritytech/substrate.git'}
+sc-cli = { version = "0.8.0-alpha.6", optional = true, git = 'https://github.com/paritytech/substrate.git'}
 node-transaction-factory = { optional = true, path = "../transaction-factory" }
 node-inspect = { optional = true, path = "../inspect" }
-frame-benchmarking-cli = {version = '2.0.0-alpha.5', git = 'https://github.com/paritytech/substrate.git', optional = true}
-
-
-[build-dependencies.build-script-utils]
-git = 'https://github.com/paritytech/substrate.git'
-package = 'substrate-build-script-utils'
-version = '2.0.0-alpha.5'
+frame-benchmarking-cli = {version = '2.0.0-alpha.6', git = 'https://github.com/paritytech/substrate.git', optional = true}
+substrate-build-script-utils = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

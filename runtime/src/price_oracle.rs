@@ -22,7 +22,7 @@ use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
     offchain::http,
     traits::{SaturatedConversion, Zero},
-    transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
+    transaction_validity::{InvalidTransaction, TransactionValidity, TransactionSource, ValidTransaction},
 };
 
 // We have to import a few things
@@ -362,7 +362,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
     #[allow(deprecated)]
-    fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+    fn validate_unsigned(_src: TransactionSource, call: &Self::Call) -> TransactionValidity {
         // debug::info!("Calling {:?}", call);
 
         match call {

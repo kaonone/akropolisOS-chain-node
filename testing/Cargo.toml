@@ -7,47 +7,47 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-pallet-balances = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git'}
-sc-client = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sc-client-db = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git', features = ["kvdb-rocksdb"] }
-sc-client-api = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+pallet-balances = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git'}
+sc-client = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sc-client-db = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git', features = ["kvdb-rocksdb"] }
+sc-client-api = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 codec = { package = "parity-scale-codec", version = "1.2.0" }
-pallet-contracts = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-grandpa = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-indices = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-keyring = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+pallet-contracts = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-grandpa = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-indices = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-keyring = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 node-executor = { path = "../executor" }
 akropolisos-runtime = { path = "../runtime" }
-sp-core = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-io = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-frame-support = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-session = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-society = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-runtime = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-staking = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sc-executor = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git', features = ["wasmtime"] }
-sp-consensus = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-frame-system = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sp-core = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-io = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+frame-support = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-session = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-society = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-runtime = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-staking = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sc-executor = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git', features = ["wasmtime"] }
+sp-consensus = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+frame-system = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 substrate-test-client = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git' }
-pallet-timestamp = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-transaction-payment = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-pallet-treasury = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+pallet-timestamp = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-transaction-payment = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+pallet-treasury = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 wabt = "0.9.2"
-sp-api = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-finality-tracker = { version = "2.0.0-alpha.5", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-timestamp = { version = "2.0.0-alpha.5", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-block-builder = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sc-block-builder = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-inherents = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sp-blockchain = { version = "2.0.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
+sp-api = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-finality-tracker = { version = "2.0.0-alpha.6", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
+sp-timestamp = { version = "2.0.0-alpha.6", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
+sp-block-builder = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sc-block-builder = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-inherents = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-blockchain = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 log = "0.4.8"
 tempfile = "3.1.0"
 fs_extra = "1"
 
 [dev-dependencies]
 criterion = "0.3.0"
-sc-cli = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git' }
-sc-service = { version = "0.8.0-alpha.5", git = 'https://github.com/paritytech/substrate.git', features = ["rocksdb"] }
+sc-cli = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sc-service = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git', features = ["rocksdb"] }
 
 [[bench]]
 name = "import"

@@ -1,14 +1,13 @@
 #![warn(unused_extern_crates)]
 
 //! Service implementation. Specialized wrapper over substrate service.
-
 use std::sync::Arc;
 
 use sc_consensus_babe;
 use sc_client::{self, LongestChain};
 use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider, StorageAndProofProvider};
 use node_executor;
-use akropolisos_runtime::{RuntimeApi, Block};
+use akropolisos_runtime::{Block, RuntimeApi};
 use sc_service::{
 	AbstractService, ServiceBuilder, config::Configuration, error::{Error as ServiceError},
 };
@@ -21,7 +20,6 @@ use sp_runtime::traits::Block as BlockT;
 use node_executor::NativeExecutor;
 use sc_network::NetworkService;
 use sc_offchain::OffchainWorkers;
-// use sp_blockchain::{HeaderMetadata, HeaderBackend};
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -72,7 +70,7 @@ macro_rules! new_full_start {
 				import_setup = Some((block_import, grandpa_link, babe_link));
 				Ok(import_queue)
 			})?;
-			// .with_rpc_extensions(|builder| -> Result<RpcExtension, _> {
+			// .with_rpc_extensions(|builder| -> std::result::Result<RpcExtension, _> {
 			// 	let babe_link = import_setup.as_ref().map(|s| &s.2)
 			// 		.expect("BabeLink is present for full services or set up failed; qed.");
 			// 	let deps = node_rpc::FullDeps {
@@ -104,23 +102,16 @@ macro_rules! new_full {
 		use sc_client_api::ExecutorProvider;
 
 		let (
-			is_authority,
+			role,
 			force_authoring,
 			name,
 			disable_grandpa,
-			sentry_nodes,
 		) = (
-			$config.roles.is_authority(),
+			$config.role.clone(),
 			$config.force_authoring,
-			$config.name.clone(),
+			$config.network.node_name.clone(),
 			$config.disable_grandpa,
-			$config.network.sentry_nodes.clone(),
 		);
-
-		// sentry nodes announce themselves as authorities to the network
-		// and should run the same protocols authorities do, but it should
-		// never actively participate in any consensus process.
-		let participates_in_consensus = is_authority && !$config.sentry_mode;
 
 		let (builder, mut import_setup, inherent_data_providers) = new_full_start!($config);
 
@@ -137,7 +128,7 @@ macro_rules! new_full {
 
 		($with_startup_data)(&block_import, &babe_link);
 
-		if participates_in_consensus {
+		if let sc_service::config::Role::Authority { sentry_nodes } = &role {
 			let proposer = sc_basic_authorship::ProposerFactory::new(
 				service.client(),
 				service.transaction_pool()
@@ -167,14 +158,14 @@ macro_rules! new_full {
 			service.spawn_essential_task("babe-proposer", babe);
 
 			let network = service.network();
-			let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
+			let dht_event_stream = network.event_stream("authority-discovery").filter_map(|e| async move { match e {
 				Event::Dht(e) => Some(e),
 				_ => None,
 			}}).boxed();
 			let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
 				service.client(),
 				network,
-				sentry_nodes,
+				sentry_nodes.clone(),
 				service.keystore(),
 				dht_event_stream,
 				service.prometheus_registry(),
@@ -185,7 +176,7 @@ macro_rules! new_full {
 
 		// if the node isn't actively participating in consensus then it doesn't
 		// need a keystore, regardless of which protocol we use below.
-		let keystore = if participates_in_consensus {
+		let keystore = if role.is_authority() {
 			Some(service.keystore())
 		} else {
 			None
@@ -198,7 +189,7 @@ macro_rules! new_full {
 			name: Some(name),
 			observer_enabled: false,
 			keystore,
-			is_authority,
+			is_authority: role.is_network_authority(),
 		};
 
 		let enable_grandpa = !disable_grandpa;
@@ -240,7 +231,7 @@ macro_rules! new_full {
 	}}
 }
 
-type ConcreteBlock = akropolisos_runtime::Block;
+type ConcreteBlock = Block;
 type ConcreteClient =
 	Client<
 		Backend<ConcreteBlock>,
@@ -279,7 +270,7 @@ pub fn new_full(config: Configuration)
 /// Builds a new service for a light client.
 pub fn new_light(config: Configuration)
 -> Result<impl AbstractService, ServiceError> {
-	// type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+	type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 	let inherent_data_providers = InherentDataProviders::new();
 
 	let service = ServiceBuilder::new_light::<Block, RuntimeApi, node_executor::Executor>(config)?
@@ -364,7 +355,8 @@ mod tests {
 		Environment, Proposer, BlockImportParams, BlockOrigin, ForkChoiceStrategy, BlockImport,
 		RecordProof,
 	};
-	use akropolisos_runtime::{BalancesCall,Block, DigestItem, Signature, Call, UncheckedExtrinsic, Address};
+	use akropolisos_runtime::{Block, DigestItem, Signature};
+	use akropolisos_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
 	use akropolisos_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
 	use codec::{Encode, Decode};
 	use sp_core::{crypto::Pair as CryptoPair, H256};
@@ -593,11 +585,11 @@ mod tests {
 
 				let function = Call::Balances(BalancesCall::transfer(to.into(), amount));
 
-				let check_version = system::CheckVersion::new();
-				let check_genesis = system::CheckGenesis::new();
-				let check_era = system::CheckEra::from(Era::Immortal);
-				let check_nonce = system::CheckNonce::from(index);
-				let check_weight = system::CheckWeight::new();
+				let check_version = frame_system::CheckVersion::new();
+				let check_genesis = frame_system::CheckGenesis::new();
+				let check_era = frame_system::CheckEra::from(Era::Immortal);
+				let check_nonce = frame_system::CheckNonce::from(index);
+				let check_weight = frame_system::CheckWeight::new();
 				let payment = pallet_transaction_payment::ChargeTransactionPayment::from(0);
 				let extra = (
 					check_version,
