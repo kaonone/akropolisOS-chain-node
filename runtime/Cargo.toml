@@ -13,8 +13,12 @@ build-script-utils = { version = '2.0.0-dev', package = 'substrate-build-script-
 safe-mix = { default-features = false, version = '1.0.0'}
 serde = {features = ['derive'],  default-features = false, optional = true, version = '1.0.101'}
 num-traits = { version = "0.2.8", default-features = false }
-simple-json = {git = 'https://github.com/jimmychu0807/simple-json', version = '0.1.5', default-features = false}
 rustc-hex = { version = "2.0", optional = true }
+
+[dependencies.simple-json]
+default-features = false
+git = 'https://github.com/jimmychu0807/simple-json'
+rev = '49661fd6cf0aed3c9f97d233589d9dd6873827eb'
 
 [dependencies.sp-authority-discovery]
 default-features = false
