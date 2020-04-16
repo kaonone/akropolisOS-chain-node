@@ -7,7 +7,7 @@ version = '0.5.2'
 [build-dependencies]
 wasm-builder-runner = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder-runner', version = '1.0.5', default-features = false}
 wasm-builder = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder', version = '1.0.9', default-features = false}
-build-script-utils = { version = '2.0.0-alpha.6', package = 'substrate-build-script-utils', git = 'https://github.com/paritytech/substrate.git', default-features = false}
+build-script-utils = { version = '2.0.0-dev', package = 'substrate-build-script-utils', git = 'https://github.com/paritytech/substrate.git', default-features = false}
 
 [dependencies]
 safe-mix = { default-features = false, version = '1.0.0'}
@@ -19,79 +19,79 @@ rustc-hex = { version = "2.0", optional = true }
 [dependencies.sp-authority-discovery]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-consensus-babe]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.6'
+version = '0.8.0-dev'
 
 [dependencies.sp-block-builder]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-inherents]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-offchain]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-io]
 default-features = false
 features = ["disable_panic_handler", "disable_oom"]
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-staking]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-keyring]
 default-features = false
 optional = true
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-session]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-transaction-pool]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.sp-version]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.codec]
 default-features = false
@@ -102,148 +102,148 @@ version = '1.2.0'
 [dependencies.frame-executive]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.frame-benchmarking]
 default-features = false
 optional = true
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'frame-system'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.frame-system-rpc-runtime-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-authority-discovery]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-authorship]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-babe]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.balances]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-balances'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-collective]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-contracts]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-contracts-primitives]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-contracts-rpc-runtime-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0-alpha.6'
+version = '0.8.0-dev'
 
 [dependencies.pallet-democracy]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-elections-phragmen]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-finality-tracker]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.grandpa]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-grandpa'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-im-online]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-indices]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-identity]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-membership]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-offences]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.randomness-collective-flip]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-randomness-collective-flip'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-recovery]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-session]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-session-benchmarking]
 default-features = false
 optional = true
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-staking]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-staking-reward-curve]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-scheduler]
 default-features = false
@@ -254,43 +254,43 @@ version = '2.0.0-dev'
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-sudo'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-society]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.timestamp]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-timestamp'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-treasury]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-utility]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-transaction-payment]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-transaction-payment-rpc-runtime-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [dependencies.pallet-vesting]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0-alpha.6'
+version = '2.0.0-dev'
 
 [features]
 default = ['std']
