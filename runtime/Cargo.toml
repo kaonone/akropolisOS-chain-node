@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-runtime'
-version = '0.5.3'
+version = '0.5.4'
 
 [build-dependencies]
 wasm-builder-runner = {git = 'https://github.com/paritytech/substrate.git', package = 'substrate-wasm-builder-runner', version = '1.0.5', default-features = false}
