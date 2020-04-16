@@ -34,7 +34,7 @@ pallet-treasury = { version = "2.0.0-alpha.6", git = 'https://github.com/parityt
 sp-application-crypto = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 sp-runtime = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 sp-externalities = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-substrate-test-client = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git' }
+substrate-test-client = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
 wabt = "0.9.2"
 
 [features]

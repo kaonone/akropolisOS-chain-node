@@ -23,7 +23,7 @@ use sp_runtime::transaction_validity::{
 };
 use sp_runtime::{
     create_runtime_str, curve::PiecewiseLinear, generic, impl_opaque_keys, ApplyExtrinsicResult,
-    MultiSignature, Perbill, Percent, Permill,
+    MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -173,6 +173,7 @@ impl system::Trait for Runtime {
     type ModuleToIndex = ModuleToIndex;
     type AccountData = balances::AccountData<Balance>;
     type OnNewAccount = ();
+    type DbWeight = ();
     type OnKilledAccount = ();
 }
 
@@ -239,23 +240,23 @@ impl balances::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 1 * CENTS;
-    pub const TransactionByteFee: Balance = 10 * MILLICENTS;
-    // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1_000;
-    // for a sane configuration, this should always be less than `AvailableBlockRatio`.
-    pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
+	pub const TransactionBaseFee: Balance = 1 * CENTS;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	// In the Substrate node, a weight of 10_000_000 (smallest non-zero weight)
+	// is mapped to 10_000_000 units of fees, hence:
+	pub const WeightFeeCoefficient: Balance = 1;
+	// for a sane configuration, this should always be less than `AvailableBlockRatio`.
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = Balances;
-    type OnTransactionPayment = DealWithFees;
-    type TransactionBaseFee = TransactionBaseFee;
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = LinearWeightToFee<WeightFeeCoefficient>;
-    type FeeMultiplierUpdate = TargetedFeeAdjustment<TargetBlockFullness>;
+	type Currency = Balances;
+	type OnTransactionPayment = DealWithFees;
+	type TransactionBaseFee = TransactionBaseFee;
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = LinearWeightToFee<WeightFeeCoefficient>;
+	type FeeMultiplierUpdate = TargetedFeeAdjustment<TargetBlockFullness>;
 }
-
 parameter_types! {
     pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
 }
