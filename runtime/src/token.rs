@@ -323,6 +323,7 @@ mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type DbWeight = ();
     }
 
     impl balances::Trait for Test {

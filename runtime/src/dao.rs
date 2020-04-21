@@ -767,6 +767,7 @@ mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type DbWeight = ();
     }
 
     impl balances::Trait for Test {
@@ -844,7 +845,6 @@ mod tests {
     const NOT_EMPTY_DAO_BALANCE: u128 = 1000;
     const DAYS: Days = 365;
     const RATE: Rate = 1000;
-    const VALUE: u128 = 10_000_000_000_000_000_000; // 10 unit tokens with 18 precision
     const VALUE2: u128 = 100_000_000_000_000_000_000; // 100 unit tokens with 18 precision
     const VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT + 1;
     const VERY_SMALL_VOTE_TIMEOUT: u32 = MINIMUM_VOTE_TIOMEOUT - 1;

@@ -270,7 +270,7 @@ pub fn new_full(config: Configuration)
 /// Builds a new service for a light client.
 pub fn new_light(config: Configuration)
 -> Result<impl AbstractService, ServiceError> {
-	type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+	// type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 	let inherent_data_providers = InherentDataProviders::new();
 
 	let service = ServiceBuilder::new_light::<Block, RuntimeApi, node_executor::Executor>(config)?

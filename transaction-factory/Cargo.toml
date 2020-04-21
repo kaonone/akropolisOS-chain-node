@@ -9,14 +9,14 @@ license = "MIT"
 log = "0.4.8"
 codec = { package = "parity-scale-codec", version = "1.2.0", features = ["derive"] }
 
-sp-block-builder = { version = "2.0.0-dev", git = 'https://github.com/paritytech/substrate.git' }
-sc-cli = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sc-client-api = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sc-block-builder = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sc-client = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sp-consensus = { version = "0.8.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sp-core = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sp-api = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sp-runtime = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
-sc-service = { version = "0.8.0-alpha.6", default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-blockchain = { version = "2.0.0-alpha.6", git = 'https://github.com/paritytech/substrate.git' }
+sp-block-builder = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-cli = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-client-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-block-builder = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-client = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-consensus = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-core = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-runtime = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-service = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
+sp-blockchain = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
