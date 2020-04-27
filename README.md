@@ -101,7 +101,6 @@ This guide will walk you through how to create account and how to connect to Akr
     "DaoId": "u64",
     "MemberId": "u64",
     "ProposalId": "u64",
-    "TokenBalance": "u128",
     "VotesCount": "MemberId",
     "TokenId": "u32",
     "Days": "u32",
@@ -171,7 +170,7 @@ This guide will walk you through how to create account and how to connect to Akr
         "message_id": "H256",
         "eth_address": "H160",
         "substrate_address": "AccountId",
-        "amount": "TokenBalance",
+        "amount": "Balance",
         "status": "Status",
         "direction": "Status"
     },

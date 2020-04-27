@@ -1,0 +1,42 @@
+[package]
+authors = ['Akropolis <admin@akropolis.io>']
+edition = '2018'
+name = 'akropolisos-node'
+version = '0.3.4'
+build = "build.rs"
+
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[[bin]]
+name = "akropolisos-node"
+
+[dependencies]
+futures = "0.3.4"
+log = "0.4.8"
+structopt = "0.3.8"
+hex-literal = "0.2.1"
+
+sc-cli = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-core = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-executor = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-service = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-inherents = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-transaction-pool = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-transaction-pool = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-network = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-consensus = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-finality-grandpa = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-finality-grandpa = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-client = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-client-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sp-runtime = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+sc-basic-authorship = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git'}
+
+akropolisos-runtime = { path = "../runtime" }
+
+[build-dependencies]
+substrate-build-script-utils = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
