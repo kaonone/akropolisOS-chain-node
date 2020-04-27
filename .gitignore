@@ -8,11 +8,6 @@
 # Ignore swap files
 *.swp
 
-# Bridge frontend
-/bridge/frontend/.cache
-/bridge/frontend/node_modules
-/bridge/frontend/dist
-
 # Code editors
 .vscode
 
