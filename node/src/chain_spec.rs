@@ -112,7 +112,8 @@ pub fn syracuse_testnet_config() -> ChainSpec {
                     authority_keys_from_seed("Akropolis1"),
                     authority_keys_from_seed("Akropolis2"),
                 ],
-                get_account_id_from_seed::<sr25519::Public>("Akropolis1"),
+                hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
+                // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
                 vec![
                     hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
                     // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
@@ -138,6 +139,7 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
+    println!("Initial AuthoritiesA:{:?}\nEndowed Accounts: {:?}",initial_authorities, endowed_accounts);
     let tokens = vec![
         Token {
             id: 0,

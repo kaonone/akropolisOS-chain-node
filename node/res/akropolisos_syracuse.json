@@ -18,18 +18,18 @@
       },
       "aura": {
         "authorities": [
-          "5DRovTPiJMi44w2AsKgrLKZpME4bNUBgneg1vziL3MMwwJV5",
-          "5DRj6SC2kWYfxxFRVxjiKtMzERQd8NEs6JFdjyhMjJ4fCREY"
+          "5CcvQBTcHEeK9AQFE2f9CMjSYsMfm85v4wQ66K4cCbJfwgs8",
+          "5CkCEZafmLQhU9UfoN6bNeoks8vLAGnwmKsqbEkpKpiDg2Xz"
         ]
       },
       "grandpa": {
         "authorities": [
           [
-            "5Ejs9aQAoz1ofgcsUycuEyLVPdc7RaLmsSeYuFbX5dVCP2s1",
+            "5CY3H3CbyD64Jy5H5YB4uw1sD8Axwt2ZjvHosd4CuMm2CYQt",
             1
           ],
           [
-            "5DWScXoHJNSZNcAvmqshrnAZEgh2fKS4N6vTzUmryWFwVkaJ",
+            "5FLzYqNpXxATSRQCV65ZLm6CZDxmqr7276hRYs6HKsJhEYBU",
             1
           ]
         ]
@@ -37,21 +37,21 @@
       "balances": {
         "balances": [
           [
-            "5CNXHUMSYds9PHjKF4SxuP9yb49peuUZaZfgJfH63A4j75hp",
+            "5CcvQBTcHEeK9AQFE2f9CMjSYsMfm85v4wQ66K4cCbJfwgs8",
             1152921504606846976
           ],
           [
-            "5Exdhk8am1RzT5hkZF7LTkg9EKn7ArPWEPZzAUqViDZqjHKU",
+            "5HpH3zcRjgeBzsTp4yinVQTyvuHZptT4GNTQm1i6Gw3wV2tq",
             1152921504606846976
           ],
           [
-            "5DS2a1M4NpEXzbzrochE4JZ4bhNECSxESWRxcifLunwa6t2J",
+            "5EzrfxecXHKA4Hy1MzzYfm747PUstZA1qMAXtGtKCJ67WSJQ",
             1152921504606846976
           ]
         ]
       },
       "sudo": {
-        "key": "5DRovTPiJMi44w2AsKgrLKZpME4bNUBgneg1vziL3MMwwJV5"
+        "key": "5CcvQBTcHEeK9AQFE2f9CMjSYsMfm85v4wQ66K4cCbJfwgs8"
       },
       "token": {
         "tokens": [
@@ -99,9 +99,9 @@
       "bridge": {
         "validatorsCount": 3,
         "validatorAccounts": [
-          "5CNXHUMSYds9PHjKF4SxuP9yb49peuUZaZfgJfH63A4j75hp",
-          "5Exdhk8am1RzT5hkZF7LTkg9EKn7ArPWEPZzAUqViDZqjHKU",
-          "5DS2a1M4NpEXzbzrochE4JZ4bhNECSxESWRxcifLunwa6t2J"
+          "5CcvQBTcHEeK9AQFE2f9CMjSYsMfm85v4wQ66K4cCbJfwgs8",
+          "5HpH3zcRjgeBzsTp4yinVQTyvuHZptT4GNTQm1i6Gw3wV2tq",
+          "5EzrfxecXHKA4Hy1MzzYfm747PUstZA1qMAXtGtKCJ67WSJQ"
         ],
         "currentLimits": [
           100000000000000000000,
