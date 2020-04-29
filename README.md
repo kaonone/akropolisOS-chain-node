@@ -168,11 +168,12 @@ This guide will walk you through how to create account and how to connect to Akr
     },
       "TransferMessage": {
         "message_id": "H256",
+        "token": "TokenId",
         "eth_address": "H160",
         "substrate_address": "AccountId",
         "amount": "Balance",
         "status": "Status",
-        "direction": "Status"
+        "action": "Status"
     },
       "LimitMessage": {
         "id": "H256",
