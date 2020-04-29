@@ -4658,7 +4658,7 @@ dependencies = [
 [[package]]
 name = "simple-json"
 version = "0.1.5"
-source = "git+https://github.com/jimmychu0807/simple-json?rev=49661fd6cf0aed3c9f97d233589d9dd6873827eb#49661fd6cf0aed3c9f97d233589d9dd6873827eb"
+source = "git+https://github.com/jimmychu0807/simple-json2?rev=49661fd6cf0aed3c9f97d233589d9dd6873827eb#49661fd6cf0aed3c9f97d233589d9dd6873827eb"
 dependencies = [
  "num-traits 0.2.11",
  "paste",
