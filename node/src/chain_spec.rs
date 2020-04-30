@@ -111,6 +111,7 @@ pub fn syracuse_testnet_config() -> ChainSpec {
                 vec![
                     authority_keys_from_seed("Akropolis1"),
                     authority_keys_from_seed("Akropolis2"),
+                    authority_keys_from_seed("Akropolis3"),
                 ],
                 hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
                 // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
@@ -119,6 +120,8 @@ pub fn syracuse_testnet_config() -> ChainSpec {
                     // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
                     hex!("80133ea92f48aa928119aaaf524bc75e436a5c9eb24878a9e28ac7b0b37aa81a").into(),
                     // 5CqXmy44eTwGQCX8GaLrUfTAyEswGSd4PgSKMgUdLfDLBhZZ
+                    hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(),
+                    // 5DnUF5fQ6KNYPWRAcHYpMu32pUtdLv6ksRcSLeuofrxmPsTU
                     hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(),
                     // 5DnUF5fQ6KNYPWRAcHYpMu32pUtdLv6ksRcSLeuofrxmPsTU
                 ],
