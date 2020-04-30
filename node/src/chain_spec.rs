@@ -139,7 +139,6 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
-    println!("Initial AuthoritiesA:{:?}\nEndowed Accounts: {:?}",initial_authorities, endowed_accounts);
     let tokens = vec![
         Token {
             id: 0,
