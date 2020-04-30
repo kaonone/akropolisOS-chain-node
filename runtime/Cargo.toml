@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-runtime'
-version = '0.5.4'
+version = '0.5.5'
 
 
 [package.metadata.docs.rs]

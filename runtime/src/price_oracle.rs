@@ -10,8 +10,9 @@
 /// https://github.com/paritytech/substrate/blob/master/frame/example-offchain-worker/src/lib.rs
 ///
 use codec::Encode;
-use frame_support::{ weights::SimpleDispatchInfo,
-    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get, IterableStorageMap,
+use frame_support::{
+    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get,
+    weights::SimpleDispatchInfo, IterableStorageMap,
 };
 #[cfg(not(feature = "std"))]
 #[allow(unused)]
@@ -22,7 +23,9 @@ use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
     offchain::http,
     traits::{SaturatedConversion, Zero},
-    transaction_validity::{InvalidTransaction, TransactionValidity, TransactionSource, ValidTransaction},
+    transaction_validity::{
+        InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction,
+    },
 };
 
 // We have to import a few things
@@ -50,7 +53,11 @@ pub mod crypto {
 }
 
 pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 4] = [
-    (b"DAI", b"coincap", b"https://api.coincap.io/v2/assets/dai"),
+    (
+        b"DAI",
+        b"cryptocompare",
+        b"https://min-api.cryptocompare.com/data/price?fsym=DAI&tsyms=USD",
+    ),
     (
         b"USDT",
         b"cryptocompare",

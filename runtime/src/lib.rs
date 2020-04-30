@@ -99,10 +99,10 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("akropoliosos-node"),
-    impl_name: create_runtime_str!("akropoliosos-node"),
+    spec_name: create_runtime_str!("akropolisos-node"),
+    impl_name: create_runtime_str!("akropolisos-node"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -272,14 +272,14 @@ construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
-		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
-		Grandpa: grandpa::{Module, Call, Storage, Config, Event},
-		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: transaction_payment::{Module, Storage},
-		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        System: system::{Module, Call, Config, Storage, Event<T>},
+        RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
+        Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
+        Grandpa: grandpa::{Module, Call, Storage, Config, Event},
+        Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
+        TransactionPayment: transaction_payment::{Module, Storage},
+        Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
         // Akropolis pallets
         Token: token::{Module, Call, Storage, Config, Event<T>},
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
