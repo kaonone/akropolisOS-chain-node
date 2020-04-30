@@ -299,17 +299,19 @@ impl<T: Trait> Module<T> {
         balance
     }
 
-    fn fetch_price_from_cryptocompare(json_val: JsonValue) -> Result<T::Balance> {
+    fn fetch_price_from_cryptocompare(v: JsonValue) -> Result<T::Balance> {
         // Expected JSON shape:
         //   r#"{"USD": 7064.16}"#;
-        let val_f64: f64 = json_val.get_object()[0].1.get_number_f64();
+        debug::native::debug!("cryptocompare:{:?}", v.get_object()[0]);
+        let val_f64: f64 = v.get_object()[0].1.get_number_f64();
         Ok(Self::round_value(val_f64))
     }
 
-    fn fetch_price_from_coingecko(json_val: JsonValue) -> Result<T::Balance> {
+    fn fetch_price_from_coingecko(v: JsonValue) -> Result<T::Balance> {
         // Expected JSON shape:
         //   r#"{"cdai":{"usd": 7064.16}}"#;
-        let val_f64: f64 = json_val.get_object()[0].1.get_object()[0]
+        debug::native::debug!("cryptocompare:{:?}", v.get_object()[0]);
+        let val_f64: f64 = v.get_object()[0].1.get_object()[0]
             .1
             .get_number_f64();
         Ok(Self::round_value(val_f64))
