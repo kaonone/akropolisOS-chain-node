@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "akropolisos-node"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "akropolisos-runtime",
  "futures 0.3.4",
