@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "akropolisos-runtime"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "frame-executive 2.0.0-dev (git+https://github.com/paritytech/substrate.git?rev=710722f02f372601b2dae178d66654b8cb372ab5)",
  "frame-support 2.0.0-dev (git+https://github.com/paritytech/substrate.git?rev=710722f02f372601b2dae178d66654b8cb372ab5)",

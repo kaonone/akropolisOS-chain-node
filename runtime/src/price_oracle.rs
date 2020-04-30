@@ -197,14 +197,14 @@ decl_module! {
       // Type I task: fetch price
       if duration > 0.into() && block % duration == 0.into() {
         for (symbol, remote_src, remote_url) in FETCHED_CRYPTOS.iter() {
-          let res = Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url);
+          let _res = Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url);
 
-          if let Err(e) = res {
-            debug::error!("Error fetching: {:?}, {:?}: {:?}",
-            core::str::from_utf8(symbol).unwrap(),
-            core::str::from_utf8(remote_src).unwrap(),
-            e);
-          }
+        //   if let Err(e) = res {
+        //     debug::error!("Error fetching: {:?}, {:?}: {:?}",
+        //     core::str::from_utf8(symbol).unwrap(),
+        //     core::str::from_utf8(remote_src).unwrap(),
+        //     e);
+        //   }
         }
       }
 
@@ -213,12 +213,12 @@ decl_module! {
       // filter those to be updated
       .filter(|(_, vec)| vec.len() > 0)
       .for_each(|(symbol, _)| {
-        let res = Self::aggregate_price_points_unsigned(block, &symbol);
+        let _res = Self::aggregate_price_points_unsigned(block, &symbol);
 
-        if let Err(e) = res {
-          debug::error!("Error aggregating price of {:?}: {:?}",
-          core::str::from_utf8(&symbol).unwrap(), e);
-        }
+        // if let Err(e) = res {
+        //   debug::error!("Error aggregating price of {:?}: {:?}",
+        //   core::str::from_utf8(&symbol).unwrap(), e);
+        // }
         });
     }
 
@@ -275,9 +275,6 @@ impl<T: Trait> Module<T> {
         let price = match remote_src {
             src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
                 .map_err(|_| "fetch_price_from_coingecko error"),
-            src if src == b"coincap" => {
-                Self::fetch_price_from_coincap(json).map_err(|_| "fetch_price_from_coincap error")
-            }
             src if src == b"cryptocompare" => Self::fetch_price_from_cryptocompare(json)
                 .map_err(|_| "fetch_price_from_cryptocompare error"),
             _ => Err("Unknown remote source"),
@@ -294,9 +291,6 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn vecchars_to_vecbytes<I: IntoIterator<Item = char> + Clone>(it: &I) -> Vec<u8> {
-        it.clone().into_iter().map(|c| c as u8).collect::<_>()
-    }
 
     fn round_value(v: f64) -> T::Balance {
         let mut precisioned: u128 = (v * 1000000000.0).round() as u128;
@@ -318,30 +312,6 @@ impl<T: Trait> Module<T> {
         let val_f64: f64 = json_val.get_object()[0].1.get_object()[0]
             .1
             .get_number_f64();
-        Ok(Self::round_value(val_f64))
-    }
-
-    fn fetch_price_from_coincap(json_val: JsonValue) -> Result<T::Balance> {
-        // Expected JSON shape:
-        //   r#"{"data":{"priceUsd":"8172.2628346190447316"}}"#;
-
-        const PRICE_KEY: &[u8] = b"priceUsd";
-        let data = json_val.get_object()[0].1.get_object();
-
-        let (_, v) = data
-            .iter()
-            .filter(|(k, _)| PRICE_KEY.to_vec() == Self::vecchars_to_vecbytes(k))
-            .nth(0)
-            .ok_or("fetch_price_from_coincap: JSON does not conform to expectation")?;
-
-        // `val` contains the price, such as "222.333" in bytes form
-        let val_u8: Vec<u8> = v.get_bytes();
-
-        // Convert to number
-        let val_f64: f64 = core::str::from_utf8(&val_u8)
-            .map_err(|_| "fetch_price_from_coincap: val_f64 convert to string error")?
-            .parse::<f64>()
-            .map_err(|_| "fetch_price_from_coincap: val_u8 parsing to f64 error")?;
         Ok(Self::round_value(val_f64))
     }
 
@@ -374,26 +344,10 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
         match call {
             Call::record_price_unsigned(block, (symbol, ..), price) => Ok(ValidTransaction {
-                // We set base priority to 2**20 to make sure it's included before any other
-                // transactions in the pool. Next we tweak the priority depending on how much
-                // it differs from the current average. (the more it differs the more priority it
-                // has).
                 priority: 1,
-                // This transaction does not require anything else to go before into the pool.
-                // In theory we could require `previous_unsigned_at` transaction to go first,
-                // but it's not necessary in our case.
                 requires: vec![],
-                // We can still have multiple transactions compete for the same "spot",
-                // and the one with higher priority will replace other one in the pool.
                 provides: vec![(block, symbol, price).encode()],
-                // The transaction is only valid for next 5 blocks. After that it's
-                // going to be revalidated by the pool.
                 longevity: 5,
-                // It's fine to propagate that transaction to other peers, which means it can be
-                // created even by nodes that don't produce blocks.
-                // Note that sometimes it's better to keep it for yourself (if you are the block
-                // producer), since for instance in some schemes others may copy your solution and
-                // claim a reward.
                 propagate: true,
             }),
             Call::record_aggregated_price_points_unsigned(block, symbol, price) => {
@@ -413,11 +367,6 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 #[cfg(test)]
 pub mod tests {
     /// tests for this module
-    // Test cases:
-    //  1. record_price if called store item in storage
-    //  2. record_price can only be called from unsigned tx
-    //  3. with multiple record_price of same symbol inserted. On next cycle, the average of the price is calculated
-    //  4. can fetch for BTC, parse the JSON blob and get a price > 0 out
     use super::*;
     use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
     use sp_core::H256;
@@ -441,7 +390,7 @@ pub mod tests {
 
     impl_outer_dispatch! {
       pub enum Call for Test where origin: Origin {
-        price_fetch::PriceOracleModule,
+        price_fetch::OracleModule,
       }
     }
 
@@ -505,7 +454,7 @@ pub mod tests {
     type SubmitPFTransaction =
         system::offchain::TransactionSubmitter<crypto::Public, Call, Extrinsic>;
 
-    pub type PriceOracleModule = Module<Test>;
+    pub type OracleModule = Module<Test>;
 
     parameter_types! {
         pub const BlockFetchPeriod: BlockNumber = 2;
@@ -533,9 +482,53 @@ pub mod tests {
     }
 
     #[test]
-    fn it_works_for_default_value() {
+    fn test_coingecko_parsing() {
         new_test_ext().execute_with(|| {
-            assert_eq!(1, 1);
+            let json: Vec<u8> = r#"{"cdai":{"usd": 7064.16}}"#.as_bytes().to_vec();
+            let v = simple_json::parse_json(
+                &core::str::from_utf8(&json)
+                    .map_err(|_| "JSON result cannot convert to string")
+                    .expect("failed to parse Vec<u8> to &str"),
+            )
+            .map_err(|_| "JSON parsing error")
+            .expect("failed to parse to JsonValue");
+            let result = OracleModule::fetch_price_from_coingecko(v)
+                .expect("failed to parse from coingecko");
+
+            assert_eq!(result, 7064160000000000000000);
+        });
+    }
+    #[test]
+    fn test_cryptocompare_parsing() {
+        new_test_ext().execute_with(|| {
+            let json: Vec<u8> = r#"{"USD": 7064.16}"#.as_bytes().to_vec();
+            let v = simple_json::parse_json(
+                &core::str::from_utf8(&json)
+                    .map_err(|_| "JSON result cannot convert to string")
+                    .expect("failed to parse Vec<u8> to &str"),
+            )
+            .map_err(|_| "JSON parsing error")
+            .expect("failed to parse to JsonValue");
+            let result = OracleModule::fetch_price_from_cryptocompare(v)
+                .expect("failed to parse from cryptocompare");
+
+            assert_eq!(result, 7064160000000000000000);
+        });
+    }
+    #[test]
+    fn test_simple_parsing() {
+        new_test_ext().execute_with(|| {
+            let json: Vec<u8> = r#"{"USD": 7064.16}"#.as_bytes().to_vec();
+            let v = simple_json::parse_json(
+                &core::str::from_utf8(&json)
+                    .map_err(|_| "JSON result cannot convert to string")
+                    .expect("fail"),
+            )
+            .map_err(|_| "JSON parsing error")
+            .expect("double fail");
+            let result = v.get_object()[0].1.get_number_f64();
+
+            assert_eq!(result, 7064.16);
         });
     }
 }

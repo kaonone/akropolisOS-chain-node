@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-runtime'
-version = '0.5.5'
+version = '0.5.6'
 
 
 [package.metadata.docs.rs]
@@ -12,8 +12,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 num-traits = { version = "0.2.8", default-features = false }
 rustc-hex = { version = "2.0", optional = true }
 
-codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0.101", optional = true, features = ["derive"] }
 simple-json = {rev = '49661fd6cf0aed3c9f97d233589d9dd6873827eb', default-features = false, git = 'https://github.com/jimmychu0807/simple-json2' }
+codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
 aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-aura", git = 'https://github.com/paritytech/substrate.git' }
 balances = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-balances", git = 'https://github.com/paritytech/substrate.git' }
 frame-support = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
@@ -24,7 +25,6 @@ system = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = 
 timestamp = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-timestamp", git = 'https://github.com/paritytech/substrate.git' }
 transaction-payment = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-transaction-payment", git = 'https://github.com/paritytech/substrate.git' }
 frame-executive = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
 sp-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
 sp-block-builder = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
 sp-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
