@@ -101,11 +101,11 @@ pub fn local_testnet_config() -> ChainSpec {
     )
 }
 
-pub fn syracuse_testnet_config() -> ChainSpec {
+pub fn sparta_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
-        "Akropolis OS Syracuse Testnet",
-        "akropolisos_syracuse_testnet",
-        ChainType::Custom("Syracuse".into()),
+        "Akropolis OS Sparta Testnet",
+        "akropolisos_sparta_testnet",
+        ChainType::Custom("sparta".into()),
         || {
             testnet_genesis(
                 vec![
