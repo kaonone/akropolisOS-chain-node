@@ -7,7 +7,6 @@
 // BUG
 // Bad input data provided to validate_transaction: ', ../akropolisOS-chain-node/runtime/src/lib.rs:318:1
 
-
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -23,17 +22,17 @@ use sp_runtime::traits::{
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature,
+    ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
+use system::offchain;
 // A few exports that help ease life for downstream crates.
 pub use balances::Call as BalancesCall;
 pub use frame_support::{
-    construct_runtime, parameter_types, traits::Randomness, weights::Weight, StorageValue,
+    construct_runtime, debug, parameter_types, traits::Randomness, weights::Weight, StorageValue,
 };
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -106,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("akropolisos-node"),
     impl_name: create_runtime_str!("akropolisos-node"),
     authoring_version: 1,
-    spec_version: 5,
+    spec_version: 7,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -251,23 +250,59 @@ impl token::Trait for Runtime {
 }
 
 /// We need to define the Transaction signer for that using the Key definition
-type SubmitPricefetchTransaction = system::offchain::TransactionSubmitter<
-    price_oracle::crypto::Public,
-    Runtime,
-    UncheckedExtrinsic,
->;
+type SubmitTransaction =
+    offchain::TransactionSubmitter<price_oracle::crypto::Public, Runtime, UncheckedExtrinsic>;
 
 parameter_types! {
-    pub const BlockFetchPeriod: BlockNumber = 2;
-    pub const GracePeriod: BlockNumber = 5;
+    pub const BlockFetchPeriod: BlockNumber = 10;
 }
 
 impl price_oracle::Trait for Runtime {
     type Event = Event;
     type Call = Call;
-    type SubmitUnsignedTransaction = SubmitPricefetchTransaction;
+    type SubmitSignedTransaction = SubmitTransaction;
+    type SubmitUnsignedTransaction = SubmitTransaction;
     type BlockFetchPeriod = BlockFetchPeriod;
-    type GracePeriod = GracePeriod;
+}
+
+impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
+    type Public = <Signature as Verify>::Signer;
+    type Signature = Signature;
+
+    fn create_transaction<TSigner: system::offchain::Signer<Self::Public, Self::Signature>>(
+        call: Call,
+        public: Self::Public,
+        account: AccountId,
+        index: Index,
+    ) -> Option<(
+        Call,
+        <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
+    )> {
+        let period = BlockHashCount::get() as u64;
+        let current_block = System::block_number()
+            .saturated_into::<u64>()
+            .saturating_sub(1);
+        let tip = 0;
+        let extra: SignedExtra = (
+            system::CheckVersion::<Runtime>::new(),
+            system::CheckGenesis::<Runtime>::new(),
+            system::CheckEra::<Runtime>::from(generic::Era::immortal(period, current_block)),
+            system::CheckNonce::<Runtime>::from(index),
+            system::CheckWeight::<Runtime>::new(),
+            transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+        );
+
+        let raw_payload = SignedPayload::new(call, extra)
+            .map_err(|e| {
+                debug::native::warn!("SignedPayload error: {:?}", e);
+            })
+            .ok()?;
+
+        let signature = TSigner::sign(public, &raw_payload)?;
+        let address = account;
+        let (call, extra, _) = raw_payload.deconstruct();
+        Some((call, (address, signature, extra)))
+    }
 }
 
 construct_runtime!(
@@ -289,7 +324,7 @@ construct_runtime!(
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
         Dao: dao::{Module, Call, Storage, Config, Event<T>},
         Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        PriceOracle: price_oracle::{Module, Call, Storage, Event<T>, ValidateUnsigned},
+        PriceOracle: price_oracle::{Module, Call, Storage, Event<T>},
     }
 );
 /// The address format for describing accounts.
@@ -311,6 +346,8 @@ pub type SignedExtra = (
     system::CheckWeight<Runtime>,
     transaction_payment::ChargeTransactionPayment<Runtime>,
 );
+/// The payload being signed in transactions.
+pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.

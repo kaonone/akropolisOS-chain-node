@@ -10,30 +10,29 @@
 /// https://github.com/paritytech/substrate/blob/master/frame/example-offchain-worker/src/lib.rs
 ///
 use codec::Encode;
+use core::convert::From;
 use frame_support::{
-    debug, decl_event, decl_module, decl_storage, dispatch, traits::Get,
-    weights::SimpleDispatchInfo, IterableStorageMap,
+    debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult,
+    traits::Get, weights::SimpleDispatchInfo, IterableStorageMap,
 };
 #[cfg(not(feature = "std"))]
 #[allow(unused)]
 use num_traits::float::FloatCore;
 use simple_json::{self, json::JsonValue};
 use sp_core::crypto::KeyTypeId;
-use sp_io::{self, misc::print_utf8 as print_bytes};
+// use sp_io::{self, misc::print_utf8 as print_bytes};
 use sp_runtime::{
-    offchain::http,
+    offchain::{http, Duration},
     traits::{SaturatedConversion, Zero},
     transaction_validity::{
         InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction,
     },
 };
-
 // We have to import a few things
 use sp_std::prelude::*;
+use sp_std::str;
 use system::ensure_none;
-use system::offchain::SubmitUnsignedTransaction;
-
-type Result<T> = core::result::Result<T, &'static str>;
+use system::offchain::{SubmitSignedTransaction, SubmitUnsignedTransaction};
 
 /// Our local KeyType.
 ///
@@ -43,15 +42,12 @@ pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"ofpf");
 
 pub const TOKENS_TO_KEEP: usize = 10;
 
-// REVIEW-CHECK: is it necessary to wrap-around storage vector at `MAX_VEC_LEN`?
-// pub const MAX_VEC_LEN: usize = 1000;
-
 pub mod crypto {
     pub use super::KEY_TYPE;
     use sp_runtime::app_crypto::{app_crypto, sr25519};
     app_crypto!(sr25519, KEY_TYPE);
 }
-
+pub const HTTP_HEADER_USER_AGENT: &[u8] = b"akropolisos";
 pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 4] = [
     (
         b"DAI",
@@ -77,20 +73,16 @@ pub const FETCHED_CRYPTOS: [(&[u8], &[u8], &[u8]); 4] = [
 
 /// The module's configuration trait.
 pub trait Trait: timestamp::Trait + balances::Trait + system::Trait {
+    /// The overarching dispatch call type.
+    type Call: From<Call<Self>>;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-    type Call: From<Call<Self>>;
+    /// The type to sign and submit transactions.
+    type SubmitSignedTransaction: SubmitSignedTransaction<Self, <Self as Trait>::Call>;
+    /// The type to submit unsigned transactions.
     type SubmitUnsignedTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
-
-    /// A grace period after we send transaction.
-    ///
-    /// To avoid sending too many transactions, we only attempt to send one
-    /// every `GRACE_PERIOD` blocks. We use Local Storage to coordinate
-    /// sending between distinct runs of this offchain worker.
-    type GracePeriod: Get<Self::BlockNumber>;
-
-    // Wait period between automated fetches. Set to 0 disable this feature.
-    //   Then you need to manucally kickoff pricefetch
+    /// Wait period between automated fetches. Set to 0 disable this feature.
+    /// Then you need to manucally kickoff pricefetch
     type BlockFetchPeriod: Get<Self::BlockNumber>;
 }
 
@@ -105,17 +97,23 @@ decl_event!(
     }
 );
 
-// This module's storage items.
+decl_error! {
+    pub enum Error for Module<T: Trait> {
+        SignedCallError,
+        UnsignedCallError,
+        HttpFetchingError,
+        UrlParsingError,
+        JsonParsingError,
+    }
+}
+
 decl_storage! {
   trait Store for Module<T: Trait> as PriceOracle {
-    // mapping of token symbol -> (timestamp, price)
-    //   price has been inflated by 10,000, and in USD.
-    //   When used, it should be divided by 10,000.
-    // Using linked map for easy traversal from offchain worker or UI
+    /// List of last prices with length of TOKENS_TO_KEEP
     pub TokenPriceHistory get(fn token_price_history):
     map hasher(blake2_128_concat) Vec<u8> => Vec<T::Balance>;
 
-    // storage about aggregated price points (calculated with our logic)
+    /// Tuple of timestamp and average price for token
     pub AggregatedPrices get(fn aggregated_prices):
     map hasher(blake2_128_concat) Vec<u8> => (T::Moment, T::Balance);
   }
@@ -130,196 +128,183 @@ decl_module! {
     fn deposit_event() = default;
 
     #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    pub fn record_price_signed(
+        origin,
+        crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
+        price: T::Balance
+    ) -> DispatchResult {
+        ensure_none(origin)?;
+        Self::_record_price(crypto_info, price)
+    }
+
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    pub fn record_aggregated_prices_signed(
+        origin,
+        symbol: Vec<u8>,
+        price: T::Balance
+    ) -> DispatchResult {
+        ensure_none(origin)?;
+        Self::_record_aggregated_prices(symbol, price)
+    }
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
     pub fn record_price_unsigned(
         origin,
         _block_number: T::BlockNumber,
         crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
         price: T::Balance
-    ) -> dispatch::DispatchResult {
+    ) -> DispatchResult {
         ensure_none(origin)?;
-
-        let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
-        let now = <timestamp::Module<T>>::get();
-
-    //     //DEBUG
-    //     debug::info!("record_price_unsigned: {:?}, {:?}, {:?}",
-    //     core::str::from_utf8(&symbol).map_err(|_| "`symbol` conversion error")?,
-    //     core::str::from_utf8(&remote_src).map_err(|_| "`remote_src` conversion error")?,
-    //     price
-    // );
-
-    <TokenPriceHistory<T>>::mutate(&symbol, |prices| prices.push(price));
-
-      // Spit out an event and Add to storage
-      Self::deposit_event(RawEvent::FetchedPrice(symbol, remote_src, now, price));
-
-      Ok(())
+        Self::_record_price(crypto_info, price)
     }
-
     #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-    pub fn record_aggregated_price_points_unsigned(
+    pub fn record_aggregated_prices_unsigned(
       origin,
       _block: T::BlockNumber,
       symbol: Vec<u8>,
       price: T::Balance
-    ) -> dispatch::DispatchResult {
-    //     //DEBUG
-    //     debug::info!("record_aggregated_price_points_unsigned: {}: {:?}",
-    //     core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
-    //     price
-    // );
-    ensure_none(origin)?;
-
-    let now = <timestamp::Module<T>>::get();
-
-    let price_pt = (now.clone(), price.clone());
-    <AggregatedPrices<T>>::insert(&symbol, price_pt);
-
-
-    let mut old_vec = <TokenPriceHistory<T>>::get(&symbol);
-    let new_vec =  if old_vec.len() < TOKENS_TO_KEEP {
-        old_vec
-    }else{
-        let preserve_from_index = &old_vec.len().checked_sub(TOKENS_TO_KEEP).unwrap_or(9usize);
-        old_vec.drain(preserve_from_index..).collect::<Vec<T::Balance>>()
-    };
-    <TokenPriceHistory<T>>::insert(&symbol, new_vec);
-
-      Self::deposit_event(RawEvent::AggregatedPrice(
-        symbol.clone(), now.clone(), price.clone()));
-
-      Ok(())
+    ) -> DispatchResult {
+        ensure_none(origin)?;
+        Self::_record_aggregated_prices(symbol, price)
     }
 
     fn offchain_worker(block: T::BlockNumber) {
-      let duration = T::BlockFetchPeriod::get();
+        debug::RuntimeLogger::init();
+        let duration = T::BlockFetchPeriod::get();
 
-      // Type I task: fetch price
-      if duration > 0.into() && block % duration == 0.into() {
+        if duration > 0.into() && block % duration == 0.into() {
+        let is_even = block % T::BlockNumber::from(2) == T::BlockNumber::from(0);
+        // Type I task: fetch price
         for (symbol, remote_src, remote_url) in FETCHED_CRYPTOS.iter() {
-          let _res = Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url);
+          let res = match is_even {
+            true =>  Self::fetch_price_signed(*symbol, *remote_src, *remote_url),
+            false =>  Self::fetch_price_unsigned(block, *symbol, *remote_src, *remote_url),
+          };
+          if let Err(e) = res { debug::error!("Error fetching price: {:?}", e); }
 
-        //   if let Err(e) = res {
-        //     debug::error!("Error fetching: {:?}, {:?}: {:?}",
-        //     core::str::from_utf8(symbol).unwrap(),
-        //     core::str::from_utf8(remote_src).unwrap(),
-        //     e);
-        //   }
         }
+
+        // Type II task: aggregate price
+        <TokenPriceHistory<T>>::iter()
+        // filter those to be updated
+        .filter(|(_, vec)| vec.len() > 0)
+        .for_each(|(symbol, _)| {
+          let res = match is_even {
+              true =>  Self::aggregate_prices_signed(&symbol),
+              false =>  Self::aggregate_prices_unsigned(block, &symbol),
+            };
+            if let Err(e) = res { debug::error!("Error aggregating price: {:?}", e); }
+          });
       }
-
-      // Type II task: aggregate price
-      <TokenPriceHistory<T>>::iter()
-      // filter those to be updated
-      .filter(|(_, vec)| vec.len() > 0)
-      .for_each(|(symbol, _)| {
-        let _res = Self::aggregate_price_points_unsigned(block, &symbol);
-
-        // if let Err(e) = res {
-        //   debug::error!("Error aggregating price of {:?}: {:?}",
-        //   core::str::from_utf8(&symbol).unwrap(), e);
-        // }
-        });
     }
-
   }
 }
 
 impl<T: Trait> Module<T> {
-    fn fetch_json<'a>(remote_url: &'a [u8]) -> Result<JsonValue> {
-        //TODO: add deadline for request
-        let remote_url_str = core::str::from_utf8(remote_url)
-            .map_err(|_| "Error in converting remote_url to string")?;
+    fn fetch_from_remote<'a>(remote_url: &'a [u8]) -> Result<Vec<u8>, Error<T>> {
+        let remote_url_bytes = remote_url.to_vec();
+        let user_agent = HTTP_HEADER_USER_AGENT.to_vec();
+        let remote_url = str::from_utf8(&remote_url_bytes).map_err(|e| {
+            debug::error!("failed to parse remote_url: {:?}", e);
+            <Error<T>>::UrlParsingError
+        })?;
 
-        let pending = http::Request::get(remote_url_str)
-            .send()
-            .map_err(|_| "Error in sending http GET request")?;
+        debug::info!("sending request to: {}", remote_url);
+
+        let request = http::Request::get(remote_url);
+
+        // Keeping the offchain worker execution time reasonable, so limiting the call to be within 3s.
+        let timeout = sp_io::offchain::timestamp().add(Duration::from_millis(3000));
+
+        let pending = request
+            .add_header(
+                "User-Agent",
+                str::from_utf8(&user_agent).map_err(|_| <Error<T>>::HttpFetchingError)?,
+            )
+            .deadline(timeout) // Setting the timeout time
+            .send() // Sending the request out by the host
+            .map_err(|_| {
+                debug::error!("failed to send request: {:?}", remote_url);
+                <Error<T>>::HttpFetchingError
+            })?;
 
         let response = pending
-            .wait()
-            .map_err(|_| "Error in waiting http response back")?;
+            .try_wait(timeout)
+            .map_err(|_| {
+                debug::error!("failed to wait for response: {:?}", remote_url);
+                <Error<T>>::HttpFetchingError
+            })?
+            .map_err(|_| {
+                debug::error!("failed to unwrap response: {:?}", remote_url);
+                <Error<T>>::HttpFetchingError
+            })?;
 
         if response.code != 200 {
-            debug::warn!("Unexpected status code: {}", response.code);
-            return Err("Non-200 status code returned from http request");
+            debug::error!("Unexpected http request status code: {}", response.code);
+            return Err(<Error<T>>::HttpFetchingError);
         }
 
-        let json_result: Vec<u8> = response.body().collect::<Vec<u8>>();
+        Ok(response.body().collect::<Vec<u8>>())
+    }
 
+    fn fetch_json<'a>(remote_url: &'a [u8]) -> Result<JsonValue, Error<T>> {
+        let body = Self::fetch_from_remote(remote_url)?;
         // Print out the whole JSON blob
-        print_bytes(&json_result);
+        // print_bytes(&body);
 
         let json_val: JsonValue = simple_json::parse_json(
-            &core::str::from_utf8(&json_result)
-                .map_err(|_| "JSON result cannot convert to string")?,
+            &core::str::from_utf8(&body).map_err(|_| <Error<T>>::JsonParsingError)?,
         )
-        .map_err(|_| "JSON parsing error")?;
+        .map_err(|_| <Error<T>>::JsonParsingError)?;
 
         Ok(json_val)
     }
 
-    fn fetch_price_unsigned<'a>(
-        block: T::BlockNumber,
+    /*        SIGNED        */
+    fn fetch_price_signed<'a>(
         symbol: &'a [u8],
         remote_src: &'a [u8],
         remote_url: &'a [u8],
-    ) -> Result<()> {
+    ) -> Result<(), Error<T>> {
         // //DEBUG
         // debug::info!(
-        //     "fetch price unsigned: {:?}:{:?}",
+        //     "fetch price: {:?}:{:?}",
         //     core::str::from_utf8(symbol).unwrap(),
         //     core::str::from_utf8(remote_src).unwrap()
         // );
-
         let json = Self::fetch_json(remote_url)?;
         let price = match remote_src {
-            src if src == b"coingecko" => Self::fetch_price_from_coingecko(json)
-                .map_err(|_| "fetch_price_from_coingecko error"),
-            src if src == b"cryptocompare" => Self::fetch_price_from_cryptocompare(json)
-                .map_err(|_| "fetch_price_from_cryptocompare error"),
-            _ => Err("Unknown remote source"),
+            src if src == b"coingecko" => Self::parse_price_from_coingecko(json),
+            src if src == b"cryptocompare" => Self::parse_price_from_cryptocompare(json),
+            _ => Err(<Error<T>>::HttpFetchingError),
         }?;
 
-        let call = Call::record_price_unsigned(
-            block,
+        let call = Call::record_price_signed(
             (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
             price,
         );
 
-        T::SubmitUnsignedTransaction::submit_unsigned(call)
-            .map_err(|_| "fetch_price: submit_unsigned(call) error")?;
+        // Using `SubmitSignedTransaction` associated type we create and submit a transaction
+        //   representing the call, we've just created.
+        let results = T::SubmitSignedTransaction::submit_signed(call);
+        for (acc, res) in &results {
+            match res {
+                Ok(()) => {
+                    debug::native::info!("off-chain record_price: acc: {}", acc,);
+                }
+                Err(e) => {
+                    debug::native::error!("[{:?}] Failed to submit signed tx: {:?}", acc, e);
+                    return Err(<Error<T>>::SignedCallError);
+                }
+            };
+        }
         Ok(())
     }
 
-
-    fn round_value(v: f64) -> T::Balance {
-        let mut precisioned: u128 = (v * 1000000000.0).round() as u128;
-        precisioned = precisioned * 1000000000; // saturate to 10^18 precision
-        let balance = precisioned.saturated_into::<T::Balance>();
-        balance
-    }
-
-    fn fetch_price_from_cryptocompare(v: JsonValue) -> Result<T::Balance> {
-        // Expected JSON shape:
-        //   r#"{"USD": 7064.16}"#;
-        debug::info!("cryptocompare:{:?}", v.get_object());
-        debug::native::info!("cryptocompare:{:?}", v.get_object());
-        let val_f64: f64 = v.get_object()[0].1.get_number_f64();
-        Ok(Self::round_value(val_f64))
-    }
-
-    fn fetch_price_from_coingecko(v: JsonValue) -> Result<T::Balance> {
-        // Expected JSON shape:
-        //   r#"{"cdai":{"usd": 7064.16}}"#;
-        debug::info!("cryptocompare:{:?}", v.get_object());
-        debug::native::info!("cryptocompare:{:?}", v.get_object());
-        let val_f64: f64 = v.get_object()[0].1.get_object()[0]
-        .1
-        .get_number_f64();
-        Ok(Self::round_value(val_f64))
-    }
-
-    fn aggregate_price_points_unsigned<'a>(block: T::BlockNumber, symbol: &'a [u8]) -> Result<()> {
+    fn aggregate_prices_signed<'a>(symbol: &'a [u8]) -> Result<(), Error<T>> {
+        if !T::SubmitSignedTransaction::can_sign() {
+            debug::error!("No local account available");
+            return Err(<Error<T>>::SignedCallError);
+        }
         let token_pricepoints_vec = <TokenPriceHistory<T>>::get(symbol);
         let price_sum: T::Balance = token_pricepoints_vec
             .iter()
@@ -329,40 +314,189 @@ impl<T: Trait> Module<T> {
         let price_avg: T::Balance =
             price_sum / T::Balance::from(token_pricepoints_vec.len() as u32);
 
-        let call = Call::record_aggregated_price_points_unsigned(block, symbol.to_vec(), price_avg);
+        let call = Call::record_aggregated_prices_signed(symbol.to_vec(), price_avg);
 
-        T::SubmitUnsignedTransaction::submit_unsigned(call)
-            .map_err(|_| "aggregate_price_points: submit_unsigned(call) error")?;
+        // Using `SubmitSignedTransaction` associated type we create and submit a transaction
+        //   representing the call, we've just created.
+        let results = T::SubmitSignedTransaction::submit_signed(call);
+        for (acc, res) in &results {
+            match res {
+                Ok(()) => {
+                    debug::native::info!("off-chain record_aggregated_prices: acc: {}", acc,);
+                }
+                Err(e) => {
+                    debug::native::error!("[{:?}] Failed to submit signed tx: {:?}", acc, e);
+                    return Err(<Error<T>>::SignedCallError);
+                }
+            };
+        }
 
         Ok(())
     }
+
+    /*        UNSIGNED          */
+    fn fetch_price_unsigned<'a>(
+        block: T::BlockNumber,
+        symbol: &'a [u8],
+        remote_src: &'a [u8],
+        remote_url: &'a [u8],
+    ) -> Result<(), Error<T>> {
+        debug::RuntimeLogger::init();
+
+        // //DEBUG
+        // debug::info!(
+        //     "fetch price: {:?}:{:?}",
+        //     core::str::from_utf8(symbol).unwrap(),
+        //     core::str::from_utf8(remote_src).unwrap()
+        // );
+        let json = Self::fetch_json(remote_url)?;
+        let price = match remote_src {
+            src if src == b"coingecko" => Self::parse_price_from_coingecko(json),
+            src if src == b"cryptocompare" => Self::parse_price_from_cryptocompare(json),
+            _ => Err(<Error<T>>::HttpFetchingError),
+        }?;
+
+        let call = Call::record_price_unsigned(
+            block,
+            (symbol.to_vec(), remote_src.to_vec(), remote_url.to_vec()),
+            price,
+        );
+
+        T::SubmitUnsignedTransaction::submit_unsigned(call).map_err(|e| {
+            debug::error!("Failed in fetch_price_unsigned: {:?}", e);
+            <Error<T>>::UnsignedCallError
+        })
+    }
+    fn aggregate_prices_unsigned<'a>(
+        block: T::BlockNumber,
+        symbol: &'a [u8],
+    ) -> Result<(), Error<T>> {
+        let token_pricepoints_vec = <TokenPriceHistory<T>>::get(symbol);
+        let price_sum: T::Balance = token_pricepoints_vec
+            .iter()
+            .fold(T::Balance::zero(), |mem, price| mem + *price);
+
+        // Avoiding floating-point arithmetic & do integer division
+        let price_avg: T::Balance =
+            price_sum / T::Balance::from(token_pricepoints_vec.len() as u32);
+
+        let call = Call::record_aggregated_prices_unsigned(block, symbol.to_vec(), price_avg);
+
+        T::SubmitUnsignedTransaction::submit_unsigned(call).map_err(|e| {
+            debug::error!("Failed in aggregate_prices_unsigned: {:?}", e);
+            <Error<T>>::UnsignedCallError
+        })
+    }
+
+    fn _record_price(
+        crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
+        price: T::Balance,
+    ) -> DispatchResult {
+        let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
+        let now = <timestamp::Module<T>>::get();
+
+        //     //DEBUG
+        //     debug::info!("record_price: {:?}, {:?}, {:?}",
+        //     core::str::from_utf8(&symbol).map_err(|_| "`symbol` conversion error")?,
+        //     core::str::from_utf8(&remote_src).map_err(|_| "`remote_src` conversion error")?,
+        //     price
+        // );
+        <TokenPriceHistory<T>>::mutate(&symbol, |prices| prices.push(price));
+
+        Self::deposit_event(RawEvent::FetchedPrice(symbol, remote_src, now, price));
+        Ok(())
+    }
+    fn _record_aggregated_prices(symbol: Vec<u8>, price: T::Balance) -> DispatchResult {
+        //     //DEBUG
+        //     debug::info!("record_aggregated_price_points: {}: {:?}",
+        //     core::str::from_utf8(&symbol).map_err(|_| "`symbol` string conversion error")?,
+        //     price
+        // );
+
+        let now = <timestamp::Module<T>>::get();
+
+        let price_pt = (now.clone(), price.clone());
+        <AggregatedPrices<T>>::insert(&symbol, price_pt);
+
+        let mut old_vec = <TokenPriceHistory<T>>::get(&symbol);
+        let new_vec = if old_vec.len() < TOKENS_TO_KEEP {
+            old_vec
+        } else {
+            let preserve_from_index = &old_vec.len().checked_sub(TOKENS_TO_KEEP).unwrap_or(9usize);
+            old_vec
+                .drain(preserve_from_index..)
+                .collect::<Vec<T::Balance>>()
+        };
+        <TokenPriceHistory<T>>::insert(&symbol, new_vec);
+
+        Self::deposit_event(RawEvent::AggregatedPrice(
+            symbol.clone(),
+            now.clone(),
+            price.clone(),
+        ));
+
+        Ok(())
+    }
+
+    fn round_value(v: f64) -> T::Balance {
+        let mut precisioned: u128 = (v * 1000000000.0).round() as u128;
+        precisioned = precisioned * 1000000000; // saturate to 10^18 precision
+        let balance = precisioned.saturated_into::<T::Balance>();
+        balance
+    }
+
+    fn parse_price_from_cryptocompare(v: JsonValue) -> Result<T::Balance, Error<T>> {
+        // Expected JSON shape:
+        //   r#"{"USD": 7064.16}"#;
+        debug::info!("cryptocompare:{:?}", v.get_object());
+        debug::native::info!("cryptocompare:{:?}", v.get_object());
+        let val_f64: f64 = v.get_object()[0].1.get_number_f64();
+        Ok(Self::round_value(val_f64))
+    }
+
+    fn parse_price_from_coingecko(v: JsonValue) -> Result<T::Balance, Error<T>> {
+        // Expected JSON shape:
+        //   r#"{"cdai":{"usd": 7064.16}}"#;
+
+        // let val = simple_json::parse_json(price_str);
+        // let price = val.ok().and_then(|v| match v {
+        // 	JsonValue::Object(obj) => {
+        // 		let mut chars = "USD".chars();
+        // 		obj.into_iter()
+        // 			.find(|(k, _)| k.iter().all(|k| Some(*k) == chars.next()))
+        // 			.and_then(|v| match v.1 {
+        // 				JsonValue::Number(number) => Some(number),
+        // 				_ => None,
+        // 			})
+        // 	},
+        // 	_ => None
+        // })?;
+        debug::info!("cryptocompare:{:?}", v.get_object());
+        debug::native::info!("cryptocompare:{:?}", v.get_object());
+        let val_f64: f64 = v.get_object()[0].1.get_object()[0].1.get_number_f64();
+        Ok(Self::round_value(val_f64))
+    }
 }
 
-#[allow(deprecated)]
 impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
-    #[allow(deprecated)]
-    fn validate_unsigned(_src: TransactionSource, call: &Self::Call) -> TransactionValidity {
-        // debug::info!("Calling {:?}", call);
-
+    fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
         match call {
             Call::record_price_unsigned(block, (symbol, ..), price) => Ok(ValidTransaction {
-                priority: 1,
+                priority: 1 << 20,
                 requires: vec![],
                 provides: vec![(block, symbol, price).encode()],
                 longevity: 5,
-                propagate: true,
+                propagate: false,
             }),
-            Call::record_aggregated_price_points_unsigned(block, symbol, price) => {
-                Ok(ValidTransaction {
-                    priority: 1,
-                    requires: vec![],
-                    provides: vec![(block, symbol, price).encode()],
-                    longevity: 5,
-                    propagate: true,
-                })
-            }
+            Call::record_aggregated_prices_unsigned(block, symbol, price) => Ok(ValidTransaction {
+                priority: 1 << 20,
+                requires: vec![],
+                provides: vec![(block, symbol, price).encode()],
+                longevity: 5,
+                propagate: false,
+            }),
             _ => InvalidTransaction::Call.into(),
         }
     }
@@ -462,17 +596,12 @@ pub mod tests {
 
     parameter_types! {
         pub const BlockFetchPeriod: BlockNumber = 2;
-        pub const GracePeriod: BlockNumber = 5;
     }
 
     impl Trait for Test {
         type Event = ();
         type Call = Call;
-        type SubmitUnsignedTransaction = SubmitPFTransaction;
-
-        // Wait period between automated fetches. Set to 0 disable this feature.
-        //   Then you need to manucally kickoff pricefetch
-        type GracePeriod = GracePeriod;
+        type SubmiTransaction = SubmitPFTransaction;
         type BlockFetchPeriod = BlockFetchPeriod;
     }
 
@@ -496,7 +625,7 @@ pub mod tests {
             )
             .map_err(|_| "JSON parsing error")
             .expect("failed to parse to JsonValue");
-            let result = OracleModule::fetch_price_from_coingecko(v)
+            let result = OracleModule::parse_price_from_coingecko(v)
                 .expect("failed to parse from coingecko");
 
             assert_eq!(result, 7064160000000000000000);
@@ -513,7 +642,7 @@ pub mod tests {
             )
             .map_err(|_| "JSON parsing error")
             .expect("failed to parse to JsonValue");
-            let result = OracleModule::fetch_price_from_cryptocompare(v)
+            let result = OracleModule::parse_price_from_cryptocompare(v)
                 .expect("failed to parse from cryptocompare");
 
             assert_eq!(result, 7064160000000000000000);

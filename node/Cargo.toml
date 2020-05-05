@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-node'
-version = '0.3.5'
+version = '0.3.6'
 build = "build.rs"
 
 
@@ -40,3 +40,6 @@ akropolisos-runtime = { version= '0.5.5', path = "../runtime" }
 
 [build-dependencies]
 substrate-build-script-utils = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+
+[features]
+ocw = []
