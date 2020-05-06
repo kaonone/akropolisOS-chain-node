@@ -2,8 +2,8 @@
 authors = ['Akropolis <admin@akropolis.io>']
 build = 'build.rs'
 edition = '2018'
-name = 'akropolisos-substrate-node'
-version = '1.0.0'
+name = 'akropolisos-node'
+version = '1.0.1'
 
 [dependencies]
 error-chain = '0.12'
@@ -45,7 +45,7 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-network'
 rev = 'fc206f3a009b64fc746202e5b4c701bf7e24d1f1'
 
-[dependencies.akropolisos-substrate-node-runtime]
+[dependencies.akropolisos-runtime]
 path = 'runtime'
 
 [dependencies.primitives]

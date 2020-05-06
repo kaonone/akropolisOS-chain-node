@@ -14,12 +14,12 @@ pub use substrate_cli::{error, IntoExit, VersionInfo};
 
 fn run() -> cli::error::Result<()> {
     let version = VersionInfo {
-        name: "Substrate Node",
+        name: "Akropolis OS Node",
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
-        executable_name: "akropolisos-substrate-node",
+        executable_name: "akropolisos-node",
         author: "Akropolis",
-        description: "akropolisos-substrate-node",
+        description: "akropolisos-sparta-testnet",
         support_url: "support@akropolis.io",
     };
     cli::run(::std::env::args(), cli::Exit, version)

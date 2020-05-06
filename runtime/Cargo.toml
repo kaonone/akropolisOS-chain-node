@@ -32,8 +32,12 @@ std = [
 [package]
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
-name = 'akropolisos-substrate-node-runtime'
-version = '1.0.0'
+name = 'akropolisos-runtime'
+version = '1.0.1'
+
+[dependencies]
+num-traits = { version = "0.2.8", default-features = false }
+
 [dependencies.aura]
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'

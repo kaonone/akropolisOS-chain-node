@@ -1,7 +1,9 @@
+use akropolisos_substrate_node_runtime::types::Token;
 use akropolisos_substrate_node_runtime::{
     AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
     DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill, Permill, Schedule,
-    SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TreasuryConfig,
+    SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TokenConfig,
+    TreasuryConfig,
 };
 use primitives::{crypto::UncheckedInto, ed25519, sr25519, Pair};
 use substrate_service;
@@ -85,11 +87,11 @@ impl Alternative {
                 ];
                 let telemetry = TelemetryEndpoints::new(vec![
                     ("ws://telemetry.polkadot.io:1024".to_string(), 0),
-                    ("ws://167.99.142.212:1024".to_string(), 0),
+                    ("ws://localhost:1024".to_string(), 0),
                 ]);
                 ChainSpec::from_genesis(
-                    "Akropolis",
-                    "akropolis",
+                    "Akropolis Os Sparta Testnet",
+                    "akropolisos_sparta_testnet",
                     akropolis_staging_genesis,
                     boot_nodes,
                     Some(telemetry),
@@ -117,6 +119,29 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     root_key: AccountId,
 ) -> GenesisConfig {
+    let tokens = vec![
+        Token {
+            id: 0,
+            decimals: 18,
+            symbol: Vec::from("DAI"),
+        },
+        Token {
+            id: 1,
+            decimals: 18,
+            symbol: Vec::from("cDAI"),
+        },
+        Token {
+            id: 2,
+            decimals: 18,
+            symbol: Vec::from("USDT"),
+        },
+        Token {
+            id: 3,
+            decimals: 18,
+            symbol: Vec::from("USDC"),
+        },
+    ];
+
     GenesisConfig {
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm").to_vec(),
@@ -193,10 +218,20 @@ fn testnet_genesis(
 			block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
-		bridge: Some(BridgeConfig {
-			validators_count: 3usize, //default 
-			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
-		}),
+        bridge: Some(BridgeConfig {
+            validator_accounts: endowed_accounts,
+            validators_count: 3u32,
+            current_limits: vec![
+                100 * 10u128.pow(18),
+                200 * 10u128.pow(18),
+                50 * 10u128.pow(18),
+                400 * 10u128.pow(18),
+                10 * 10u128.pow(18),
+            ],
+        }),
+		token: Some(TokenConfig { tokens,
+		_genesis_phantom_data: Default::default()
+	 }),
 	}
 }
 
@@ -227,6 +262,29 @@ fn akropolis_staging_genesis() -> GenesisConfig {
             hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc8eed6ff3aa5428db31a16c875")
                 .unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
         ),
+    ];
+
+    let tokens = vec![
+        Token {
+            id: 0,
+            decimals: 18,
+            symbol: Vec::from("DAI"),
+        },
+        Token {
+            id: 1,
+            decimals: 18,
+            symbol: Vec::from("cDAI"),
+        },
+        Token {
+            id: 2,
+            decimals: 18,
+            symbol: Vec::from("USDT"),
+        },
+        Token {
+            id: 3,
+            decimals: 18,
+            symbol: Vec::from("USDC"),
+        },
     ];
 
     const DEV: u128 = 1_000_000_000_000_000;
@@ -309,9 +367,19 @@ fn akropolis_staging_genesis() -> GenesisConfig {
 			block_gas_limit: 10_000_000, // The maximum amount of gas that could be expended per block.
 			current_schedule: Schedule::default(), // Current cost schedule for contracts.
 		}),
-		bridge: Some(BridgeConfig {
-			validators_count: 3usize, //default 
-			_genesis_phantom_data: Default::default(), //https://substrate.dev/docs/en/runtime/initializing-storage#calculate-individually-with-build
-		})
+        bridge: Some(BridgeConfig {
+            validator_accounts: endowed_accounts,
+            validators_count: 3u32,
+            current_limits: vec![
+                100 * 10u128.pow(18),
+                200 * 10u128.pow(18),
+                50 * 10u128.pow(18),
+                400 * 10u128.pow(18),
+                10 * 10u128.pow(18),
+            ],
+        }),
+		token: Some(TokenConfig { tokens,
+		_genesis_phantom_data: Default::default()
+	 }),
 	}
 }

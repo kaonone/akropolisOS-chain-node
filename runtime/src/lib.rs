@@ -36,7 +36,6 @@ pub use support::{construct_runtime, traits::Currency, StorageValue};
 pub use timestamp::BlockPeriod;
 pub use timestamp::Call as TimestampCall;
 
-pub use bridge::Call as BridgeCall;
 
 /// The type that is used for identifying authorities.
 pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
@@ -59,11 +58,16 @@ pub type BlockNumber = u64;
 /// Index of an account's extrinsic in the chain.
 pub type Nonce = u64;
 
+pub mod types;
+pub use types::*;
+
 pub mod bridge;
 mod dao;
 mod marketplace;
 mod token;
-mod types;
+pub use bridge::Call as BridgeCall;
+
+mod oracle;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -274,6 +278,10 @@ impl contract::Trait for Runtime {
     type GasPayment = ();
 }
 
+impl bridge::Trait for Runtime {
+    type Event = Event;
+}
+
 impl dao::Trait for Runtime {
     type Event = Event;
 }
@@ -286,7 +294,7 @@ impl token::Trait for Runtime {
     type Event = Event;
 }
 
-impl bridge::Trait for Runtime {
+impl oracle::Trait for Runtime {
     type Event = Event;
 }
 
@@ -311,12 +319,14 @@ construct_runtime!(
 		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
 		FinalityTracker: finality_tracker::{Module, Call, Inherent},
 		Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
-		Treasury: treasury,
+        Treasury: treasury,
+        // Akropolis pallets
 		Contract: contract::{Module, Call, Config<T>, Event<T>},
 		Dao: dao::{Module, Call, Storage, Event<T>},
 		Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        Token: token::{Module, Call, Storage, Event<T>},
+        Token: token::{Module, Call, Storage,Config<T>, Event<T>},
         Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
+        Oracle: oracle::{Module, Call, Storage, Event<T>},
 	}
 );
 
