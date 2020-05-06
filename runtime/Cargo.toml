@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-runtime'
-version = '0.5.8'
+version = '0.5.9'
 
 
 [package.metadata.docs.rs]
@@ -12,61 +12,148 @@ targets = ["x86_64-unknown-linux-gnu"]
 num-traits = { version = "0.2.8", default-features = false }
 rustc-hex = { version = "2.0", optional = true }
 
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
-simple-json = {rev = '49661fd6cf0aed3c9f97d233589d9dd6873827eb', default-features = false, git = 'https://github.com/jimmychu0807/simple-json2' }
-
 codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-aura", git = 'https://github.com/paritytech/substrate.git' }
-balances = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-balances", git = 'https://github.com/paritytech/substrate.git' }
-frame-support = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-grandpa = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-grandpa", git = 'https://github.com/paritytech/substrate.git' }
-randomness-collective-flip = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-randomness-collective-flip", git = 'https://github.com/paritytech/substrate.git' }
-sudo = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-sudo", git = 'https://github.com/paritytech/substrate.git' }
-system = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "frame-system", git = 'https://github.com/paritytech/substrate.git' }
-timestamp = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-timestamp", git = 'https://github.com/paritytech/substrate.git' }
-transaction-payment = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, package = "pallet-transaction-payment", git = 'https://github.com/paritytech/substrate.git' }
-frame-executive = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-block-builder = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-core = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-inherents = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git'}
-sp-io = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-offchain = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git'}
-sp-runtime = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-session = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-std = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-transaction-pool = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
-sp-version = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', default-features = false, git = 'https://github.com/paritytech/substrate.git' }
+serde = { version = "1.0.101", optional = true, features = ["derive"] }
 
-[build-dependencies]
-wasm-builder-runner = { version = "1.0.5", package = "substrate-wasm-builder-runner", git = 'https://github.com/paritytech/substrate.git' }
+
+#bridge = { version = '0.3.0', default-features = false, path = '../pallets/bridge' }
+#dao = { version = '0.3.0', default-features = false, path = '../pallets/dao' }
+#marketplace = { version = '0.3.0', default-features = false, path = '../pallets/marketplace' }
+#oracle = { version = '0.3.0', default-features = false, path = '../pallets/oracle' }
+#token = { version = '0.3.0', default-features = false, path = '../pallets/token' }
+#types = { version = '0.3.0', default-features = false, path = '../pallets/types' }
+
+[dependencies.aura]
+default-features = false
+package = 'pallet-aura'
+version = '2.0.0-alpha.6'
+
+[dependencies.balances]
+default-features = false
+package = 'pallet-balances'
+version = '2.0.0-alpha.6'
+
+[dependencies.frame-executive]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.frame-support]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.grandpa]
+default-features = false
+package = 'pallet-grandpa'
+version = '2.0.0-alpha.6'
+
+[dependencies.randomness-collective-flip]
+default-features = false
+package = 'pallet-randomness-collective-flip'
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-api]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-block-builder]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-consensus-aura]
+default-features = false
+version = '0.8.0-alpha.6'
+
+[dependencies.sp-core]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-inherents]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-io]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-offchain]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-runtime]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-session]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-std]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-transaction-pool]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-version]
+default-features = false
+version = '2.0.0-alpha.6'
+
+[dependencies.sudo]
+default-features = false
+package = 'pallet-sudo'
+version = '2.0.0-alpha.6'
+
+[dependencies.system]
+default-features = false
+package = 'frame-system'
+version = '2.0.0-alpha.6'
+
+[dependencies.timestamp]
+default-features = false
+package = 'pallet-timestamp'
+version = '2.0.0-alpha.6'
+
+[dependencies.transaction-payment]
+default-features = false
+package = 'pallet-transaction-payment'
+version = '2.0.0-alpha.6'
+
+[build-dependencies.wasm-builder-runner]
+package = 'substrate-wasm-builder-runner'
+version = '1.0.5'
 
 [features]
-default = ["std"]
+default = ['std']
 std = [
-	"aura/std",
-	"balances/std",
-	"codec/std",
-	"frame-executive/std",
-	"frame-support/std",
-	"grandpa/std",
-	"randomness-collective-flip/std",
-	"serde",
-	"sp-api/std",
-	"sp-block-builder/std",
-	"sp-consensus-aura/std",
-	"sp-core/std",
-	"sp-inherents/std",
-	"sp-io/std",
-	"sp-offchain/std",
-	"sp-runtime/std",
-	"sp-session/std",
-	"sp-std/std",
-	"sp-transaction-pool/std",
-	"sp-version/std",
-	"sudo/std",
-	"system/std",
-	"timestamp/std",
-	"transaction-payment/std",
+    'aura/std',
+    'balances/std',
+    'codec/std',
+    'frame-executive/std',
+    'frame-support/std',
+    'grandpa/std',
+    'randomness-collective-flip/std',
+    'serde',
+    'sp-api/std',
+    'sp-block-builder/std',
+    'sp-consensus-aura/std',
+    'sp-core/std',
+    'sp-inherents/std',
+    'sp-io/std',
+    'sp-offchain/std',
+    'sp-runtime/std',
+    'sp-session/std',
+    'sp-std/std',
+    'sp-transaction-pool/std',
+    'sp-version/std',
+    'sudo/std',
+    'system/std',
+    'timestamp/std',
+    'transaction-payment/std',
+#    'token/std',
+#    'bridge/std',
+#    'dao/std',
+#    'oracle/std',
+#    'marketplace/std',
+#    'types/std',
 ]

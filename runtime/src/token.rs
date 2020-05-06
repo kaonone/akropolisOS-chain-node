@@ -67,7 +67,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 1]
         fn burn(origin, from: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult {
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -79,7 +79,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 1]
         fn mint(origin, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult{
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -94,7 +94,7 @@ decl_module! {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
         // }
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 1]
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -108,7 +108,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 1]
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -123,7 +123,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 1]
         fn transfer_from(origin,
             from: T::AccountId,
             to: T::AccountId,

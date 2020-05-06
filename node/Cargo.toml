@@ -2,9 +2,8 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-node'
-version = '0.3.6'
+version = '0.3.7'
 build = "build.rs"
-
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -16,30 +15,63 @@ name = "akropolisos-node"
 futures = "0.3.4"
 log = "0.4.8"
 structopt = "0.3.8"
-hex-literal = "0.2.1"
 
-sc-cli = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-core = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-executor = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-service = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-inherents = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-transaction-pool = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-transaction-pool = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-network = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-consensus-aura = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-consensus = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-finality-grandpa = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-finality-grandpa = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-client = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-client-api = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sp-runtime = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
-sc-basic-authorship = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git'}
+akropolisos-runtime = { path = "../runtime" }
 
-akropolisos-runtime = { version= '0.5.5', path = "../runtime" }
+[dependencies.sc-basic-authorship]
+version = '0.8.0-alpha.6'
 
-[build-dependencies]
-substrate-build-script-utils = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git' }
+[dependencies.sc-cli]
+version = '0.8.0-alpha.6'
 
-[features]
-ocw = []
+[dependencies.sc-consensus]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-client-api]
+version = '2.0.0-alpha.6'
+
+[dependencies.sc-consensus-aura]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-executor]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-finality-grandpa]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-network]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-service]
+version = '0.8.0-alpha.6'
+
+[dependencies.sc-transaction-pool]
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-consensus]
+version = '0.8.0-alpha.6'
+
+[dependencies.sp-consensus-aura]
+version = '0.8.0-alpha.6'
+
+[dependencies.sp-core]
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-finality-grandpa]
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-inherents]
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-runtime]
+version = '2.0.0-alpha.6'
+
+[dependencies.sp-transaction-pool]
+version = '2.0.0-alpha.6'
+
+[build-dependencies.substrate-build-script-utils]
+version = '2.0.0-alpha.6'
+
+#9f51b41f4c4df11a9d190152b2807bf57bdcd60a
+#sc-basic-authorship = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git'}
+

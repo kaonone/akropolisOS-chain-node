@@ -1,9 +1,8 @@
-use akropolisos_runtime::types::Token;
+// use akropolisos_runtime::{BridgeConfig, types::Token, TokenConfig};
 use akropolisos_runtime::{
-    AccountId, AuraConfig, BalancesConfig, BridgeConfig, GenesisConfig, GrandpaConfig, Signature,
-    SudoConfig, SystemConfig, TokenConfig, WASM_BINARY,
+    AccountId, AuraConfig, BalancesConfig,  GenesisConfig, GrandpaConfig, Signature,
+    SudoConfig, SystemConfig,  WASM_BINARY,
 };
-use hex_literal::hex;
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
@@ -108,22 +107,16 @@ pub fn sparta_testnet_config() -> ChainSpec {
         ChainType::Custom("sparta".into()),
         || {
             testnet_genesis(
-                vec![
-                    authority_keys_from_seed("Akropolis1"),
-                    authority_keys_from_seed("Akropolis2"),
-                    authority_keys_from_seed("Akropolis3"),
+				vec![
+                    authority_keys_from_seed("Alice"),
+                    authority_keys_from_seed("Bob"),
                 ],
-                hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
-                // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
+                get_account_id_from_seed::<sr25519::Public>("Alice"),
                 vec![
-                    hex!("0d96d3dbdb55964e521a2f1dc1428ae55336063fd8f0e07bebbcb1becf79a67b").into(),
-                    // 5CtXvt2othnZpkneuTg6xENMwXbmwV3da1YeNAeYx5wMaCvz
-                    hex!("80133ea92f48aa928119aaaf524bc75e436a5c9eb24878a9e28ac7b0b37aa81a").into(),
-                    // 5CqXmy44eTwGQCX8GaLrUfTAyEswGSd4PgSKMgUdLfDLBhZZ
-                    hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(),
-                    // 5DnUF5fQ6KNYPWRAcHYpMu32pUtdLv6ksRcSLeuofrxmPsTU
-                    hex!("3c7f612cdda6d0a3aad9da0fb6cb624721b04067f00bd0034062e6e2db2cd23e").into(),
-                    // 5DnUF5fQ6KNYPWRAcHYpMu32pUtdLv6ksRcSLeuofrxmPsTU
+                    get_account_id_from_seed::<sr25519::Public>("Alice"),
+                    get_account_id_from_seed::<sr25519::Public>("Bob"),
+                    get_account_id_from_seed::<sr25519::Public>("Charlie"),
+                    get_account_id_from_seed::<sr25519::Public>("Dave"),
                 ],
                 true,
             )
@@ -142,28 +135,28 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
-    let tokens = vec![
-        Token {
-            id: 0,
-            decimals: 18,
-            symbol: Vec::from("DAI"),
-        },
-        Token {
-            id: 1,
-            decimals: 18,
-            symbol: Vec::from("cDAI"),
-        },
-        Token {
-            id: 2,
-            decimals: 18,
-            symbol: Vec::from("USDT"),
-        },
-        Token {
-            id: 3,
-            decimals: 18,
-            symbol: Vec::from("USDC"),
-        },
-    ];
+    // let tokens = vec![
+    //     Token {
+    //         id: 0,
+    //         decimals: 18,
+    //         symbol: Vec::from("DAI"),
+    //     },
+    //     Token {
+    //         id: 1,
+    //         decimals: 18,
+    //         symbol: Vec::from("cDAI"),
+    //     },
+    //     Token {
+    //         id: 2,
+    //         decimals: 18,
+    //         symbol: Vec::from("USDT"),
+    //     },
+    //     Token {
+    //         id: 3,
+    //         decimals: 18,
+    //         symbol: Vec::from("USDC"),
+    //     },
+    // ];
 
     GenesisConfig {
         system: Some(SystemConfig {
@@ -187,18 +180,18 @@ fn testnet_genesis(
                 .collect(),
         }),
         sudo: Some(SudoConfig { key: root_key }),
-        bridge: Some(BridgeConfig {
-            validator_accounts: endowed_accounts,
-            validators_count: 3u32,
-            current_limits: vec![
-                100 * 10u128.pow(18),
-                200 * 10u128.pow(18),
-                50 * 10u128.pow(18),
-                400 * 10u128.pow(18),
-                10 * 10u128.pow(18),
-            ],
-        }),
-        dao: None,
-        token: Some(TokenConfig { tokens }),
+        // bridge: Some(BridgeConfig {
+        //     validator_accounts: endowed_accounts,
+        //     validators_count: 3u32,
+        //     current_limits: vec![
+        //         100 * 10u128.pow(18),
+        //         200 * 10u128.pow(18),
+        //         50 * 10u128.pow(18),
+        //         400 * 10u128.pow(18),
+        //         10 * 10u128.pow(18),
+        //     ],
+        // }),
+        // dao: None,
+        // token: Some(TokenConfig { tokens }),
     }
 }

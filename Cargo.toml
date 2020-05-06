@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    'node',
+#    'pallets/bridge',
+#    'pallets/dao',
+#    'pallets/marketplace',
+#    'pallets/oracle',
+#    'pallets/token',
+#    'pallets/types',
+    'runtime',
+]
+[profile.release]
+panic = 'unwind'

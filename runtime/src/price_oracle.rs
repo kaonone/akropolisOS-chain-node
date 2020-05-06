@@ -66,7 +66,7 @@ decl_event!(
         Moment = <T as timestamp::Trait>::Moment,
         Balance = <T as balances::Trait>::Balance,
     {
-        RecordedPrice(Vec<u8>, Vec<u8>, Moment, Balance),
+        RecordedPrice(Vec<u8>, Moment, Balance),
         AggregatedPrice(Vec<u8>, Moment, Balance),
     }
 );
@@ -101,18 +101,18 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
-    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    #[weight = 1]
     pub fn record_price(
         origin,
-        crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
+        sym: Vec<u8>,
         price: T::Balance
     ) -> DispatchResult {
         debug::RuntimeLogger::init();
         ensure_none(origin)?;
-        Self::_record_price(crypto_info, price)
+        Self::_record_price(sym, price)
     }
 
-    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    #[weight = 1]
     pub fn record_aggregated_prices(
         origin,
     ) -> DispatchResult {
@@ -121,9 +121,11 @@ decl_module! {
 
         Self::_record_aggregated_prices()
     }
-    fn on_finalize(){
+    fn on_finalize(n : T::BlockNumber){
         let block = <system::Module<T>>::block_number();
+        debug::info!("finalize from system:{:?} ad arg:{:?}", block, n);
         if block % T::BlockFetchPeriod::get() == T::BlockNumber::from(0) {
+            debug::info!("finalize IN:{:?}", block);
             let _ = Self::_record_aggregated_prices();
         }
     }
@@ -137,18 +139,13 @@ impl<T: Trait> Module<T> {
             .iter()
             .fold(T::Balance::zero(), |mem, price| mem + *price);
 
-        // Avoiding floating-point arithmetic & do integer division
-        let price_avg: T::Balance =
-            price_sum / T::Balance::from(token_pricepoints_vec.len() as u32);
-
-        price_avg
+        match token_pricepoints_vec.len() {
+            0 => T::Balance::from(0),
+            _ => price_sum / T::Balance::from(token_pricepoints_vec.len() as u32),
+        }
     }
 
-    fn _record_price(
-        crypto_info: (Vec<u8>, Vec<u8>, Vec<u8>),
-        price: T::Balance,
-    ) -> DispatchResult {
-        let (symbol, remote_src) = (crypto_info.0, crypto_info.1);
+    fn _record_price(symbol: Vec<u8>, price: T::Balance) -> DispatchResult {
         let now = <timestamp::Module<T>>::get();
 
         //     //DEBUG
@@ -159,7 +156,7 @@ impl<T: Trait> Module<T> {
         // );
         <TokenPriceHistory<T>>::mutate(&symbol, |prices| prices.push(price));
 
-        Self::deposit_event(RawEvent::RecordedPrice(symbol, remote_src, now, price));
+        Self::deposit_event(RawEvent::RecordedPrice(symbol, now, price));
         Ok(())
     }
     fn _record_aggregated_prices() -> DispatchResult {
@@ -172,12 +169,15 @@ impl<T: Trait> Module<T> {
             .iter()
             .map(|t| {
                 let symbol = t.0;
+                let mut old_vec = <TokenPriceHistory<T>>::get(symbol);
+                if old_vec.len() == 0 {
+                    return Err(<Error<T>>::AggregatingError);
+                }
                 let price = Self::aggregate_prices(symbol);
                 let now = <timestamp::Module<T>>::get();
                 let price_pt = (now.clone(), price.clone());
                 <AggregatedPrices<T>>::insert(symbol, price_pt);
 
-                let mut old_vec = <TokenPriceHistory<T>>::get(symbol);
                 let new_vec = if old_vec.len() < TOKENS_TO_KEEP {
                     old_vec
                 } else {
@@ -200,13 +200,13 @@ impl<T: Trait> Module<T> {
                 Err(<Error<T>>::AggregatingError),
                 |_, el: Result<(), Error<T>>| match el {
                     Ok(_) => Ok(()),
-                    Err(_) => Err(<Error<T>>::AggregatingError),
+                    Err(e) => Err(e),
                 },
             );
 
         match result.is_ok() {
             true => debug::info!("Aggregating prices is successful"),
-            false => debug::error!("Error aggregating prices "),
+            false => debug::error!("Error aggregating prices. Check the price lists!"),
         }
 
         Ok(())
@@ -325,54 +325,4 @@ pub mod tests {
             .into()
     }
 
-    #[test]
-    fn test_coingecko_parsing() {
-        new_test_ext().execute_with(|| {
-            let json: Vec<u8> = r#"{"cdai":{"usd": 7064.16}}"#.as_bytes().to_vec();
-            let v = simple_json::parse_json(
-                &core::str::from_utf8(&json)
-                    .map_err(|_| "JSON result cannot convert to string")
-                    .expect("failed to parse Vec<u8> to &str"),
-            )
-            .map_err(|_| "JSON parsing error")
-            .expect("failed to parse to JsonValue");
-            let result = OracleModule::parse_price_from_coingecko(v)
-                .expect("failed to parse from coingecko");
-
-            assert_eq!(result, 7064160000000000000000);
-        });
-    }
-    #[test]
-    fn test_cryptocompare_parsing() {
-        new_test_ext().execute_with(|| {
-            let json: Vec<u8> = r#"{"USD": 7064.16}"#.as_bytes().to_vec();
-            let v = simple_json::parse_json(
-                &core::str::from_utf8(&json)
-                    .map_err(|_| "JSON result cannot convert to string")
-                    .expect("failed to parse Vec<u8> to &str"),
-            )
-            .map_err(|_| "JSON parsing error")
-            .expect("failed to parse to JsonValue");
-            let result = OracleModule::parse_price_from_cryptocompare(v)
-                .expect("failed to parse from cryptocompare");
-
-            assert_eq!(result, 7064160000000000000000);
-        });
-    }
-    #[test]
-    fn test_simple_parsing() {
-        new_test_ext().execute_with(|| {
-            let json: Vec<u8> = r#"{"USD": 7064.16}"#.as_bytes().to_vec();
-            let v = simple_json::parse_json(
-                &core::str::from_utf8(&json)
-                    .map_err(|_| "JSON result cannot convert to string")
-                    .expect("fail"),
-            )
-            .map_err(|_| "JSON parsing error")
-            .expect("double fail");
-            let result = v.get_object()[0].1.get_number_f64();
-
-            assert_eq!(result, 7064.16);
-        });
-    }
 }
