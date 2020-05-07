@@ -2,7 +2,7 @@
 
 #![warn(unused_extern_crates)]
 
-use akropolisos_substrate_node_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
+use akropolisos_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
 use basic_authorship::ProposerFactory;
 use consensus::{import_queue, start_aura, AuraImportQueue, NothingExtra, SlotDuration};
 use grandpa;
@@ -25,8 +25,8 @@ pub use substrate_executor::NativeExecutor;
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	akropolisos_substrate_node_runtime::api::dispatch,
-	akropolisos_substrate_node_runtime::native_version,
+	akropolisos_runtime::api::dispatch,
+	akropolisos_runtime::native_version,
 	include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/akropolisos_substrate_node_runtime_wasm.compact.wasm")
 );
 

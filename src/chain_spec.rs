@@ -1,5 +1,5 @@
-use akropolisos_substrate_node_runtime::types::Token;
-use akropolisos_substrate_node_runtime::{
+use akropolisos_runtime::types::Token;
+use akropolisos_runtime::{
     AccountId, BalancesConfig, BridgeConfig, ConsensusConfig, ContractConfig, CouncilVotingConfig,
     DemocracyConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Perbill, Permill, Schedule,
     SessionConfig, StakerStatus, StakingConfig, SudoConfig, TimestampConfig, TokenConfig,
