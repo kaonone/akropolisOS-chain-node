@@ -28,6 +28,7 @@ pub enum Alternative {
     /// Whatever the current runtime is, with simple Alice/Bob auths.
     LocalTestnet,
     Akropolis,
+    AkropolisSparta,
     AkropolisStaging,
 }
 
@@ -80,10 +81,9 @@ impl Alternative {
                 None,
             ),
             Alternative::Akropolis => akropolis_genesis()?,
+            Alternative::AkropolisSparta => sparta_genesis()?,
             Alternative::AkropolisStaging => {
                 let boot_nodes = vec![
-                    "/ip4/157.230.35.215/tcp/30333/p2p/QmdRjsEvcGGKDTPAcVnCrRnsqqhbURbzetkkUQYwAmnxaS".to_string(),
-                    "/ip4/178.128.225.241/tcp/30333/p2p/QmbriyUytrn9W2AAsnMXN8g4SGQ8cspnmFju4ZJYiYq1Ax".to_string()
                 ];
                 let telemetry = TelemetryEndpoints::new(vec![
                     ("ws://telemetry.polkadot.io:1024".to_string(), 0),
@@ -107,8 +107,9 @@ impl Alternative {
         match s {
             "dev" => Some(Alternative::Development),
             "local" => Some(Alternative::LocalTestnet),
-            "" | "akropolis" => Some(Alternative::Akropolis),
-            "akropolis_staging" => Some(Alternative::AkropolisStaging),
+            "" | "akropolisos" => Some(Alternative::Akropolis),
+            "sparta" => Some(Alternative::AkropolisSparta),
+            "akropolis_staging" | "staging" => Some(Alternative::AkropolisStaging),
             _ => None,
         }
     }
@@ -236,12 +237,16 @@ fn testnet_genesis(
 }
 
 fn akropolis_genesis() -> Result<ChainSpec, String> {
-    ChainSpec::from_embedded(include_bytes!("../res/akropolis.json"))
+    ChainSpec::from_embedded(include_bytes!("../res/akropolisos.json"))
+}
+fn sparta_genesis() -> Result<ChainSpec, String> {
+    ChainSpec::from_embedded(include_bytes!("../res/akropolisosSpartaRaw.json"))
 }
 
 fn akropolis_staging_genesis() -> GenesisConfig {
     let endowed_accounts = vec![
-        hex!("ac093ae2c4b5cc62aca5ceca961ed3bd3ad65d0fdcc3cbd206109d5ab970e171").unchecked_into(), // 5FxGqPvuyvKaGvwaHAiTjvVpQMoZcgd1tLbWWWyPH4QNyc6Q
+        hex!("ac093ae2c4b5cc62aca5ceca961ed3bd3ad65d0fdcc3cbd206109d5ab970e171").unchecked_into(),
+        // 5FxGqPvuyvKaGvwaHAiTjvVpQMoZcgd1tLbWWWyPH4QNyc6Q
     ];
 
     let initial_authorities = vec![
@@ -260,6 +265,14 @@ fn akropolis_staging_genesis() -> GenesisConfig {
             hex!("4e18e46d6e8c086a81a9162fa72d95bb3a0712f0ab73ea872cc88b810bdd2575")
                 .unchecked_into(), // 5Dq6zBbF78utVLB16oAc3b7bCJKRksuoomoWeBF7LsbKVcjx
             hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc8eed6ff3aa5428db31a16c875")
+                .unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
+        ),
+        (
+            hex!("10fffd9162e7950a449edd6024ac326321228df2659c2a1f9d5c084c56fcc112")
+                .unchecked_into(), // 5CSzfigG2EGM3MmCcjKSAJMdtgbh4eNKc54kVU9BJBPVxju3
+            hex!("4e18e46d6e8c086a81a9892fa72d95bb3a0712f0ab73ea872cc88b810bdd2575")
+                .unchecked_into(), // 5Dq6zBbF78utVLB16oAc3b7bCJKRksuoomoWeBF7LsbKVcjx
+            hex!("a17221f222c706dea7adfb7e6ec3dbba9a7febc9ded6ff3aa5428db31a16c875")
                 .unchecked_into(), // 5FiPUGuYULQhcxkdUhAakHprBFQWj37ac5YwaSo5Kph9Vypz
         ),
     ];

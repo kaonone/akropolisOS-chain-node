@@ -89,5 +89,5 @@ vergen = '3'
 panic = 'unwind'
 
 [[bin]]
-name = 'akropolisos-substrate-node'
+name = 'akropolisos-node'
 path = 'src/main.rs'
