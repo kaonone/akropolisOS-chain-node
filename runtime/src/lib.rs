@@ -68,6 +68,7 @@ mod token;
 pub use bridge::Call as BridgeCall;
 
 mod oracle;
+pub use oracle::Call as OracleCall;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -95,10 +96,10 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("akropolisos-substrate-node"),
-    impl_name: create_runtime_str!("akropolisos-substrate-node"),
+    spec_name: create_runtime_str!("akropolisos-node"),
+    impl_name: create_runtime_str!("akropolisos-node"),
     authoring_version: 3,
-    spec_version: 4,
+    spec_version: 5,
     impl_version: 4,
     apis: RUNTIME_API_VERSIONS,
 };
