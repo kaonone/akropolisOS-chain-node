@@ -17,30 +17,31 @@ tokio = '0.1'
 trie-root = '0.12.0'
 
 [dependencies.basic-authorship]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-basic-authorship'
 
 [dependencies.consensus]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-consensus-aura'
 
 [dependencies.grandpa]
-git = "https://github.com/paritytech/substrate.git"
+git = "https://github.com/akropolisio/substrate.git"
 package = "substrate-finality-grandpa"
+branch = 'v1.0_custom'
 
 [dependencies.ctrlc]
 features = ['termination']
 version = '3.0'
 
 [dependencies.inherents]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-inherents'
 
 [dependencies.network]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-network'
 
@@ -48,37 +49,37 @@ package = 'substrate-network'
 path = 'runtime'
 
 [dependencies.primitives]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-primitives'
 
 [dependencies.sr-io]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 
 [dependencies.substrate-cli]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 
 [dependencies.substrate-client]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 
 [dependencies.substrate-executor]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 
 [dependencies.substrate-service]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 
 [dependencies.transaction-pool]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-transaction-pool'
 
 [dependencies.telemetry]
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-telemetry'
 

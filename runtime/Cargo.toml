@@ -40,55 +40,55 @@ num-traits = { version = "0.2.8", default-features = false }
 
 [dependencies.aura]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-aura'
 
 [dependencies.balances]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-balances'
 
 [dependencies.client]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-client'
 
 [dependencies.consensus]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-consensus'
 
 [dependencies.consensus-aura]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-consensus-aura-primitives'
 
 [dependencies.consensus_authorities]
 default-features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-consensus-authorities'
 
 [dependencies.executive]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-executive'
 
 [dependencies.indices]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-indices'
 
 [dependencies.offchain-primitives]
 default-features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-offchain-primitives'
 
@@ -99,25 +99,25 @@ version = '3.5'
 
 [dependencies.primitives]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'substrate-primitives'
 
 [dependencies.rstd]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'sr-std'
 
 [dependencies.runtime-io]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'sr-io'
 
 [dependencies.runtime-primitives]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'sr-primitives'
 
@@ -132,78 +132,78 @@ version = '1.0'
 
 [dependencies.sudo]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-sudo'
 
 [dependencies.support]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-support'
 
 [dependencies.system]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-system'
 
 [dependencies.timestamp]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-timestamp'
 
 [dependencies.version]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'sr-version'
 
 [dependencies.session]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-session'
 
 [dependencies.staking]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-staking'
 
 [dependencies.democracy]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-democracy'
 
 [dependencies.council]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-council'
 
 [dependencies.treasury]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-treasury'
 
 [dependencies.contract]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-contract'
 
 [dependencies.grandpa]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-grandpa'
 
 [dependencies.finality-tracker]
 default_features = false
-git = 'https://github.com/alekspickle/substrate.git'
+git = 'https://github.com/akropolisio/substrate.git'
 branch = 'v1.0_custom'
 package = 'srml-finality-tracker'
