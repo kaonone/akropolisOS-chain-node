@@ -8,8 +8,6 @@ res/
 # Ignore swap files
 *.swp
 
-*.lock
-
 # Code editors
 .vscode
 
