@@ -13,7 +13,7 @@ pub trait Trait: balances::Trait + system::Trait {
 // This module's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as marketplace {
-        Something get(something): Option<u64>;
+        Something get(fn something): Option<u64>;
     }
 }
 
