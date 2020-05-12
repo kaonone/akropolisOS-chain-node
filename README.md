@@ -97,6 +97,9 @@ This guide will walk you through how to create account and how to connect to Akr
 ```bash
 
 {
+    "Address": "AccountId",
+    "LookupSource": "AccountId",
+    "Weight": "u32",
     "Count": "u64",
     "DaoId": "u64",
     "MemberId": "u64",

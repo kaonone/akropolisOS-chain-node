@@ -2,21 +2,20 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-node'
-version = '0.3.7'
+version = '0.3.8'
 build = "build.rs"
 
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
 
-[[bin]]
-name = "akropolisos-node"
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-futures = "0.3.4"
-log = "0.4.8"
-structopt = "0.3.8"
+futures = '0.3.4'
+log = '0.4.8'
+structopt = '0.3.8'
+hex-literal = "0.2.1"
 
-akropolisos-runtime = { path = "../runtime" }
+runtime = {path = '../runtime'}
 
 [dependencies.sc-basic-authorship]
 version = '0.8.0-alpha.6'
@@ -24,7 +23,7 @@ version = '0.8.0-alpha.6'
 [dependencies.sc-cli]
 version = '0.8.0-alpha.6'
 
-[dependencies.sc-consensus]
+[dependencies.sc-client]
 version = '0.8.0-alpha.6'
 
 [dependencies.sc-client-api]
@@ -68,10 +67,8 @@ version = '2.0.0-alpha.6'
 
 [dependencies.sp-transaction-pool]
 version = '2.0.0-alpha.6'
-
 [build-dependencies.substrate-build-script-utils]
 version = '2.0.0-alpha.6'
 
-#9f51b41f4c4df11a9d190152b2807bf57bdcd60a
-#sc-basic-authorship = { rev = '710722f02f372601b2dae178d66654b8cb372ab5', git = 'https://github.com/paritytech/substrate.git'}
-
+[[bin]]
+name = 'akropolisos-node'

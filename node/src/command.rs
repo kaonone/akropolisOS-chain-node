@@ -75,7 +75,7 @@ pub fn run() -> sc_cli::Result<()> {
             runner.run_node(
                 service::new_light,
                 service::new_full,
-                akropolisos_runtime::VERSION,
+                runtime::VERSION,
             )
         }
     }

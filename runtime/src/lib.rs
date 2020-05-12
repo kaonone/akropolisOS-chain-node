@@ -34,23 +34,18 @@ pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	StorageValue, construct_runtime, parameter_types,
 	traits::Randomness,
-	weights::{
-		Weight,
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-	},
+	weights::Weight,
 };
 
-pub use types::*;
+pub mod types;
+pub mod bridge;
+mod dao;
+mod marketplace;
+mod token;
+mod oracle;
 
-// pub mod bridge;
-// mod dao;
-// mod marketplace;
-// mod token;
-// pub use bridge::Call as BridgeCall;
-
-// mod price_oracle;
-
-
+pub use bridge::Call as BridgeCall;
+pub use oracle::Call as OracleCall;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -101,15 +96,15 @@ pub mod opaque {
 		}
 	}
 }
+
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("akropolisos-node"),
-    impl_name: create_runtime_str!("akropolisos-node"),
-    authoring_version: 1,
-    spec_version: 9,
-    impl_version: 1,
-    apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+	spec_name: create_runtime_str!("akropolisos-node"),
+	impl_name: create_runtime_str!("akropolisos-node"),
+	authoring_version: 1,
+	spec_version: 10,
+	impl_version: 1,
+	apis: RUNTIME_API_VERSIONS,
 };
 
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
@@ -132,8 +127,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 250;
-	/// We allow for 2 seconds of compute with a 6 second average block time.
-	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+	pub const MaximumBlockWeight: Weight = 1_000_000_000;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
@@ -164,14 +158,6 @@ impl system::Trait for Runtime {
 	type BlockHashCount = BlockHashCount;
 	/// Maximum weight of each block.
 	type MaximumBlockWeight = MaximumBlockWeight;
-	/// The weight of database operations that the runtime can invoke.
-	type DbWeight = RocksDbWeight;
-	/// The weight of the overhead invoked on the block import process, independent of the
-	/// extrinsics included in that block.
-	type BlockExecutionWeight = BlockExecutionWeight;
-	/// The base weight of any extrinsic processed by the runtime, independent of the
-	/// logic of that extrinsic. (Signature verification, nonce increment, fee, etc...)
-	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
 	/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
 	type MaximumBlockLength = MaximumBlockLength;
 	/// Portion of the block weight that is available to all normal transactions.
@@ -224,12 +210,14 @@ impl balances::Trait for Runtime {
 }
 
 parameter_types! {
+	pub const TransactionBaseFee: Balance = 0;
 	pub const TransactionByteFee: Balance = 1;
 }
 
 impl transaction_payment::Trait for Runtime {
 	type Currency = balances::Module<Runtime>;
 	type OnTransactionPayment = ();
+	type TransactionBaseFee = TransactionBaseFee;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = ConvertInto;
 	type FeeMultiplierUpdate = ();
@@ -240,39 +228,40 @@ impl sudo::Trait for Runtime {
 	type Call = Call;
 }
 
-// impl bridge::Trait for Runtime {
-//     type Event = Event;
-// }
+impl bridge::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl dao::Trait for Runtime {
-//     type Event = Event;
-// }
+impl dao::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl marketplace::Trait for Runtime {
-//     type Event = Event;
-// }
+impl marketplace::Trait for Runtime {
+    type Event = Event;
+}
 
-// impl token::Trait for Runtime {
-//     type Event = Event;
-// }
+impl token::Trait for Runtime {
+    type Event = Event;
+}
 
-// parameter_types! {
-//     pub const BlockFetchPeriod: BlockNumber = 10;
-// }
+parameter_types! {
+    pub const BlockFetchPeriod: BlockNumber = 10;
+}
 
-// impl price_oracle::Trait for Runtime {
-//     type Event = Event;
-//     type Call = Call;
-//     type BlockFetchPeriod = BlockFetchPeriod;
-// }
+impl oracle::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type BlockFetchPeriod = BlockFetchPeriod;
+}
+
 
 construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: system::{Module, Call, Config, Storage, Event<T>},
+	pub enum Runtime where
+		Block = Block,
+		NodeBlock = opaque::Block,
+		UncheckedExtrinsic = UncheckedExtrinsic
+	{
+		System: system::{Module, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
 		Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
@@ -280,14 +269,15 @@ construct_runtime!(
 		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: transaction_payment::{Module, Storage},
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
-        // Akropolis pallets
-        // Token: token::{Module, Call, Storage, Config, Event<T>},
-        // Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
-        // Dao: dao::{Module, Call, Storage, Config, Event<T>},
-        // Marketplace: marketplace::{Module, Call, Storage, Event<T>},
-        // PriceOracle: price_oracle::{Module, Call, Storage, Event<T>},
-    }
+		// Akropolis pallets
+        Token: token::{Module, Call, Storage, Config, Event<T>},
+        Bridge: bridge::{Module, Call, Storage, Config<T>, Event<T>},
+        Dao: dao::{Module, Call, Storage, Config, Event<T>},
+        Marketplace: marketplace::{Module, Call, Storage, Event<T>},
+        Oracle: oracle::{Module, Call, Storage, Event<T>},
+	}
 );
+
 /// The address format for describing accounts.
 pub type Address = AccountId;
 /// Block header type as expected by this runtime.

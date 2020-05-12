@@ -67,7 +67,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn burn(origin, from: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult {
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -79,7 +79,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn mint(origin, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult{
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -94,7 +94,7 @@ decl_module! {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
         // }
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -108,7 +108,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -123,7 +123,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn transfer_from(origin,
             from: T::AccountId,
             to: T::AccountId,
@@ -323,7 +323,6 @@ mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
-        type DbWeight = ();
     }
 
     impl balances::Trait for Test {

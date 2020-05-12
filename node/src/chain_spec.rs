@@ -1,5 +1,5 @@
-// use akropolisos_runtime::{BridgeConfig, types::Token, TokenConfig};
-use akropolisos_runtime::{
+use runtime::{BridgeConfig, types::Token, TokenConfig};
+use runtime::{
     AccountId, AuraConfig, BalancesConfig,  GenesisConfig, GrandpaConfig, Signature,
     SudoConfig, SystemConfig,  WASM_BINARY,
 };
@@ -11,10 +11,10 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const DEFAULT_PROTOCOL_ID: &str = "akro";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
-
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
     TPublic::Pair::from_string(&format!("//{}", seed), None)
@@ -57,9 +57,9 @@ pub fn development_config() -> ChainSpec {
         },
         vec![],
         None,
+        Some(DEFAULT_PROTOCOL_ID),
         None,
-        None,
-        None,
+        Default::default(),
     )
 }
 
@@ -94,9 +94,9 @@ pub fn local_testnet_config() -> ChainSpec {
         },
         vec![],
         None,
+        Some(DEFAULT_PROTOCOL_ID),
         None,
-        None,
-        None,
+        Default::default(),
     )
 }
 
@@ -104,7 +104,7 @@ pub fn sparta_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Akropolis OS Sparta Testnet",
         "akropolisos_sparta_testnet",
-        ChainType::Custom("sparta".into()),
+        ChainType::Live,
         || {
             testnet_genesis(
 				vec![
@@ -135,28 +135,28 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
-    // let tokens = vec![
-    //     Token {
-    //         id: 0,
-    //         decimals: 18,
-    //         symbol: Vec::from("DAI"),
-    //     },
-    //     Token {
-    //         id: 1,
-    //         decimals: 18,
-    //         symbol: Vec::from("cDAI"),
-    //     },
-    //     Token {
-    //         id: 2,
-    //         decimals: 18,
-    //         symbol: Vec::from("USDT"),
-    //     },
-    //     Token {
-    //         id: 3,
-    //         decimals: 18,
-    //         symbol: Vec::from("USDC"),
-    //     },
-    // ];
+    let tokens = vec![
+        Token {
+            id: 0,
+            decimals: 18,
+            symbol: Vec::from("DAI"),
+        },
+        Token {
+            id: 1,
+            decimals: 18,
+            symbol: Vec::from("cDAI"),
+        },
+        Token {
+            id: 2,
+            decimals: 18,
+            symbol: Vec::from("USDT"),
+        },
+        Token {
+            id: 3,
+            decimals: 18,
+            symbol: Vec::from("USDC"),
+        },
+    ];
 
     GenesisConfig {
         system: Some(SystemConfig {
@@ -180,18 +180,18 @@ fn testnet_genesis(
                 .collect(),
         }),
         sudo: Some(SudoConfig { key: root_key }),
-        // bridge: Some(BridgeConfig {
-        //     validator_accounts: endowed_accounts,
-        //     validators_count: 3u32,
-        //     current_limits: vec![
-        //         100 * 10u128.pow(18),
-        //         200 * 10u128.pow(18),
-        //         50 * 10u128.pow(18),
-        //         400 * 10u128.pow(18),
-        //         10 * 10u128.pow(18),
-        //     ],
-        // }),
-        // dao: None,
-        // token: Some(TokenConfig { tokens }),
+        bridge: Some(BridgeConfig {
+            validator_accounts: endowed_accounts,
+            validators_count: 3u32,
+            current_limits: vec![
+                100 * 10u128.pow(18),
+                200 * 10u128.pow(18),
+                50 * 10u128.pow(18),
+                400 * 10u128.pow(18),
+                10 * 10u128.pow(18),
+            ],
+        }),
+        dao: None,
+        token: Some(TokenConfig { tokens }),
     }
 }

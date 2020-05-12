@@ -82,7 +82,7 @@ decl_error! {
 }
 
 decl_storage! {
-  trait Store for Module<T: Trait> as PriceOracle {
+  trait Store for Module<T: Trait> as Oracle {
     /// List of last prices with length of TOKENS_TO_KEEP
     pub TokenPriceHistory get(fn token_price_history):
     map hasher(blake2_128_concat) Vec<u8> => Vec<T::Balance>;
@@ -101,7 +101,7 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
-    #[weight = 1]
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
     pub fn record_price(
         origin,
         sym: Vec<u8>,
@@ -112,7 +112,7 @@ decl_module! {
         Self::_record_price(sym, price)
     }
 
-    #[weight = 1]
+    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
     pub fn record_aggregated_prices(
         origin,
     ) -> DispatchResult {
@@ -121,11 +121,10 @@ decl_module! {
 
         Self::_record_aggregated_prices()
     }
-    fn on_finalize(n : T::BlockNumber){
+    fn on_finalize(_n : T::BlockNumber){
         let block = <system::Module<T>>::block_number();
-        debug::info!("finalize from system:{:?} ad arg:{:?}", block, n);
         if block % T::BlockFetchPeriod::get() == T::BlockNumber::from(0) {
-            debug::info!("finalize IN:{:?}", block);
+            debug::info!("run aggregate prices :{:?}", block);
             let _ = Self::_record_aggregated_prices();
         }
     }
@@ -218,7 +217,7 @@ pub mod tests {
     /// tests for this module
     use super::*;
     use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
-    use sp_core::H256;
+    use sp_core::{H256, sr25519};
     use sp_runtime::{
         testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
@@ -282,7 +281,6 @@ pub mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
-        type DbWeight = ();
     }
 
     impl balances::Trait for Test {
@@ -301,7 +299,7 @@ pub mod tests {
 
     pub type Extrinsic = TestXt<Call, ()>;
     type SubmitPFTransaction =
-        system::offchain::TransactionSubmitter<crypto::Public, Call, Extrinsic>;
+        system::offchain::TransactionSubmitter<sr25519::Public, Call, Extrinsic>;
 
     pub type OracleModule = Module<Test>;
 
@@ -312,7 +310,6 @@ pub mod tests {
     impl Trait for Test {
         type Event = ();
         type Call = Call;
-        type SubmiTransaction = SubmitPFTransaction;
         type BlockFetchPeriod = BlockFetchPeriod;
     }
 

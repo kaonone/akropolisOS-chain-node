@@ -22,7 +22,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -132,7 +132,6 @@ mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
-        type DbWeight = ();
     }
 
     impl balances::Trait for Test {

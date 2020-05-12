@@ -22,7 +22,7 @@ use sp_std::prelude::Vec;
 use system::ensure_signed;
 
 use crate::types::*;
-use crate::{marketplace, price_oracle, token};
+use crate::{marketplace, oracle, token};
 
 const LOCK_NAME: LockIdentifier = *b"dao_lock";
 const MINIMUM_VOTE_TIOMEOUT: u32 = 30; // ~5 min
@@ -34,7 +34,7 @@ pub trait Trait:
     + balances::Trait
     + timestamp::Trait
     + system::Trait
-    + price_oracle::Trait
+    + oracle::Trait
 {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
@@ -77,7 +77,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn create(origin, address: T::AccountId, name: Vec<u8>, description: Vec<u8>) -> DispatchResult {
             let founder = ensure_signed(origin)?;
 
@@ -123,7 +123,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn propose_to_add_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -168,7 +168,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn propose_to_remove_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -212,7 +212,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -257,7 +257,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn propose_to_change_vote_timeout(origin, dao_id: DaoId, value: T::BlockNumber) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -301,7 +301,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -346,7 +346,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> DispatchResult {
             let voter = ensure_signed(origin)?;
 
@@ -399,7 +399,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 1]
+        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
@@ -574,7 +574,7 @@ impl<T: Trait> Module<T> {
     ) -> DispatchResult {
         let token = <token::Module<T>>::token_map(token_id);
         //TODO: take last price instead of average?..
-        let price = <price_oracle::Module<T>>::aggregated_prices(token.symbol)
+        let price = <oracle::Module<T>>::aggregated_prices(token.symbol)
             .1
             .into();
 
@@ -702,7 +702,7 @@ mod tests {
         traits::{Get, ReservableCurrency},
         weights::Weight,
     };
-    use sp_core::{H160, H256};
+    use sp_core::{H160, H256, sr25519};
     use sp_runtime::{
         testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
@@ -724,7 +724,7 @@ mod tests {
     impl_outer_dispatch! {
         pub enum Call for Test where origin: Origin {
         dao::DaoModule,
-        price_oracle::PriceOracleModule,
+        oracle::PriceOracleModule,
         }
     }
 
@@ -767,7 +767,6 @@ mod tests {
         type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
-        type DbWeight = ();
     }
 
     impl balances::Trait for Test {
@@ -798,21 +797,18 @@ mod tests {
 
     pub type Extrinsic = TestXt<Call, ()>;
     type SubmitPFTransaction =
-        system::offchain::TransactionSubmitter<price_oracle::crypto::Public, Call, Extrinsic>;
+        system::offchain::TransactionSubmitter<sr25519::Public, Call, Extrinsic>;
 
     parameter_types! {
         pub const BlockFetchPeriod: BlockNumber = 2;
         pub const GracePeriod: BlockNumber = 5;
     }
 
-    impl price_oracle::Trait for Test {
+    impl oracle::Trait for Test {
         type Event = ();
         type Call = Call;
-        type SubmitUnsignedTransaction = SubmitPFTransaction;
-
         // Wait period between automated fetches. Set to 0 disable this feature.
         //   Then you need to manucally kickoff pricefetch
-        type GracePeriod = GracePeriod;
         type BlockFetchPeriod = BlockFetchPeriod;
     }
 
@@ -822,7 +818,7 @@ mod tests {
     type Balances = balances::Module<Test>;
     type BridgeModule = bridge::Module<Test>;
     type TokenModule = token::Module<Test>;
-    type PriceOracleModule = price_oracle::Module<Test>;
+    type PriceOracleModule = oracle::Module<Test>;
     type DaoModule = Module<Test>;
 
     const DAO_ID: DaoId = 0;
