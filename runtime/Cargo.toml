@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'runtime'
-version = '0.5.11'
+version = '0.5.12'
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

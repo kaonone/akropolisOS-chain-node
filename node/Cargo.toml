@@ -2,7 +2,7 @@
 authors = ['Akropolis <admin@akropolis.io>']
 edition = '2018'
 name = 'akropolisos-node'
-version = '0.3.9'
+version = '0.3.10'
 build = "build.rs"
 
 
