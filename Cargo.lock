@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "akropolisos-node"
-version = "0.3.9"
+version = "0.3.10"
 dependencies = [
  "futures 0.3.4",
  "hex-literal",
@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "runtime"
-version = "0.5.11"
+version = "0.5.12"
 dependencies = [
  "frame-executive",
  "frame-support",
