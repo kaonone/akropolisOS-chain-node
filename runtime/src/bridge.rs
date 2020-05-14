@@ -13,7 +13,7 @@ use crate::types::*;
 use codec::Encode;
 use frame_support::{
     decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, fail,
-    weights::SimpleDispatchInfo, StorageMap, StorageValue,
+     StorageMap, StorageValue,
 };
 use num_traits::ops::checked::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 use num_traits::Bounded;
@@ -104,7 +104,7 @@ decl_module! {
 
         // initiate substrate -> ethereum transfer.
         // create transfer and emit the RelayMessage event
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn set_transfer(origin, to: H160, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult
         {
             let from = ensure_signed(origin)?;
@@ -134,7 +134,7 @@ decl_module! {
         }
 
         // ethereum-side multi-signed mint operation
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn multi_signed_mint(origin, message_id: T::Hash, from: H160, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
@@ -163,7 +163,7 @@ decl_module! {
         }
 
         // change maximum tx limit
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn update_limits(origin, max_tx_value: T::Balance, day_max_limit: T::Balance, day_max_limit_for_one_address: T::Balance, max_pending_tx_limit: T::Balance,min_tx_value: T::Balance)-> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
@@ -193,7 +193,7 @@ decl_module! {
         }
 
         // validator`s response to RelayMessage
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn approve_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
@@ -205,7 +205,7 @@ decl_module! {
         }
 
         // each validator calls it to update whole set of validators
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn update_validator_list(origin, message_id: T::Hash, quorum: u64, new_validator_list: Vec<T::AccountId>) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
@@ -228,7 +228,7 @@ decl_module! {
         }
 
         // each validator calls it to pause the bridge
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn pause_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
@@ -253,7 +253,7 @@ decl_module! {
         }
 
         // each validator calls it to resume the bridge
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn resume_bridge(origin) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
@@ -277,7 +277,7 @@ decl_module! {
         }
 
         //confirm burn from validator
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn confirm_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             ensure!(Self::bridge_is_operational(), "Bridge is not operational");
@@ -296,7 +296,7 @@ decl_module! {
         }
 
         //cancel burn from validator
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         pub fn cancel_transfer(origin, message_id: T::Hash) -> DispatchResult {
             let validator = ensure_signed(origin)?;
             Self::check_validator(validator.clone())?;
@@ -776,7 +776,10 @@ mod tests {
     use frame_support::{
         assert_noop, assert_ok, impl_outer_origin, parameter_types,
         traits::{Get, OnFinalize},
-        weights::Weight,
+        weights::{
+            Weight,
+            constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        },
     };
     use sp_core::{H160, H256};
     use sp_runtime::{
@@ -815,25 +818,28 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
-        type Origin = Origin;
+        type AccountId = u64;
         type Call = ();
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Index = u64;
         type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
+        type Origin = Origin;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
+        type BlockExecutionWeight = BlockExecutionWeight;
+        type DbWeight = RocksDbWeight;
+        type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
         type Version = ();
         type ModuleToIndex = ();
-        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type AccountData = balances::AccountData<Balance>;
     }
 
     impl balances::Trait for Test {

@@ -1,6 +1,6 @@
 use crate::types::{DaoId, Days, Rate, TokenId};
 use frame_support::{
-    decl_event, decl_module, decl_storage, dispatch::DispatchResult, weights::SimpleDispatchInfo,
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, 
     StorageValue,
 };
 use sp_std::prelude::Vec;
@@ -13,7 +13,7 @@ pub trait Trait: balances::Trait + system::Trait {
 // This module's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as marketplace {
-        Something get(something): Option<u64>;
+        Something get(fn something): Option<u64>;
     }
 }
 
@@ -22,7 +22,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 0]
         fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -75,7 +75,11 @@ mod tests {
     use super::*;
 
     use frame_support::{
-        assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
+        assert_ok, impl_outer_origin, parameter_types, traits::Get,         
+        weights::{
+            Weight,
+            constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        },
     };
     use sp_core::H256;
     use sp_runtime::{
@@ -113,27 +117,29 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
-        type Origin = Origin;
+        type AccountId = u64;
         type Call = ();
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
+        type Origin = Origin;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
+        type BlockExecutionWeight = BlockExecutionWeight;
+        type DbWeight = RocksDbWeight;
+        type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
         type Version = ();
         type ModuleToIndex = ();
-        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type AccountData = balances::AccountData<Balance>;
     }
-
     impl balances::Trait for Test {
         type Balance = Balance;
         type DustRemoval = ();

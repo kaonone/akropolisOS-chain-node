@@ -1,0 +1,74 @@
+[package]
+authors = ['Akropolis <admin@akropolis.io>']
+edition = '2018'
+name = 'akropolisos-node'
+version = '0.3.10'
+build = "build.rs"
+
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[dependencies]
+futures = '0.3.4'
+log = '0.4.8'
+structopt = '0.3.8'
+hex-literal = "0.2.1"
+
+runtime = {path = '../runtime'}
+
+[dependencies.sc-basic-authorship]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-cli]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-consensus]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-client-api]
+version = '2.0.0-alpha.7'
+
+[dependencies.sc-consensus-aura]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-executor]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-finality-grandpa]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-network]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-service]
+version = '0.8.0-alpha.7'
+
+[dependencies.sc-transaction-pool]
+version = '2.0.0-alpha.7'
+
+[dependencies.sp-consensus]
+version = '0.8.0-alpha.7'
+
+[dependencies.sp-consensus-aura]
+version = '0.8.0-alpha.7'
+
+[dependencies.sp-core]
+version = '2.0.0-alpha.7'
+
+[dependencies.sp-finality-grandpa]
+version = '2.0.0-alpha.7'
+
+[dependencies.sp-inherents]
+version = '2.0.0-alpha.7'
+
+[dependencies.sp-runtime]
+version = '2.0.0-alpha.7'
+
+[dependencies.sp-transaction-pool]
+version = '2.0.0-alpha.7'
+[build-dependencies.substrate-build-script-utils]
+version = '2.0.0-alpha.7'
+
+[[bin]]
+name = 'akropolisos-node'

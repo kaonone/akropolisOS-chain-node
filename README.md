@@ -97,11 +97,13 @@ This guide will walk you through how to create account and how to connect to Akr
 ```bash
 
 {
+    "Address": "AccountId",
+    "LookupSource": "AccountId",
+    "Weight": "u32",
     "Count": "u64",
     "DaoId": "u64",
     "MemberId": "u64",
     "ProposalId": "u64",
-    "TokenBalance": "u128",
     "VotesCount": "MemberId",
     "TokenId": "u32",
     "Days": "u32",
@@ -169,11 +171,12 @@ This guide will walk you through how to create account and how to connect to Akr
     },
       "TransferMessage": {
         "message_id": "H256",
+        "token": "TokenId",
         "eth_address": "H160",
         "substrate_address": "AccountId",
-        "amount": "TokenBalance",
+        "amount": "Balance",
         "status": "Status",
-        "direction": "Status"
+        "action": "Status"
     },
       "LimitMessage": {
         "id": "H256",
