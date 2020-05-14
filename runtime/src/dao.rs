@@ -13,7 +13,6 @@ use frame_support::{
     traits::{
         Currency, ExistenceRequirement, Get, LockIdentifier, LockableCurrency, WithdrawReasons,
     },
-    weights::SimpleDispatchInfo,
     StorageMap, StorageValue,
 };
 use num_traits::ops::checked::CheckedSub;
@@ -77,7 +76,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn create(origin, address: T::AccountId, name: Vec<u8>, description: Vec<u8>) -> DispatchResult {
             let founder = ensure_signed(origin)?;
 
@@ -123,7 +122,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn propose_to_add_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -168,7 +167,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn propose_to_remove_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -212,7 +211,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -257,7 +256,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn propose_to_change_vote_timeout(origin, dao_id: DaoId, value: T::BlockNumber) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -301,7 +300,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -346,7 +345,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> DispatchResult {
             let voter = ensure_signed(origin)?;
 
@@ -399,7 +398,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
@@ -700,7 +699,10 @@ mod tests {
     use frame_support::{
         assert_noop, assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types,
         traits::{Get, ReservableCurrency},
-        weights::Weight,
+        weights::{
+            Weight,
+            constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        },
     };
     use sp_core::{H160, H256, sr25519};
     use sp_runtime::{
@@ -748,25 +750,28 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
-        type Origin = Origin;
+        type AccountId = u64;
         type Call = ();
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Index = u64;
         type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
+        type Origin = Origin;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
+        type BlockExecutionWeight = BlockExecutionWeight;
+        type DbWeight = RocksDbWeight;
+        type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
         type Version = ();
         type ModuleToIndex = ();
-        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type AccountData = balances::AccountData<Balance>;
     }
 
     impl balances::Trait for Test {
@@ -795,9 +800,6 @@ mod tests {
         type Event = ();
     }
 
-    pub type Extrinsic = TestXt<Call, ()>;
-    type SubmitPFTransaction =
-        system::offchain::TransactionSubmitter<sr25519::Public, Call, Extrinsic>;
 
     parameter_types! {
         pub const BlockFetchPeriod: BlockNumber = 2;
@@ -807,8 +809,6 @@ mod tests {
     impl oracle::Trait for Test {
         type Event = ();
         type Call = Call;
-        // Wait period between automated fetches. Set to 0 disable this feature.
-        //   Then you need to manucally kickoff pricefetch
         type BlockFetchPeriod = BlockFetchPeriod;
     }
 

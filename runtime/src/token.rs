@@ -4,8 +4,7 @@
 ///
 use crate::types::{Token, TokenId};
 use frame_support::{
-    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-    weights::SimpleDispatchInfo, StorageMap,
+    decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
 use num_traits::ops::checked::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{StaticLookup, Zero};
@@ -67,7 +66,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         fn burn(origin, from: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult {
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -79,7 +78,7 @@ decl_module! {
 
         // ( ! ): can be called directly
         // ( ? ): do we even need this?
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         fn mint(origin, to: T::AccountId, token_id: TokenId, #[compact] amount: T::Balance) -> DispatchResult{
             ensure_signed(origin)?;
             let token = <TokenMap>::get(token_id);
@@ -94,7 +93,7 @@ decl_module! {
         //     ensure_signed(origin)?;
         //     Self::check_token_exist(&token)
         // }
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         fn transfer(origin,
             to: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -108,7 +107,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         fn approve(origin,
             spender: <T::Lookup as StaticLookup>::Source,
             token_id: TokenId,
@@ -123,7 +122,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10000]
         fn transfer_from(origin,
             from: T::AccountId,
             to: T::AccountId,
@@ -261,7 +260,11 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
     use frame_support::{
-        assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
+        assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, 
+        weights::{
+            Weight,
+            constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        },
     };
     use sp_core::H256;
     use sp_runtime::{
@@ -304,25 +307,28 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
-        type Origin = Origin;
+        type AccountId = u64;
         type Call = ();
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
+        type Origin = Origin;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
+        type BlockExecutionWeight = BlockExecutionWeight;
+        type DbWeight = RocksDbWeight;
+        type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
         type Version = ();
         type ModuleToIndex = ();
-        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type AccountData = balances::AccountData<Balance>;
     }
 
     impl balances::Trait for Test {

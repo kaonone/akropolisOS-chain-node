@@ -11,8 +11,7 @@
 ///
 use core::convert::From;
 use frame_support::{
-    debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult,
-    traits::Get, weights::SimpleDispatchInfo,
+    debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, traits::Get,
 };
 #[cfg(not(feature = "std"))]
 #[allow(unused)]
@@ -101,7 +100,7 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
-    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    #[weight = 10000]
     pub fn record_price(
         origin,
         sym: Vec<u8>,
@@ -112,7 +111,7 @@ decl_module! {
         Self::_record_price(sym, price)
     }
 
-    #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+    #[weight = 10000]
     pub fn record_aggregated_prices(
         origin,
     ) -> DispatchResult {
@@ -216,8 +215,16 @@ impl<T: Trait> Module<T> {
 pub mod tests {
     /// tests for this module
     use super::*;
-    use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
-    use sp_core::{H256, sr25519};
+    use frame_support::{
+        impl_outer_dispatch, impl_outer_origin, parameter_types,
+        weights::{
+            Weight,
+            constants::{
+                BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND,
+            },
+        },
+    };
+    use sp_core::{sr25519, H256};
     use sp_runtime::{
         testing::{Header, TestXt},
         traits::{BlakeTwo256, IdentityLookup},
@@ -262,25 +269,28 @@ pub mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
-        type Origin = Origin;
-        type Call = ();
+        type AccountId = u64;
+        type Call = Call;
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Index = u64;
         type BlockNumber = BlockNumber;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
+        type Origin = Origin;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
+        type BlockExecutionWeight = BlockExecutionWeight;
+        type DbWeight = RocksDbWeight;
+        type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
         type Version = ();
         type ModuleToIndex = ();
-        type AccountData = balances::AccountData<u128>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type AccountData = balances::AccountData<Balance>;
     }
 
     impl balances::Trait for Test {
@@ -296,10 +306,6 @@ pub mod tests {
         type OnTimestampSet = ();
         type MinimumPeriod = ();
     }
-
-    pub type Extrinsic = TestXt<Call, ()>;
-    type SubmitPFTransaction =
-        system::offchain::TransactionSubmitter<sr25519::Public, Call, Extrinsic>;
 
     pub type OracleModule = Module<Test>;
 
@@ -321,5 +327,4 @@ pub mod tests {
             .unwrap()
             .into()
     }
-
 }
