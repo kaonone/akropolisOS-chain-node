@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("akropolisos-node"),
 	impl_name: create_runtime_str!("akropolisos-node"),
 	authoring_version: 1,
-	spec_version: 10,
+	spec_version: 11,
 	impl_version: 1,
 	transaction_version: 1,
 	apis: RUNTIME_API_VERSIONS,
