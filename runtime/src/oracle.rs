@@ -100,7 +100,7 @@ decl_module! {
     // this is needed only if you are using events in your module
     fn deposit_event() = default;
 
-    #[weight = 10000]
+    #[weight = 0]
     pub fn record_price(
         origin,
         sym: Vec<u8>,
@@ -111,7 +111,7 @@ decl_module! {
         Self::_record_price(sym, price)
     }
 
-    #[weight = 10000]
+    #[weight = 0]
     pub fn record_aggregated_prices(
         origin,
     ) -> DispatchResult {

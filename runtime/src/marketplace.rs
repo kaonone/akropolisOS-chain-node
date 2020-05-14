@@ -22,7 +22,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = 10000]
+        #[weight = 0]
         fn make_investment(origin, proposal_id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 

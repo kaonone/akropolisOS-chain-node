@@ -76,7 +76,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn create(origin, address: T::AccountId, name: Vec<u8>, description: Vec<u8>) -> DispatchResult {
             let founder = ensure_signed(origin)?;
 
@@ -122,7 +122,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn propose_to_add_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -167,7 +167,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn propose_to_remove_member(origin, dao_id: DaoId) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
 
@@ -211,7 +211,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn propose_to_get_loan(origin, dao_id: DaoId, description: Vec<u8>, days: Days, rate: Rate, token_id: TokenId, value: T::Balance) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -256,7 +256,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn propose_to_change_vote_timeout(origin, dao_id: DaoId, value: T::BlockNumber) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -300,7 +300,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn propose_to_change_maximum_number_of_members(origin, dao_id: DaoId, value: MemberId) -> DispatchResult {
             let proposer = ensure_signed(origin)?;
 
@@ -345,7 +345,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn vote(origin, dao_id: DaoId, proposal_id: ProposalId, vote: bool) -> DispatchResult {
             let voter = ensure_signed(origin)?;
 
@@ -398,7 +398,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = 10000]
+        #[weight = 0]
         pub fn deposit(origin, dao_id: DaoId, value: T::Balance) -> DispatchResult {
             let depositor = ensure_signed(origin)?;
 
